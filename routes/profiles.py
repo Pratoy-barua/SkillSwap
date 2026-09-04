@@ -1,0 +1,480 @@
+"""Learner and mentor dashboards and profile editing."""
+
+from decimal import Decimal, InvalidOperation
+
+from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+
+from decorators.auth import role_required
+from extensions import db
+from models.auth import LearnerProfile, LearnerSkill, MentorSkill, Skill
+from models.connection import LearningRelationship, LearningRequest, Notification
+from services.security import issue_csrf_token
+from services.uploads import save_upload
+
+
+learner_bp = Blueprint("learner", __name__, url_prefix="/learner")
+mentor_bp = Blueprint("mentor", __name__, url_prefix="/mentor")
+
+
+def valid_csrf():
+    from flask import session
+
+    return request.form.get("csrf_token") == session.get("csrf_token")
+
+
+# ============================================================
+# LEARNER DASHBOARD
+# ============================================================
+
+@learner_bp.get("/dashboard")
+@role_required("Learner")
+def dashboard():
+    return render_template(
+        "learner/dashboard.html",
+        profile=g.current_user.learner_profile,
+
+        available_skills=(
+            Skill.query
+            .filter_by(is_active=True)
+            .order_by(Skill.name)
+            .all()
+        ),
+
+        pending_requests=(
+            LearningRequest.query
+            .filter_by(
+                learner_id=g.current_user.id,
+                status="Pending"
+            )
+            .count()
+        ),
+
+        relationships=(
+            LearningRelationship.query
+            .filter_by(
+                learner_id=g.current_user.id,
+                status="Active"
+            )
+            .count()
+        ),
+
+        # IMPORTANT:
+        # navbar.html loops through unread_notifications,
+        # so we must pass a list instead of an integer count.
+        unread_notifications=(
+            Notification.query
+            .filter_by(
+                user_id=g.current_user.id,
+                is_read=False
+            )
+            .all()
+        )
+    )
+
+
+# ============================================================
+# LEARNER INTERESTS
+# ============================================================
+
+@learner_bp.route("/interests", methods=["GET", "POST"])
+@role_required("Learner")
+def interests():
+    profile = g.current_user.learner_profile
+
+    if request.method == "POST":
+        selected = {
+            int(value)
+            for value in request.form.getlist("skill_ids")
+        }
+
+        profile.skills.clear()
+
+        skills = (
+            Skill.query
+            .filter(
+                Skill.id.in_(selected),
+                Skill.is_active.is_(True)
+            )
+            .all()
+            if selected
+            else []
+        )
+
+        for skill in skills:
+            profile.skills.append(
+                LearnerSkill(skill=skill)
+            )
+
+        profile.interests = ", ".join(
+            skill.skill.name
+            for skill in profile.skills
+        )
+
+        db.session.commit()
+
+        flash(
+            "Learning interests updated.",
+            "success"
+        )
+
+        return redirect(
+            url_for("learner.interests")
+        )
+
+    return render_template(
+        "learner/interests.html",
+        profile=profile,
+        skills=(
+            Skill.query
+            .filter_by(is_active=True)
+            .order_by(Skill.name)
+            .all()
+        )
+    )
+
+
+# ============================================================
+# LEARNER PROFILE
+# ============================================================
+
+@learner_bp.route("/profile", methods=["GET", "POST"])
+@role_required("Learner")
+def profile():
+    profile = g.current_user.learner_profile
+
+    if request.method == "POST":
+
+        if not valid_csrf():
+            flash(
+                "Your form expired. Please try again.",
+                "danger"
+            )
+
+        else:
+            g.current_user.full_name = (
+                request.form.get("full_name", "").strip()
+                or g.current_user.full_name
+            )
+
+            g.current_user.phone = (
+                request.form.get("phone", "").strip()
+                or g.current_user.phone
+            )
+
+            g.current_user.address = (
+                request.form.get("address", "").strip()
+                or g.current_user.address
+            )
+
+            profile.bio = (
+                request.form.get("bio", "").strip()
+            )
+
+            profile.interests = (
+                request.form.get("interests", "").strip()
+            )
+
+            # Update location
+            if request.form.get("city", "").strip():
+                from routes.auth import location_for
+
+                g.current_user.location = location_for(
+                    request.form["city"],
+                    request.form.get("area")
+                )
+
+            # Profile photo upload
+            if (
+                request.files.get("profile_photo")
+                and request.files["profile_photo"].filename
+            ):
+                try:
+                    g.current_user.profile_photo = (
+                        save_upload(
+                            request.files["profile_photo"],
+                            "profile"
+                        )["stored_name"]
+                    )
+
+                except ValueError as error:
+                    flash(
+                        str(error),
+                        "danger"
+                    )
+
+            db.session.commit()
+
+            flash(
+                "Your learner profile was updated.",
+                "success"
+            )
+
+            return redirect(
+                url_for("learner.profile")
+            )
+
+    return render_template(
+        "learner/profile.html",
+        profile=profile
+    )
+
+
+# ============================================================
+# MENTOR DASHBOARD
+# ============================================================
+
+@mentor_bp.get("/dashboard")
+@role_required("Mentor")
+def dashboard():
+    return render_template(
+        "mentor/dashboard.html",
+        profile=g.current_user.mentor_profile,
+
+        pending_requests=(
+            LearningRequest.query
+            .filter_by(
+                mentor_id=g.current_user.id,
+                status="Pending"
+            )
+            .count()
+        ),
+
+        relationships=(
+            LearningRelationship.query
+            .filter_by(
+                mentor_id=g.current_user.id,
+                status="Active"
+            )
+            .count()
+        ),
+
+        # IMPORTANT:
+        # navbar.html loops through unread_notifications,
+        # so we must pass notification objects, not .count().
+        unread_notifications=(
+            Notification.query
+            .filter_by(
+                user_id=g.current_user.id,
+                is_read=False
+            )
+            .all()
+        )
+    )
+
+
+# ============================================================
+# MENTOR SKILLS
+# ============================================================
+
+@mentor_bp.route("/skills", methods=["GET", "POST"])
+@role_required("Mentor")
+def skills():
+    profile = g.current_user.mentor_profile
+
+    if request.method == "POST":
+
+        selected = {
+            int(value)
+            for value in request.form.getlist("skill_ids")
+        }
+
+        profile.skills.clear()
+
+        skills = (
+            Skill.query
+            .filter(
+                Skill.id.in_(selected),
+                Skill.is_active.is_(True)
+            )
+            .all()
+            if selected
+            else []
+        )
+
+        for skill in skills:
+            profile.skills.append(
+                MentorSkill(
+                    skill=skill,
+                    experience=profile.experience,
+                    is_paid=profile.is_paid,
+                    price=profile.pricing,
+                    pricing_type=request.form.get(
+                        "pricing_type",
+                        "Course-based"
+                    )
+                )
+            )
+
+        db.session.commit()
+
+        flash(
+            "Teaching skills updated.",
+            "success"
+        )
+
+        return redirect(
+            url_for("mentor.skills")
+        )
+
+    return render_template(
+        "mentor/skills.html",
+        profile=profile,
+        skills=(
+            Skill.query
+            .filter_by(is_active=True)
+            .order_by(Skill.name)
+            .all()
+        )
+    )
+
+
+# ============================================================
+# MENTOR PROFILE
+# ============================================================
+
+@mentor_bp.route("/profile", methods=["GET", "POST"])
+@role_required("Mentor")
+def profile():
+    profile = g.current_user.mentor_profile
+
+    if request.method == "POST":
+
+        if not valid_csrf():
+            flash(
+                "Your form expired. Please try again.",
+                "danger"
+            )
+
+        else:
+            g.current_user.full_name = (
+                request.form.get("full_name", "").strip()
+                or g.current_user.full_name
+            )
+
+            g.current_user.phone = (
+                request.form.get("phone", "").strip()
+                or g.current_user.phone
+            )
+
+            g.current_user.address = (
+                request.form.get("address", "").strip()
+                or g.current_user.address
+            )
+
+            profile.bio = (
+                request.form.get("bio", "").strip()
+            )
+
+            profile.experience = (
+                request.form.get("experience", "").strip()
+            )
+
+            profile.teaching_type = (
+                request.form.get("teaching_type", "").strip()
+            )
+
+            profile.is_paid = (
+                request.form.get("is_paid") == "paid"
+            )
+
+            # Get skills from comma-separated input
+            names = {
+                item.strip().lower()
+                for item in request.form.get(
+                    "skills",
+                    ""
+                ).split(",")
+                if item.strip()
+            }
+
+            profile.skills.clear()
+
+            for name in names:
+
+                skill = (
+                    Skill.query
+                    .filter_by(name=name)
+                    .first()
+                )
+
+                if not skill:
+                    skill = Skill(name=name)
+                    db.session.add(skill)
+                    db.session.flush()
+
+                profile.skills.append(
+                    MentorSkill(
+                        skill=skill,
+                        experience=profile.experience,
+                        is_paid=profile.is_paid,
+                        price=profile.pricing,
+                        pricing_type=request.form.get(
+                            "pricing_type",
+                            "Course-based"
+                        )
+                    )
+                )
+
+            # Validate pricing
+            try:
+                profile.pricing = Decimal(
+                    request.form.get(
+                        "pricing",
+                        "0"
+                    ) or "0"
+                )
+
+            except InvalidOperation:
+                flash(
+                    "Pricing must be a valid number.",
+                    "danger"
+                )
+
+                return render_template(
+                    "mentor/profile.html",
+                    profile=profile
+                )
+
+            # Update location
+            if request.form.get("city", "").strip():
+                from routes.auth import location_for
+
+                g.current_user.location = location_for(
+                    request.form["city"],
+                    request.form.get("area")
+                )
+
+            # Profile photo upload
+            if (
+                request.files.get("profile_photo")
+                and request.files["profile_photo"].filename
+            ):
+                try:
+                    g.current_user.profile_photo = (
+                        save_upload(
+                            request.files["profile_photo"],
+                            "profile"
+                        )["stored_name"]
+                    )
+
+                except ValueError as error:
+                    flash(
+                        str(error),
+                        "danger"
+                    )
+
+            db.session.commit()
+
+            flash(
+                "Your mentor profile was updated.",
+                "success"
+            )
+
+            return redirect(
+                url_for("mentor.profile")
+            )
+
+    return render_template(
+        "mentor/profile.html",
+        profile=profile
+    )

@@ -1,0 +1,38 @@
+<footer class="site-footer">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <img class="footer-logo footer-logo-image mb-3" src="{{ url_for('static', filename='images/skillswap-logo.png', v='2') }}" alt="SkillSwap">
+        <p class="footer-copy mb-0">A local learning community designed to help people share practical skills and grow together.</p>
+      </div>
+      <div class="col-6 col-lg-2">
+        <h2 class="footer-title">Explore</h2>
+        <a class="footer-link" href="{{ url_for('public.skills') }}">Skills</a>
+        <a class="footer-link" href="{{ url_for('public.store') }}">Store</a>
+        <a class="footer-link" href="{{ url_for('public.about') }}">About us</a>
+      </div>
+      <div class="col-6 col-lg-2">
+        <h2 class="footer-title">Join</h2>
+        <a class="footer-link" href="{{ url_for('public.sign_up') }}">Become a learner</a>
+        <a class="footer-link" href="{{ url_for('public.become_a_mentor') }}">Become a mentor</a>
+        <a class="footer-link" href="{{ url_for('public.login') }}">Log in</a>
+      </div>
+      <div class="col-6 col-lg-2">
+        <h2 class="footer-title">Support</h2>
+        <a class="footer-link" href="{{ url_for('public.contact') }}">Contact</a>
+        <a class="footer-link" href="{{ url_for('public.about') }}">Privacy policy</a>
+        <a class="footer-link" href="{{ url_for('public.about') }}">Terms &amp; conditions</a>
+      </div>
+      <div class="col-6 col-lg-2">
+        <h2 class="footer-title">Follow us</h2>
+        <a class="footer-link" href="{{ url_for('public.contact') }}">Facebook</a>
+        <a class="footer-link" href="{{ url_for('public.contact') }}">Instagram</a>
+        <a class="footer-link" href="{{ url_for('public.contact') }}">LinkedIn</a>
+      </div>
+    </div>
+    <div class="footer-bottom d-flex flex-column flex-sm-row justify-content-between gap-2">
+      <span>© 2026 SkillSwap. All rights reserved.</span>
+      <span>Built for practical learning communities.</span>
+    </div>
+  </div>
+</footer>

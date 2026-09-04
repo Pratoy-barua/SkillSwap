@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}{{ role }} registration · SkillSwap{% endblock %}
+{% block content %}
+<section class="placeholder-page py-5"><div class="container"><div class="soft-card mx-auto p-4 p-md-5" style="max-width: 920px;">
+  <p class="eyebrow mb-2">Join SkillSwap</p><h1 class="section-heading h2 mb-2">{{ role }} registration</h1><p class="section-copy mb-4">Your application will remain pending until an administrator reviews it. Identity and evidence documents are private.</p>
+  {% include 'partials/flash.html' %}
+  <form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="row g-3">
+    <div class="col-md-6"><label class="form-label">Full name *</label><input class="form-control" name="full_name" required value="{{ data.full_name }}"></div>
+    <div class="col-md-6"><label class="form-label">Email *</label><input class="form-control" name="email" type="email" required value="{{ data.email }}"></div>
+    <div class="col-md-6"><label class="form-label">Phone number *</label><input class="form-control" name="phone" required value="{{ data.phone }}"></div>
+    <div class="col-md-6"><label class="form-label">Profile photo</label><input class="form-control" name="profile_photo" type="file" accept=".jpg,.jpeg,.png,.webp"></div>
+    <div class="col-md-6"><label class="form-label">Password *</label><input class="form-control" name="password" type="password" minlength="8" required></div>
+    <div class="col-md-6"><label class="form-label">Confirm password *</label><input class="form-control" name="confirm_password" type="password" minlength="8" required></div>
+    <div class="col-md-6"><label class="form-label">City / location *</label><input class="form-control" name="city" required value="{{ data.city }}" placeholder="e.g. Dhaka"></div>
+    <div class="col-md-6"><label class="form-label">Area</label><input class="form-control" name="area" value="{{ data.area }}" placeholder="e.g. Dhanmondi"></div>
+    <div class="col-12"><label class="form-label">Address *</label><textarea class="form-control" name="address" required rows="2">{{ data.address }}</textarea></div>
+    <div class="col-12"><label class="form-label">NID / Voter ID document *</label><input class="form-control" name="nid_document" type="file" accept=".pdf,.jpg,.jpeg,.png" required><div class="form-text">Private review only. Maximum upload size is 10 MB.</div></div>
+    {% if role == 'Learner' %}
+      <div class="col-12"><label class="form-label">Skills or interests you want to learn</label><textarea class="form-control" name="interests" rows="3" placeholder="Photography, programming, spoken English...">{{ request.form.get('interests','') }}</textarea></div>
+    {% else %}
+      <div class="col-12"><label class="form-label">Bio *</label><textarea class="form-control" name="bio" rows="3" required>{{ request.form.get('bio','') }}</textarea></div>
+      <div class="col-md-6"><label class="form-label">Skills (comma separated) *</label><input class="form-control" name="skills" required value="{{ request.form.get('skills','') }}"></div>
+      <div class="col-md-6"><label class="form-label">Experience *</label><input class="form-control" name="experience" required value="{{ request.form.get('experience','') }}" placeholder="e.g. 5 years"></div>
+      <div class="col-md-4"><label class="form-label">Teaching type</label><select class="form-select" name="teaching_type"><option>In person</option><option>Online</option><option>Hybrid</option></select></div>
+      <div class="col-md-4"><label class="form-label">Availability</label><select class="form-select" name="is_paid"><option value="free">Free</option><option value="paid">Paid</option></select></div>
+      <div class="col-md-4"><label class="form-label">Pricing type</label><select class="form-select" name="pricing_type"><option>Daily</option><option>Weekly</option><option>Monthly</option><option selected>Course-based</option></select></div>
+      <div class="col-md-4"><label class="form-label">Price (optional)</label><input class="form-control" name="pricing" type="number" min="0" step="0.01" value="{{ request.form.get('pricing','') }}"></div>
+      <div class="col-md-4"><label class="form-label">Certificate</label><input class="form-control" name="certificate" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+      <div class="col-md-4"><label class="form-label">Skill evidence image</label><input class="form-control" name="evidence_image" type="file" accept=".jpg,.jpeg,.png,.webp"></div>
+      <div class="col-md-4"><label class="form-label">Skill evidence video</label><input class="form-control" name="evidence_video" type="file" accept=".mp4,.webm,.mov"></div>
+    {% endif %}
+    <div class="col-12 mt-4"><button class="btn btn-primary" type="submit">Submit {{ role.lower() }} application</button> <a class="btn btn-link" href="{{ url_for('public.home') }}">Cancel</a></div>
+  </div></form>
+</div></div></section>
+{% endblock %}

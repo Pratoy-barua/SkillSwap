@@ -1,0 +1,7 @@
+<svg width="218" height="48" viewBox="0 0 218 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="logo-title">
+  <title id="logo-title">SkillSwap</title>
+  <rect width="48" height="48" rx="15" fill="#1667D9"/>
+  <path d="M14 19.5C14 16.4624 16.4624 14 19.5 14H27.5C30.5376 14 33 16.4624 33 19.5V20.5C33 23.5376 30.5376 26 27.5 26H23L18 32V26.8C15.7054 26.1202 14 24.0049 14 21.5V19.5Z" fill="white"/>
+  <path d="M24.5 23.5C24.5 26.5376 26.9624 29 30 29H31L35 34V29C37.2091 28.2636 38.8 26.1795 38.8 23.72V23.5C38.8 20.4624 36.3376 18 33.3 18H30C26.9624 18 24.5 20.4624 24.5 23.5Z" fill="#FF9E31"/>
+  <text x="61" y="32" fill="#173A69" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" letter-spacing="-1">Skill<tspan fill="#F28A1E">Swap</tspan></text>
+</svg>

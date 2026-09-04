@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
+
+# Environment and secrets
+.env
+*.env
+!.env.example
+
+# User-uploaded and private material
+private_uploads/*
+!private_uploads/verification/
+private_uploads/verification/*
+!private_uploads/verification/.gitkeep
+static/uploads/public/*
+!static/uploads/public/.gitkeep
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker/MySQL local state
+mysql_data/
