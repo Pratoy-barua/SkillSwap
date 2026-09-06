@@ -57,6 +57,12 @@ docker compose up --build
 
 The app is available at `http://localhost:5000`. MySQL credentials are supplied through `.env` and are not hardcoded in the application.
 
+Docker runs in development mode with the project folder live-mounted into the container. After the first build, edits to Python, HTML templates, CSS, or JavaScript are reflected automatically (refresh the browser; Flask reloads after Python changes). Rebuild only after changing `requirements.txt` or the `Dockerfile`:
+
+```powershell
+docker compose up --build
+```
+
 ## Demo payments
 
 Payments currently use a **Demo Payment Provider and do not process real money**. Checkout pages explicitly state that no real money will be collected. The provider records successful and failed demo outcomes, references, commissions, mentor earnings, subscriptions, orders, and revenue records so a real gateway can be integrated later without changing route-level business logic.

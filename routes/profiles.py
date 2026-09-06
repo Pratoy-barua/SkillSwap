@@ -8,6 +8,8 @@ from decorators.auth import role_required
 from extensions import db
 from models.auth import LearnerProfile, LearnerSkill, MentorSkill, Skill
 from models.connection import LearningRelationship, LearningRequest, Notification
+from models.learning import Payment
+from models.reviews import Review
 from services.security import issue_csrf_token
 from services.uploads import save_upload
 
@@ -29,46 +31,20 @@ def valid_csrf():
 @learner_bp.get("/dashboard")
 @role_required("Learner")
 def dashboard():
+    user_id = g.current_user.id
+    active_relationships = LearningRelationship.query.filter_by(learner_id=user_id, status="Active").order_by(LearningRelationship.updated_at.desc()).limit(3).all()
+    recent_requests = LearningRequest.query.filter_by(learner_id=user_id).order_by(LearningRequest.created_at.desc()).limit(4).all()
+    recent_notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(4).all()
     return render_template(
         "learner/dashboard.html",
         profile=g.current_user.learner_profile,
-
-        available_skills=(
-            Skill.query
-            .filter_by(is_active=True)
-            .order_by(Skill.name)
-            .all()
-        ),
-
-        pending_requests=(
-            LearningRequest.query
-            .filter_by(
-                learner_id=g.current_user.id,
-                status="Pending"
-            )
-            .count()
-        ),
-
-        relationships=(
-            LearningRelationship.query
-            .filter_by(
-                learner_id=g.current_user.id,
-                status="Active"
-            )
-            .count()
-        ),
-
-        # IMPORTANT:
-        # navbar.html loops through unread_notifications,
-        # so we must pass a list instead of an integer count.
-        unread_notifications=(
-            Notification.query
-            .filter_by(
-                user_id=g.current_user.id,
-                is_read=False
-            )
-            .all()
-        )
+        active_relationships=active_relationships,
+        recent_requests=recent_requests,
+        recent_notifications=recent_notifications,
+        pending_requests=LearningRequest.query.filter_by(learner_id=user_id, status="Pending").count(),
+        relationships=LearningRelationship.query.filter_by(learner_id=user_id, status="Active").count(),
+        completed_learning=LearningRelationship.query.filter_by(learner_id=user_id, status="Completed").count(),
+        unread_notifications=Notification.query.filter_by(user_id=user_id, is_read=False).all(),
     )
 
 
@@ -226,39 +202,24 @@ def profile():
 @mentor_bp.get("/dashboard")
 @role_required("Mentor")
 def dashboard():
+    user_id = g.current_user.id
+    active_relationships = LearningRelationship.query.filter_by(mentor_id=user_id, status="Active").order_by(LearningRelationship.updated_at.desc()).limit(4).all()
+    pending_items = LearningRequest.query.filter_by(mentor_id=user_id, status="Pending").order_by(LearningRequest.created_at.desc()).limit(4).all()
+    recent_notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(4).all()
+    recent_reviews = Review.query.filter_by(mentor_id=user_id).order_by(Review.created_at.desc()).limit(3).all()
+    successful_payments = Payment.query.filter_by(mentor_id=user_id, status="Successful").all()
     return render_template(
         "mentor/dashboard.html",
         profile=g.current_user.mentor_profile,
-
-        pending_requests=(
-            LearningRequest.query
-            .filter_by(
-                mentor_id=g.current_user.id,
-                status="Pending"
-            )
-            .count()
-        ),
-
-        relationships=(
-            LearningRelationship.query
-            .filter_by(
-                mentor_id=g.current_user.id,
-                status="Active"
-            )
-            .count()
-        ),
-
-        # IMPORTANT:
-        # navbar.html loops through unread_notifications,
-        # so we must pass notification objects, not .count().
-        unread_notifications=(
-            Notification.query
-            .filter_by(
-                user_id=g.current_user.id,
-                is_read=False
-            )
-            .all()
-        )
+        active_relationships=active_relationships,
+        pending_items=pending_items,
+        recent_notifications=recent_notifications,
+        recent_reviews=recent_reviews,
+        pending_requests=LearningRequest.query.filter_by(mentor_id=user_id, status="Pending").count(),
+        relationships=LearningRelationship.query.filter_by(mentor_id=user_id, status="Active").count(),
+        completed_learning=LearningRelationship.query.filter_by(mentor_id=user_id, status="Completed").count(),
+        total_earnings=sum((item.mentor_earning for item in successful_payments), 0),
+        unread_notifications=Notification.query.filter_by(user_id=user_id, is_read=False).all(),
     )
 
 

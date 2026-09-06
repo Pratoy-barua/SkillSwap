@@ -15,9 +15,54 @@
         <li class="nav-item"><a class="nav-link" href="{{ url_for('public.contact') }}">Contact <span class="visually-hidden">(coming soon)</span></a></li>
       </ul>
       <div class="d-flex align-items-lg-center gap-2 nav-actions">
-        {% if current_user and current_user.role.name in ['Learner', 'Mentor'] %}<div class="dropdown"><button class="btn btn-link text-primary px-2 dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Notifications{% if unread_notifications %} <span class="badge rounded-pill text-bg-warning">{{ unread_notifications|length }}</span>{% endif %}</button><ul class="dropdown-menu dropdown-menu-end p-2" style="min-width: 280px;">{% for item in unread_notifications %}<li><a class="dropdown-item rounded" href="{{ url_for('connections.notifications') }}"><strong class="d-block">{{ item.title }}</strong><small>{{ item.message|truncate(80) }}</small></a></li>{% else %}<li><span class="dropdown-item-text text-secondary">No unread notifications.</span></li>{% endfor %}<li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-primary" href="{{ url_for('connections.notifications') }}">View all notifications</a></li></ul></div><a class="btn btn-link text-primary px-2" href="{{ url_for('connections.chat_list') }}">Chat</a><a class="btn btn-link text-primary px-2" href="{{ url_for('premium.plans') }}">Premium</a><a class="btn btn-link text-primary px-2" href="{{ url_for('store.cart') }}">Cart</a><a class="btn btn-link text-primary px-2" href="{{ url_for('store.orders') }}">Orders</a>{% endif %}
-        <a class="btn btn-link text-primary px-2" href="{{ url_for('public.login') }}">Log in</a>
-        <a class="btn btn-primary" href="{{ url_for('public.sign_up') }}">Sign up</a>
+        {% if current_user and current_user.role.name in ['Learner', 'Mentor'] %}
+          <div class="dropdown">
+            <button class="notification-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+              {% if unread_notifications %}<span class="notification-count">{{ unread_notifications|length }}</span>{% endif %}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end p-2 notification-dropdown">
+              {% for item in unread_notifications %}
+                <li><a class="dropdown-item rounded" href="{{ url_for('connections.notifications') }}"><strong class="d-block">{{ item.title }}</strong><small>{{ item.message|truncate(80) }}</small></a></li>
+              {% else %}
+                <li><span class="dropdown-item-text text-secondary">No unread notifications.</span></li>
+              {% endfor %}
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-primary" href="{{ url_for('connections.notifications') }}">View all notifications</a></li>
+            </ul>
+          </div>
+        {% endif %}
+        {% if current_user %}
+          <div class="dropdown profile-menu">
+            <button class="profile-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">
+              {% if current_user.profile_photo %}
+                <img class="nav-profile-avatar" src="{{ url_for('static', filename='uploads/public/' + current_user.profile_photo) }}" alt="{{ current_user.full_name }}">
+              {% else %}
+                <span class="nav-profile-avatar nav-profile-initial" aria-hidden="true">{{ current_user.full_name[0]|upper }}</span>
+              {% endif %}
+              <span class="profile-name">{{ current_user.full_name }}</span>
+              <span class="profile-caret" aria-hidden="true">⌄</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end profile-dropdown">
+              <li><span class="dropdown-header">Signed in as {{ current_user.role.name }}</span></li>
+              <li><hr class="dropdown-divider"></li>
+              {% if current_user.role.name == 'Learner' %}
+                <li><a class="dropdown-item" href="{{ url_for('learner.profile') }}">My profile</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('learner.dashboard') }}">Dashboard</a></li>
+              {% elif current_user.role.name == 'Mentor' %}
+                <li><a class="dropdown-item" href="{{ url_for('mentor.profile') }}">My profile</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('mentor.dashboard') }}">Dashboard</a></li>
+              {% else %}
+                <li><a class="dropdown-item" href="{{ url_for('admin.dashboard') }}">Admin dashboard</a></li>
+              {% endif %}
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Log out</a></li>
+            </ul>
+          </div>
+        {% else %}
+          <a class="btn btn-link text-primary px-2" href="{{ url_for('public.login') }}">Log in</a>
+          <a class="btn btn-primary" href="{{ url_for('public.sign_up') }}">Sign up</a>
+        {% endif %}
       </div>
     </div>
   </div>

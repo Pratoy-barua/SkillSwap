@@ -30,12 +30,16 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_HOST: db
       MYSQL_PORT: 3306
+      FLASK_DEBUG: "1"
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./private_uploads:/app/private_uploads
-      - ./static/uploads/public:/app/static/uploads/public
+      # Development: live-sync the project so code/template/CSS edits are visible
+      # without rebuilding the image. Restart only if requirements.txt changes.
+      - ./:/app
+    command: >
+      sh -c "flask --app app init-db && flask --app app run --host=0.0.0.0 --port=5000 --debug"
 
 volumes:
   mysql_data:

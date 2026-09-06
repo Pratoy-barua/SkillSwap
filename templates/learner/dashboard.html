@@ -1,1 +1,71 @@
-{% extends 'base.html' %}{% block title %}Learner Dashboard · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-4"><div><p class="eyebrow">Learner space</p><h1 class="section-heading h2">Welcome, {{ current_user.full_name }}.</h1><p class="section-copy">Search mentors, manage requests, and stay connected.</p></div><div class="d-flex gap-2"><a class="btn btn-primary" href="{{ url_for('discovery.mentor_search') }}">Search mentors</a><a class="btn btn-outline-primary" href="{{ url_for('learner.profile') }}">Edit profile</a></div></div><div class="row row-cols-2 row-cols-lg-4 g-3 mb-4"><div class="col"><div class="soft-card p-3"><small class="text-secondary">Active mentors</small><strong class="d-block h3 mb-0">{{ relationships }}</strong><a class="small text-primary" href="{{ url_for('connections.learner_mentors') }}">View mentors</a></div></div><div class="col"><div class="soft-card p-3"><small class="text-secondary">Pending requests</small><strong class="d-block h3 mb-0">{{ pending_requests }}</strong><a class="small text-primary" href="{{ url_for('connections.learner_requests') }}">View requests</a></div></div><div class="col"><div class="soft-card p-3"><small class="text-secondary">Unread notifications</small><strong class="d-block h3 mb-0">{{ unread_notifications }}</strong><a class="small text-primary" href="{{ url_for('connections.notifications') }}">View updates</a></div></div><div class="col"><div class="soft-card p-3"><small class="text-secondary">Location</small><strong class="d-block h6 mb-0">{{ current_user.location.city }}</strong><span class="small text-secondary">{{ current_user.location.area or '' }}</span></div></div></div><div class="row g-4"><div class="col-lg-6"><div class="soft-card p-4 h-100"><h2 class="h5 fw-bold">My learning interests</h2><div class="d-flex flex-wrap gap-2 mb-3">{% for item in profile.skills %}<span class="badge rounded-pill text-bg-light">{{ item.skill.name }}</span>{% else %}<span class="text-secondary">No interests selected yet.</span>{% endfor %}</div><a class="btn btn-sm btn-outline-primary" href="{{ url_for('learner.interests') }}">Manage interests</a></div></div><div class="col-lg-6"><div class="soft-card p-4 h-100"><h2 class="h5 fw-bold">Recent learning</h2><p class="text-secondary mb-3">Accepted connections and private conversations are stored securely in MySQL.</p><a class="btn btn-sm btn-primary" href="{{ url_for('connections.chat_list') }}">Open chat</a></div></div></div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Learner Dashboard · SkillSwap{% endblock %}
+{% block content %}
+<section class="dashboard-page">
+  <div class="container dashboard-container">
+    <header class="dashboard-header">
+      <div>
+        <p class="dashboard-kicker">Learner dashboard</p>
+        <h1>Welcome back, {{ current_user.full_name }}.</h1>
+        <p>Continue your learning journey and connect with skilled mentors.</p>
+      </div>
+      <div class="dashboard-header-actions">
+        <a class="btn btn-primary" href="{{ url_for('discovery.mentor_search') }}">Find a mentor</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('learner.profile') }}">My profile</a>
+      </div>
+    </header>
+
+    <div class="dashboard-stat-grid">
+      <a class="dashboard-stat-card" href="{{ url_for('connections.learner_mentors') }}"><span>Active learning</span><strong>{{ relationships }}</strong><small>Current mentor connections</small></a>
+      <a class="dashboard-stat-card" href="{{ url_for('connections.learner_requests') }}"><span>Pending requests</span><strong>{{ pending_requests }}</strong><small>Waiting for a response</small></a>
+      <a class="dashboard-stat-card" href="{{ url_for('connections.learner_mentors') }}"><span>Completed learning</span><strong>{{ completed_learning }}</strong><small>Finished learning journeys</small></a>
+      <a class="dashboard-stat-card" href="{{ url_for('connections.notifications') }}"><span>Unread notifications</span><strong>{{ unread_notifications|length }}</strong><small>Recent platform updates</small></a>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-xl-8">
+        <section class="dashboard-panel h-100">
+          <div class="dashboard-panel-heading"><div><h2>Active learning</h2><p>Stay on track with your current learning plans.</p></div><a href="{{ url_for('connections.learner_mentors') }}">View all</a></div>
+          {% for relationship in active_relationships %}
+            {% set progress = relationship.progress.percentage if relationship.progress else 0 %}
+            <article class="learning-row">
+              <div class="person-avatar">{{ relationship.mentor.full_name[0]|upper }}</div>
+              <div class="learning-row-main"><strong>{{ relationship.mentor.full_name }}</strong><span>{{ relationship.skill.name }} · {% if relationship.progress %}{{ relationship.progress.completion_status }}{% else %}Plan not added yet{% endif %}</span><div class="dashboard-progress"><i style="width: {{ progress }}%"></i></div><small>{{ progress }}% complete</small></div>
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('learning.progress', relationship_id=relationship.id) }}">View details</a>
+            </article>
+          {% else %}
+            <div class="dashboard-empty"><strong>No active learning yet.</strong><span>Find a mentor to start a learning connection.</span><a class="btn btn-sm btn-primary" href="{{ url_for('discovery.mentor_search') }}">Find a mentor</a></div>
+          {% endfor %}
+        </section>
+      </div>
+      <div class="col-xl-4">
+        <section class="dashboard-panel h-100">
+          <div class="dashboard-panel-heading"><div><h2>Quick actions</h2><p>Common learner tasks.</p></div></div>
+          <div class="quick-action-list">
+            <a href="{{ url_for('discovery.mentor_search') }}"><span>Find a mentor</span><b>→</b></a>
+            <a href="{{ url_for('connections.learner_mentors') }}"><span>My learning</span><b>→</b></a>
+            <a href="{{ url_for('connections.chat_list') }}"><span>Messages</span><b>→</b></a>
+            <a href="{{ url_for('learner.profile') }}"><span>Update profile</span><b>→</b></a>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-lg-7">
+        <section class="dashboard-panel h-100">
+          <div class="dashboard-panel-heading"><div><h2>Learning requests</h2><p>Your most recent mentor requests.</p></div><a href="{{ url_for('connections.learner_requests') }}">View all</a></div>
+          <div class="table-responsive"><table class="dashboard-table"><thead><tr><th>Mentor</th><th>Skill</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody>
+            {% for item in recent_requests %}<tr><td><strong>{{ item.mentor.full_name }}</strong></td><td>{{ item.skill.name }}</td><td><span class="status-pill status-{{ item.status|lower }}">{{ item.status }}</span></td><td>{{ item.created_at.strftime('%d %b %Y') }}</td><td><a href="{{ url_for('connections.learner_requests') }}">View</a></td></tr>
+            {% else %}<tr><td colspan="5" class="dashboard-table-empty">No learning requests yet. <a href="{{ url_for('discovery.mentor_search') }}">Find a mentor</a></td></tr>{% endfor %}
+          </tbody></table></div>
+        </section>
+      </div>
+      <div class="col-lg-5">
+        <section class="dashboard-panel h-100">
+          <div class="dashboard-panel-heading"><div><h2>Recent notifications</h2><p>Important account and learning updates.</p></div><a href="{{ url_for('connections.notifications') }}">View all</a></div>
+          <div class="notification-list">{% for item in recent_notifications %}<a class="notification-item {% if not item.is_read %}is-unread{% endif %}" href="{{ url_for('connections.notifications') }}"><strong>{{ item.title }}</strong><span>{{ item.message|truncate(82) }}</span><small>{{ item.created_at.strftime('%d %b') }}</small></a>{% else %}<div class="dashboard-empty compact"><strong>No recent notifications.</strong><span>Updates will appear here.</span></div>{% endfor %}</div>
+        </section>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
