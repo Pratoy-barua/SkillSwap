@@ -46,7 +46,7 @@ def contact():
             ("Phone", "01741215105"),
             ("Email", "skillswap@gmail.com"),
             ("Address", "Notunbazar, Dhaka"),
-            ("Open time", "9:00 AM – 10:00 PM"),
+            ("Open time", "11:00 AM – 10:00 PM"),
         ],
     )
 
