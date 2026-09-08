@@ -45,7 +45,7 @@ def contact():
         sections=[
             ("Phone", "01741215105"),
             ("Email", "skillswap@gmail.com"),
-            ("Address", "Syednagar, Notunbazar, Dhaka"),
+            ("Address", "Syednagar B-Block, Notunbazar, Dhaka"),
             ("Open time", "11:00 AM – 10:00 PM"),
         ],
     )
