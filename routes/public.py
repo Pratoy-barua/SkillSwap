@@ -39,14 +39,13 @@ def about():
 def contact():
     return render_template(
         "public/info_page.html",
-        eyebrow="Support",
-        title="How can we help?",
-        intro="SkillSwap helps learners and mentors connect safely, manage learning progress, and grow practical skills together.",
+        eyebrow="Contact",
+        title="Get in touch with SkillSwap.",
+        intro="For account, learning, or platform support, contact us through any of the details below.",
         sections=[
-            ("Account and registration", "If you cannot access your account, check that you are using the email address registered with SkillSwap. Learner and mentor applications are reviewed before access is approved."),
-            ("Learning and mentor connections", "After signing in, use the mentor search, requests, and messages areas to find mentors, manage learning requests, and continue your conversations."),
-            ("Payments and store orders", "You can review payment activity, subscriptions, and store orders from the relevant sections of your dashboard. Keep your order details available when requesting help."),
-            ("Privacy and safety", "Do not share passwords or sensitive identity documents in chat. Verification documents are handled through the protected upload process for administrator review."),
+            ("Phone", "01741215105"),
+            ("Email", "skillswap@gmail.com"),
+            ("Address", "Notunbazar, Dhaka"),
         ],
     )
 
