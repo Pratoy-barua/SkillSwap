@@ -119,6 +119,11 @@ a:hover { color: inherit; }
 .footer-bottom { border-top: 1px solid rgba(255, 255, 255, .13); color: #9cb3ce; font-size: .82rem; margin-top: 3rem; padding-top: 1.3rem; }
 
 .placeholder-page { min-height: 58vh; padding: 7rem 0; }
+.info-page { min-height: 58vh; padding: 5.5rem 0; }
+.info-page-header { margin-bottom: 2.5rem; max-width: 46rem; }
+.info-card { padding: 1.5rem; }
+.info-card h2 { color: var(--ss-ink); }
+.info-card p { color: var(--ss-muted); line-height: 1.7; }
 .auth-card { max-width: 520px; }
 .form-control, .form-select { border-color: var(--ss-border); border-radius: 11px; padding: .7rem .85rem; }
 .form-control:focus, .form-select:focus { border-color: #8ebaf1; box-shadow: 0 0 0 .2rem rgba(22, 103, 217, .12); }

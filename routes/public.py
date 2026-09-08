@@ -37,7 +37,52 @@ def about():
 
 @public_bp.get("/contact")
 def contact():
-    return render_template("public/placeholder.html", feature="Contact SkillSwap")
+    return render_template(
+        "public/info_page.html",
+        eyebrow="Support",
+        title="How can we help?",
+        intro="SkillSwap helps learners and mentors connect safely, manage learning progress, and grow practical skills together.",
+        sections=[
+            ("Account and registration", "If you cannot access your account, check that you are using the email address registered with SkillSwap. Learner and mentor applications are reviewed before access is approved."),
+            ("Learning and mentor connections", "After signing in, use the mentor search, requests, and messages areas to find mentors, manage learning requests, and continue your conversations."),
+            ("Payments and store orders", "You can review payment activity, subscriptions, and store orders from the relevant sections of your dashboard. Keep your order details available when requesting help."),
+            ("Privacy and safety", "Do not share passwords or sensitive identity documents in chat. Verification documents are handled through the protected upload process for administrator review."),
+        ],
+    )
+
+
+@public_bp.get("/privacy")
+def privacy():
+    return render_template(
+        "public/info_page.html",
+        eyebrow="Privacy policy",
+        title="Your information, handled carefully.",
+        intro="This policy explains the information SkillSwap uses to operate the learning community and protect its members.",
+        sections=[
+            ("Information we collect", "We collect the details you provide when creating an account, including profile details, skills, location, learning activity, messages, purchases, and verification documents when submitted."),
+            ("How information is used", "Information is used to create your account, connect learners and mentors, review applications, process demo payments and orders, provide support, and keep the platform safe."),
+            ("Who can see your information", "Public profile information may be visible to people using SkillSwap. Verification documents remain protected and are available only to authorized administrators for review."),
+            ("Security and retention", "Passwords are stored as secure hashes. We apply access controls to private uploads and retain information only for as long as needed to run the service, meet legal obligations, or resolve disputes."),
+            ("Your choices", "You may update your profile information from your account. Contact the SkillSwap support team if you need help with an account, data, or privacy request."),
+        ],
+    )
+
+
+@public_bp.get("/terms")
+def terms():
+    return render_template(
+        "public/info_page.html",
+        eyebrow="Terms & conditions",
+        title="Using SkillSwap responsibly.",
+        intro="By creating an account or using SkillSwap, you agree to follow these community rules.",
+        sections=[
+            ("Accurate accounts", "Provide accurate registration information and keep your password confidential. Do not create accounts for someone else or use another member's account."),
+            ("Respectful community", "Treat learners, mentors, and administrators with respect. Harassment, fraud, discrimination, spam, and misleading profiles are not allowed."),
+            ("Mentoring and learning", "Mentors are responsible for describing their experience honestly. Learners and mentors should agree on goals, schedules, fees, and expectations before starting an activity."),
+            ("Payments and marketplace", "Payment and store features are provided for recorded platform transactions. Review prices, order details, and subscription terms before confirming a transaction."),
+            ("Account actions", "SkillSwap may review, suspend, or remove accounts that violate these terms, create safety risks, or provide false information."),
+        ],
+    )
 
 
 @public_bp.get("/skills")
