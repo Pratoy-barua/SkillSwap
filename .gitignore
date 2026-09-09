@@ -20,6 +20,7 @@ private_uploads/verification/*
 !private_uploads/verification/.gitkeep
 static/uploads/public/*
 !static/uploads/public/.gitkeep
+!static/uploads/public/demo-*.png
 
 # Editors and operating systems
 .vscode/

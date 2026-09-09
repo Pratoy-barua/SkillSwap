@@ -145,6 +145,80 @@ def create_app(config_name=None):
         db.session.commit()
         print(f"Admin account ready: {user.email}")
 
+    @app.cli.command("seed-demo")
+    def seed_demo_command():
+        """Add idempotent demo skills, mentor profiles, and store products."""
+        from decimal import Decimal
+
+        from models.auth import Location, MentorProfile, MentorSkill, Role, Skill, User
+        from models.store import Product, ProductCategory
+
+        db.create_all()
+        mentor_role = Role.query.filter_by(name="Mentor").first()
+        if not mentor_role:
+            mentor_role = Role(name="Mentor")
+            db.session.add(mentor_role)
+            db.session.flush()
+
+        skill_names = ["Graphic Design", "Photography", "Spoken English", "Web Development"]
+        skills = {}
+        for name in skill_names:
+            skill = Skill.query.filter_by(name=name).first()
+            if not skill:
+                skill = Skill(name=name, is_active=True)
+                db.session.add(skill)
+                db.session.flush()
+            skills[name] = skill
+
+        mentors = [
+            {"name": "Nusrat Jahan", "email": "demo.nusrat@skillswap.local", "city": "Dhaka", "area": "Notunbazar", "bio": "Practical graphic design guidance for beginners and aspiring freelancers.", "experience": "5 years", "teaching_type": "Online and in person", "skill": "Graphic Design", "paid": True, "price": Decimal("800"), "rating": Decimal("4.80"), "image": "demo-mentor-nusrat.png"},
+            {"name": "Tanvir Rahman", "email": "demo.tanvir@skillswap.local", "city": "Dhaka", "area": "Dhanmondi", "bio": "Learn photography fundamentals, composition, and mobile editing techniques.", "experience": "4 years", "teaching_type": "In person", "skill": "Photography", "paid": False, "price": Decimal("0"), "rating": Decimal("4.60"), "image": "demo-mentor-tanvir.png"},
+            {"name": "Sadia Islam", "email": "demo.sadia@skillswap.local", "city": "Dhaka", "area": "Uttara", "bio": "Build confidence in spoken English through friendly, structured practice.", "experience": "6 years", "teaching_type": "Online", "skill": "Spoken English", "paid": True, "price": Decimal("600"), "rating": Decimal("4.90"), "image": "demo-mentor-sadia.png"},
+            {"name": "Arif Hossain", "email": "demo.arif@skillswap.local", "city": "Dhaka", "area": "Mirpur", "bio": "Start web development with HTML, CSS, and practical project guidance.", "experience": "3 years", "teaching_type": "Online and in person", "skill": "Web Development", "paid": True, "price": Decimal("1000"), "rating": Decimal("4.70"), "image": "demo-mentor-arif.png"},
+        ]
+        for item in mentors:
+            location = Location.query.filter_by(city=item["city"], area=item["area"], country="Bangladesh").first()
+            if not location:
+                location = Location(city=item["city"], area=item["area"], country="Bangladesh")
+                db.session.add(location)
+                db.session.flush()
+            user = User.query.filter_by(email=item["email"]).first()
+            if not user:
+                user = User(role=mentor_role, full_name=item["name"], email=item["email"], phone="01700000000", address=f'{item["area"]}, {item["city"]}', account_status="Approved", location=location)
+                user.set_password("DemoPass123!")
+                db.session.add(user)
+                db.session.flush()
+            if not user.profile_photo:
+                user.profile_photo = item["image"]
+            profile = user.mentor_profile
+            if not profile:
+                profile = MentorProfile(user=user, bio=item["bio"], experience=item["experience"], teaching_type=item["teaching_type"], is_paid=item["paid"], pricing=item["price"], rating=item["rating"])
+                db.session.add(profile)
+                db.session.flush()
+            mentor_skill = MentorSkill.query.filter_by(mentor_profile_id=profile.id, skill_id=skills[item["skill"]].id).first()
+            if not mentor_skill:
+                db.session.add(MentorSkill(mentor_profile=profile, skill=skills[item["skill"]], experience=item["experience"], is_paid=item["paid"], price=item["price"], pricing_type="Course-based"))
+
+        products = [
+            ("Learning supplies", "A5 Study Notebook", "A compact notebook for course notes, learning plans, and daily practice.", Decimal("180"), 25, "demo-product-notebook.png"),
+            ("Creative tools", "Sketching Pencil Set", "A practical pencil set for drawing, design exercises, and creative practice.", Decimal("350"), 18, "demo-product-pencils.png"),
+            ("Tech accessories", "Laptop Stand", "An adjustable desk stand for comfortable online learning sessions.", Decimal("1200"), 12, "demo-product-laptop-stand.png"),
+        ]
+        for category_name, name, description, price, stock, image in products:
+            category = ProductCategory.query.filter_by(name=category_name).first()
+            if not category:
+                category = ProductCategory(name=category_name, is_active=True)
+                db.session.add(category)
+                db.session.flush()
+            product = Product.query.filter_by(name=name).first()
+            if not product:
+                db.session.add(Product(category=category, name=name, description=description, price=price, stock=stock, image=image, is_active=True))
+            elif not product.image:
+                product.image = image
+
+        db.session.commit()
+        print("Demo skills, mentors, and store products are ready.")
+
     @app.cli.command("check-db")
     def check_db_command():
         """Verify that the configured database is reachable."""
