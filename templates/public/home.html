@@ -1,6 +1,52 @@
 {% extends 'base.html' %}
 {% block content %}
-<section class="hero"><div class="container"><div class="row align-items-center g-4 g-lg-5"><div class="col-lg-7"><p class="eyebrow mb-3">Your community learning network</p><h1 class="fw-bold mb-4">Find the right mentor. <span class="text-primary">Grow your skill.</span></h1><p class="hero-copy mb-4">SkillSwap connects curious learners with verified local mentors, making practical learning one helpful connection at a time.</p><form class="search-panel" action="{{ url_for('discovery.mentor_search') }}" method="get"><div class="row g-0 align-items-center"><div class="col-md search-field"><div class="search-field-content"><svg class="search-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21.5zM20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5a2.5 2.5 0 0 1 2.5 2.5z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"/></svg><div><span class="field-label">I want to learn</span><select class="form-select border-0 p-0 fw-bold" name="skill_id" aria-label="Skill">{% for skill in skills %}<option value="{{ skill.id }}">{{ skill.name }}</option>{% else %}<option value="">Add skills from the admin dashboard</option>{% endfor %}</select></div></div></div><div class="col-md search-field"><div class="search-field-content"><svg class="search-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 4.8-8 11-8 11S4 14.8 4 10a8 8 0 1 1 16 0z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><div><span class="field-label">Near</span><input class="form-control border-0 p-0 fw-bold" name="city" placeholder="City, e.g. Dhaka" aria-label="City"></div></div></div><div class="col-md-auto ps-md-2"><button class="btn btn-primary d-inline-flex align-items-center justify-content-center" type="submit">Search mentors <span class="ms-2" aria-hidden="true">→</span></button></div></div></form></div><div class="col-lg-5"><div class="hero-orbit" aria-hidden="true"><div class="hero-disc"></div><div class="hero-center"><img class="hero-logo-image" src="{{ url_for('static', filename='images/skillswap-logo.png', v='2') }}" alt="SkillSwap logo"></div><div class="float-card float-top"><span class="avatar">⌁</span><span><b>Verified mentors</b><span>Trusted locally</span></span></div><div class="float-card float-left"><span class="avatar">✦</span><span><b>Learn together</b><span>Real progress</span></span></div><div class="float-card float-bottom"><span class="avatar">↗</span><span><b>Share skills</b><span>Real progress</span></span></div></div></div></div></div></section>
+<section class="hero"><div class="container"><div class="row align-items-center g-4 g-lg-5"><div class="col-lg-7"><p class="eyebrow mb-3">Your community learning network</p><h1 class="fw-bold mb-4">Find the right mentor. <span class="text-primary">Grow your skill.</span></h1><p class="hero-copy mb-4">SkillSwap connects curious learners with verified local mentors, making practical learning one helpful connection at a time.</p><form class="search-panel" action="{{ url_for('discovery.mentor_search') }}" method="get"><div class="row g-0 align-items-center"><div class="col-md search-field"><div class="search-field-content"><svg class="search-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21.5zM20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5a2.5 2.5 0 0 1 2.5 2.5z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"/></svg><div><span class="field-label">I want to learn</span><select class="form-select border-0 p-0 fw-bold" name="skill_id" aria-label="Skill">{% for skill in skills %}<option value="{{ skill.id }}">{{ skill.name }}</option>{% else %}<option value="">Add skills from the admin dashboard</option>{% endfor %}</select></div></div></div><div class="col-md search-field"><div class="search-field-content"><svg class="search-field-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 4.8-8 11-8 11S4 14.8 4 10a8 8 0 1 1 16 0z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><div><span class="field-label">Near</span><input class="form-control border-0 p-0 fw-bold" name="city" placeholder="City, e.g. Dhaka" aria-label="City"></div></div></div><div class="col-md-auto ps-md-2"><button class="btn btn-primary d-inline-flex align-items-center justify-content-center" type="submit">Search mentors <span class="ms-2" aria-hidden="true">→</span></button></div></div></form></div><div class="col-lg-5">
+<div class="hero-orbit" aria-hidden="true">
+  <div class="hero-glow"></div>
+  <div class="hero-disc">
+    <div class="orbit-satellite"></div>
+  </div>
+  <div class="hero-center">
+    <img class="hero-logo-image" src="{{ url_for('static', filename='images/skillswap-logo.png', v='2') }}" alt="SkillSwap logo">
+    <div class="hero-center-pill">
+      <span class="pulse-dot"></span> Community Hub
+    </div>
+  </div>
+  <div class="float-card float-top">
+    <div class="card-icon-badge icon-green">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M10.067.87a2.89 2.89 0 0 0-4.134 0l-.622.638-.89-.011a2.89 2.89 0 0 0-2.924 2.924l.01.89-.636.622a2.89 2.89 0 0 0 0 4.134l.637.622-.011.89a2.89 2.89 0 0 0 2.924 2.924l.89-.01.622.636a2.89 2.89 0 0 0 4.134 0l.622-.637.89.011a2.89 2.89 0 0 0 2.924-2.924l-.01-.89.636-.622a2.89 2.89 0 0 0 0-4.134l-.637-.622.011-.89a2.89 2.89 0 0 0-2.924-2.924l-.89.01zm.287 5.984-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7 8.793l2.646-2.647a.5.5 0 0 1 .708.708"/>
+      </svg>
+    </div>
+    <div>
+      <b>Verified mentors</b>
+      <span class="card-subtitle">Trusted locally</span>
+    </div>
+  </div>
+  <div class="float-card float-left">
+    <div class="card-icon-badge icon-blue">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5.784 6A2.24 2.24 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.3 6.3 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1zM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"/>
+      </svg>
+    </div>
+    <div>
+      <b>Learn together</b>
+      <span class="card-subtitle">1-on-1 sessions</span>
+    </div>
+  </div>
+  <div class="float-card float-bottom">
+    <div class="card-icon-badge icon-orange">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5m14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5"/>
+      </svg>
+    </div>
+    <div>
+      <b>Share skills</b>
+      <span class="card-subtitle">Community growth</span>
+    </div>
+  </div>
+</div>
+</div></div></div></section>
 <section class="section pt-3"><div class="container"><div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4"><div><p class="eyebrow mb-2">Community first</p><h2 class="section-heading mb-2">Meet verified mentors.</h2><p class="section-copy mb-0">Featured profiles are loaded from approved mentor accounts.</p></div><a class="btn btn-outline-primary" href="{{ url_for('public.become_a_mentor') }}">Become a mentor</a></div><div class="row g-4">{% for item in featured %}{% set mentor = item.mentor_profile.user %}<div class="col-md-6 col-lg-4"><article class="soft-card p-4 h-100"><div class="d-flex align-items-center gap-3 mb-3">{% if mentor.profile_photo %}<img class="dashboard-avatar" src="{{ url_for('static', filename='uploads/public/' + mentor.profile_photo) }}" alt="">{% else %}<div class="dashboard-avatar avatar-fallback">{{ mentor.full_name[0] }}</div>{% endif %}<div><h3 class="h5 fw-bold mb-1">{{ mentor.full_name }}</h3><span class="badge text-bg-success">Verified</span></div></div><p class="text-primary fw-semibold mb-1">{{ item.skill.name }}</p><p class="small text-secondary">{{ item.mentor_profile.bio|truncate(110) }}</p><a class="btn btn-sm btn-outline-primary" href="{{ url_for('discovery.mentor_profile', user_id=mentor.id) }}">View profile</a></article></div>{% else %}<div class="col-12"><div class="empty-state"><div class="empty-icon">◎</div><h3 class="h5 fw-bold">Mentor profiles will appear here after approval.</h3><p class="mb-0">No accounts are being fabricated for this section.</p></div></div>{% endfor %}</div></div></section>
 <section class="section bg-white"><div class="container"><p class="eyebrow mb-2">A place to start</p><h2 class="section-heading mb-2">Explore what you could learn.</h2><p class="section-copy mb-4">These categories are managed through the admin skill catalogue.</p><div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">{% for skill in skills %}<div class="col"><a class="skill-card" href="{{ url_for('discovery.mentor_search', skill_id=skill.id) }}"><span class="skill-icon">{{ skill.icon or '✦' }}</span><span><strong>{{ skill.name }}</strong><small>Explore mentors</small></span></a></div>{% else %}<div class="col-12"><div class="empty-state">No active skills have been added yet.</div></div>{% endfor %}</div></div></section>
 <section class="section"><div class="container"><div class="mentor-cta"><p class="eyebrow text-white-50 mb-2">Share what you know</p><h2 class="section-heading text-white mb-3">Your experience could be someone’s next breakthrough.</h2><p class="mb-4">Create a verified mentor profile and help learners in your community move forward.</p><a class="btn btn-accent" href="{{ url_for('public.become_a_mentor') }}">Start your mentor profile <span class="ms-2">→</span></a></div></div></section>
