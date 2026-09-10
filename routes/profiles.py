@@ -150,6 +150,23 @@ def profile():
                 request.form.get("interests", "").strip()
             )
 
+            # Professional details
+            profile.occupation = request.form.get("occupation", "").strip() or None
+            profile.gender = request.form.get("gender", "").strip() or None
+            profile.linkedin_url = request.form.get("linkedin_url", "").strip() or None
+            profile.github_url = request.form.get("github_url", "").strip() or None
+            profile.website_url = request.form.get("website_url", "").strip() or None
+
+            dob_str = request.form.get("date_of_birth", "").strip()
+            if dob_str:
+                from datetime import date as _date
+                try:
+                    profile.date_of_birth = _date.fromisoformat(dob_str)
+                except ValueError:
+                    pass
+            else:
+                profile.date_of_birth = None
+
             # Update location
             if request.form.get("city", "").strip():
                 from routes.auth import location_for
@@ -337,6 +354,23 @@ def profile():
             profile.is_paid = (
                 request.form.get("is_paid") == "paid"
             )
+
+            # Professional details
+            profile.occupation = request.form.get("occupation", "").strip() or None
+            profile.gender = request.form.get("gender", "").strip() or None
+            profile.linkedin_url = request.form.get("linkedin_url", "").strip() or None
+            profile.github_url = request.form.get("github_url", "").strip() or None
+            profile.website_url = request.form.get("website_url", "").strip() or None
+
+            dob_str = request.form.get("date_of_birth", "").strip()
+            if dob_str:
+                from datetime import date as _date
+                try:
+                    profile.date_of_birth = _date.fromisoformat(dob_str)
+                except ValueError:
+                    pass
+            else:
+                profile.date_of_birth = None
 
             # Get skills from comma-separated input
             names = {

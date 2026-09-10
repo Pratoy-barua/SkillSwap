@@ -1,6 +1,6 @@
 """Authentication, profile, skill, location, and verification models."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -74,8 +74,16 @@ class LearnerProfile(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
     bio = db.Column(db.Text, nullable=True)
     interests = db.Column(db.Text, nullable=True)
+    # Professional details
+    occupation = db.Column(db.String(120), nullable=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
+    gender = db.Column(db.String(20), nullable=True)
+    linkedin_url = db.Column(db.String(255), nullable=True)
+    github_url = db.Column(db.String(255), nullable=True)
+    website_url = db.Column(db.String(255), nullable=True)
     user = db.relationship("User", back_populates="learner_profile")
     skills = db.relationship("LearnerSkill", cascade="all, delete-orphan", back_populates="learner_profile")
+
 
 
 class MentorProfile(db.Model):
@@ -88,8 +96,16 @@ class MentorProfile(db.Model):
     is_paid = db.Column(db.Boolean, nullable=False, default=False)
     pricing = db.Column(db.Numeric(10, 2), nullable=True)
     rating = db.Column(db.Numeric(3, 2), nullable=False, default=0)
+    # Professional details
+    occupation = db.Column(db.String(120), nullable=True)
+    date_of_birth = db.Column(db.Date, nullable=True)
+    gender = db.Column(db.String(20), nullable=True)
+    linkedin_url = db.Column(db.String(255), nullable=True)
+    github_url = db.Column(db.String(255), nullable=True)
+    website_url = db.Column(db.String(255), nullable=True)
     user = db.relationship("User", back_populates="mentor_profile")
     skills = db.relationship("MentorSkill", cascade="all, delete-orphan", back_populates="mentor_profile")
+
 
 
 class Skill(db.Model):

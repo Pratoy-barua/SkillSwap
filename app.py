@@ -108,6 +108,25 @@ def create_app(config_name=None):
                 "price": "DECIMAL(10,2) NULL",
                 "pricing_type": "VARCHAR(30) NOT NULL DEFAULT 'Course-based'",
             },
+            # Phase 4: professional profile details
+            "learner_profiles": {
+                "occupation": "VARCHAR(120) NULL",
+                "date_of_birth": "DATE NULL",
+                "gender": "VARCHAR(20) NULL",
+                "linkedin_url": "VARCHAR(255) NULL",
+                "github_url": "VARCHAR(255) NULL",
+                "website_url": "VARCHAR(255) NULL",
+            },
+        }
+        # mentor_profiles professional detail columns (merged separately to avoid
+        # overwriting the existing dict key above)
+        mentor_pro_columns = {
+            "occupation": "VARCHAR(120) NULL",
+            "date_of_birth": "DATE NULL",
+            "gender": "VARCHAR(20) NULL",
+            "linkedin_url": "VARCHAR(255) NULL",
+            "github_url": "VARCHAR(255) NULL",
+            "website_url": "VARCHAR(255) NULL",
         }
         inspector = inspect(db.engine)
         dialect = db.engine.dialect.name
@@ -119,7 +138,13 @@ def create_app(config_name=None):
                     quoted_table = preparer.quote(table)
                     quoted_column = preparer.quote(name)
                     db.session.execute(text(f"ALTER TABLE {quoted_table} ADD COLUMN {quoted_column} {definition}"))
+        # Apply mentor_profiles professional columns
+        existing_mentor_cols = {column["name"] for column in inspector.get_columns("mentor_profiles")}
+        for name, definition in mentor_pro_columns.items():
+            if name not in existing_mentor_cols:
+                db.session.execute(text(f"ALTER TABLE `mentor_profiles` ADD COLUMN `{name}` {definition}"))
         db.session.commit()
+
 
     @app.cli.command("seed-admin")
     def seed_admin_command():

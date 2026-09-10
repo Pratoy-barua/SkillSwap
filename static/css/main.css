@@ -84,18 +84,254 @@ a:hover { color: inherit; }
 .search-field .field-value { color: var(--ss-ink); font-weight: 700; }
 .search-field i { color: var(--ss-orange); font-style: normal; margin-right: .4rem; }
 
-.hero-orbit { margin: auto; max-width: 450px; min-height: 392px; position: relative; }
-.hero-disc { background: linear-gradient(145deg, #e9f3ff, #f9fcff); border: 1px solid #dceafd; border-radius: 50%; height: 350px; left: 50%; position: absolute; top: 18px; transform: translateX(-50%); width: 350px; }
-.hero-disc::after { border: 1px dashed #9bc3f9; border-radius: 50%; content: ""; inset: 24px; position: absolute; }
-.hero-center { align-items: center; background: white; border-radius: 28px; box-shadow: 0 17px 36px rgba(37, 94, 159, .14); display: flex; height: 150px; justify-content: center; left: 50%; position: absolute; top: 117px; transform: translateX(-50%) rotate(-4deg); width: 180px; }
-.hero-center img { width: 150px; height: 86px; object-fit: cover; object-position: center; border-radius: 12px; }
-.float-card { align-items: center; background: white; border: 1px solid #edf2f8; border-radius: 16px; box-shadow: 0 12px 28px rgba(30, 73, 128, .12); display: flex; gap: .6rem; padding: .65rem .85rem; position: absolute; }
-.float-card b { color: var(--ss-ink); display: block; font-size: .78rem; }
-.float-card span { color: var(--ss-muted); display: block; font-size: .7rem; }
-.float-card .avatar { align-items: center; background: #eaf3ff; border-radius: 50%; color: var(--ss-blue); display: flex; font-size: 1.15rem; height: 34px; justify-content: center; width: 34px; }
-.float-top { right: 0; top: 42px; }
-.float-left { left: 0; top: 218px; }
-.float-bottom { bottom: 0; right: 23px; }
+/* ─── Stylish Hero Visual & Orbit Styling ───────────────────────────── */
+.hero-orbit { 
+  margin: auto; 
+  max-width: 480px; 
+  min-height: 420px; 
+  position: relative; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ambient colorful radial glow behind the orbit */
+.hero-glow {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(14, 91, 200, 0.20) 0%, rgba(245, 158, 11, 0.12) 40%, rgba(16, 185, 129, 0.05) 65%, transparent 80%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Outer concentric orbit with gentle rotation */
+.hero-disc { 
+  background: linear-gradient(145deg, rgba(233, 243, 255, 0.75), rgba(249, 252, 255, 0.55)); 
+  border: 1.5px solid rgba(195, 220, 253, 0.75); 
+  border-radius: 50%; 
+  height: 370px; 
+  left: 50%; 
+  position: absolute; 
+  top: 25px; 
+  transform: translateX(-50%); 
+  width: 370px; 
+  box-shadow: 0 12px 35px rgba(37, 94, 159, 0.08);
+}
+
+.hero-disc::before {
+  content: "";
+  position: absolute;
+  inset: 22px;
+  border: 1.5px dashed rgba(147, 197, 253, 0.9);
+  border-radius: 50%;
+  animation: orbitRotate 50s linear infinite;
+}
+
+.hero-disc::after { 
+  content: ""; 
+  position: absolute; 
+  inset: 54px; 
+  border: 1px solid rgba(219, 234, 254, 0.75); 
+  border-radius: 50%; 
+}
+
+/* Satellite dot on orbit */
+.orbit-satellite {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 14px #3b82f6, 0 0 3px #fff inset;
+  transform: translate(-50%, -50%);
+  animation: satellitePulse 2.5s infinite;
+}
+
+/* 3D Glassmorphic Center Card */
+.hero-center { 
+  align-items: center; 
+  background: rgba(255, 255, 255, 0.94); 
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  border-radius: 28px; 
+  box-shadow: 0 24px 50px -10px rgba(18, 54, 102, 0.18), 0 4px 12px rgba(0, 0, 0, 0.03), 0 0 0 1px rgba(230, 240, 255, 0.85) inset; 
+  display: flex; 
+  flex-direction: column;
+  height: 162px; 
+  justify-content: center; 
+  left: 50%; 
+  position: absolute; 
+  top: 128px; 
+  transform: translateX(-50%) rotate(-3deg); 
+  width: 195px; 
+  z-index: 2;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+  animation: heroCenterLevitate 6s ease-in-out infinite alternate;
+}
+
+.hero-center:hover {
+  transform: translateX(-50%) rotate(0deg) scale(1.04);
+  box-shadow: 0 30px 65px -10px rgba(18, 54, 102, 0.26);
+}
+
+.hero-center img { 
+  width: 145px; 
+  height: auto; 
+  max-height: 80px; 
+  object-fit: contain; 
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.06));
+}
+
+.hero-center-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 20px;
+  padding: 3px 10px;
+  margin-top: 6px;
+}
+
+.hero-center-pill .pulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  animation: pulseDot 2s infinite;
+}
+
+/* Floating Glassmorphic Cards */
+.float-card { 
+  align-items: center; 
+  background: rgba(255, 255, 255, 0.92); 
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(255, 255, 255, 0.9); 
+  border-radius: 20px; 
+  box-shadow: 0 16px 36px -6px rgba(18, 50, 94, 0.15), 0 4px 12px rgba(0, 0, 0, 0.03); 
+  display: flex; 
+  gap: 0.75rem; 
+  padding: 0.7rem 1.05rem; 
+  position: absolute; 
+  z-index: 3;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: default;
+}
+
+.float-card:hover {
+  transform: scale(1.05) translateY(-5px) !important;
+  box-shadow: 0 24px 50px -8px rgba(18, 50, 94, 0.24);
+}
+
+.float-card b { 
+  color: var(--ss-ink); 
+  display: block; 
+  font-size: 0.82rem; 
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.float-card span.card-subtitle { 
+  color: var(--ss-muted); 
+  display: block; 
+  font-size: 0.72rem; 
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+/* Icon Badges with Vibrant Gradients */
+.card-icon-badge {
+  align-items: center;
+  border-radius: 14px;
+  display: flex;
+  height: 38px;
+  width: 38px;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+}
+
+.card-icon-badge.icon-green {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
+
+.card-icon-badge.icon-blue {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+
+.card-icon-badge.icon-orange {
+  background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  box-shadow: 0 6px 16px rgba(234, 88, 12, 0.35);
+}
+
+/* Positions with gentle independent floating animations */
+.float-top { 
+  right: -10px; 
+  top: 35px; 
+  animation: floatCardTop 4.8s ease-in-out infinite alternate;
+}
+
+.float-left { 
+  left: -24px; 
+  top: 215px; 
+  animation: floatCardLeft 5.6s ease-in-out infinite alternate-reverse;
+}
+
+.float-bottom { 
+  bottom: 12px; 
+  right: 15px; 
+  animation: floatCardBottom 5.2s ease-in-out infinite alternate;
+}
+
+/* Keyframe Animations */
+@keyframes floatCardTop {
+  0% { transform: translateY(0px) rotate(0deg); }
+  100% { transform: translateY(-10px) rotate(1.2deg); }
+}
+
+@keyframes floatCardLeft {
+  0% { transform: translateY(0px) rotate(0deg); }
+  100% { transform: translateY(11px) rotate(-1.5deg); }
+}
+
+@keyframes floatCardBottom {
+  0% { transform: translateY(0px) rotate(0deg); }
+  100% { transform: translateY(-9px) rotate(1.2deg); }
+}
+
+@keyframes heroCenterLevitate {
+  0% { transform: translateX(-50%) rotate(-3deg) translateY(0); }
+  100% { transform: translateX(-50%) rotate(-1deg) translateY(-8px); }
+}
+
+@keyframes orbitRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulseDot {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+  70% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes satellitePulse {
+  0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+}
 
 .section { padding: 5.5rem 0; }
 .section-heading { font-size: clamp(2rem, 3vw, 2.7rem); font-weight: 800; letter-spacing: -.04em; }
