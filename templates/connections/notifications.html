@@ -1,1 +1,61 @@
-{% extends 'base.html' %}{% block title %}Notifications · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><div class="d-flex justify-content-between align-items-end mb-4"><div><p class="eyebrow">Updates</p><h1 class="section-heading h2">Notifications</h1></div><form method="post" action="{{ url_for('connections.mark_all_notifications_read') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-outline-primary">Mark all as read</button></form></div><div class="soft-card p-3">{% for item in notifications %}<div class="d-flex justify-content-between gap-3 border-bottom py-3 {% if not item.is_read %}bg-light{% endif %}"><div><strong>{{ item.title }}</strong><p class="small text-secondary mb-1">{{ item.message }}</p><small class="text-secondary">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</small></div>{% if not item.is_read %}<form method="post" action="{{ url_for('connections.mark_notification_read', notification_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-sm btn-outline-primary">Mark read</button></form>{% endif %}</div>{% else %}<div class="empty-state">No notifications yet.</div>{% endfor %}</div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Notifications · SkillSwap{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+      <div>
+        <p class="eyebrow">Updates</p>
+        <h1 class="section-heading h2">Notifications</h1>
+      </div>
+      <form method="post" action="{{ url_for('connections.mark_all_notifications_read') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-outline-primary" type="submit">Mark all as read</button>
+      </form>
+    </div>
+
+    <div class="soft-card p-3">
+      {% for item in notifications %}
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 border-bottom py-3 {% if not item.is_read %}bg-light px-2 rounded-2{% endif %}">
+          <div>
+            <a href="{{ url_for('connections.open_notification', notification_id=item.id) }}" class="text-decoration-none text-dark d-block mb-1">
+              <strong class="h6 mb-0">{{ item.title }}</strong>
+              {% if not item.is_read %}
+                <span class="badge text-bg-primary ms-1" style="font-size: 0.7rem;">New</span>
+              {% endif %}
+            </a>
+            <p class="small text-secondary mb-1">{{ item.message }}</p>
+            <small class="text-secondary">{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+          </div>
+
+          <div class="d-flex align-items-center gap-2 flex-shrink-0">
+            {% if item.notification_type == 'chat_message' or item.related_type == 'conversation' %}
+              <a class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" href="{{ url_for('connections.open_notification', notification_id=item.id) }}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M5 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0m4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0m3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/>
+                  <path d="m2.165 15.803.02-.004c1.83-.363 2.948-.842 3.468-1.105A9 9 0 0 0 8 15c4.418 0 8-3.134 8-7s-3.582-7-8-7-8 3.134-8 7c0 1.76.743 3.37 1.97 4.6a10.4 10.4 0 0 1-.52 1.734c-.1.29-.025.612.19.827a.8.8 0 0 0 .525.242M1.5 8c0-3.309 3.09-6 6.5-6s6.5 2.691 6.5 6-3.09 6-6.5 6c-.476 0-.946-.052-1.4-.15a.75.75 0 0 0-.584.096c-.52.336-1.396.726-2.583.992.21-.497.382-1.04.498-1.615a.75.75 0 0 0-.256-.699C2.26 11.517 1.5 9.873 1.5 8"/>
+                </svg>
+                <span>Open chat</span>
+              </a>
+            {% elif item.related_type in ['learning_request', 'relationship'] %}
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('connections.open_notification', notification_id=item.id) }}">
+                View
+              </a>
+            {% endif %}
+
+            {% if not item.is_read %}
+              <form method="post" action="{{ url_for('connections.mark_notification_read', notification_id=item.id) }}" class="m-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">Mark read</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">No notifications yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

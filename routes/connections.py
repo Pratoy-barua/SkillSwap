@@ -75,7 +75,14 @@ def cancel_request(request_id):
 @role_required("Mentor")
 def mentor_requests():
     items = LearningRequest.query.filter_by(mentor_id=g.current_user.id).order_by(LearningRequest.created_at.desc()).all()
-    return render_template("connections/mentor_requests.html", requests=items)
+    active_rels = LearningRelationship.query.filter_by(mentor_id=g.current_user.id, status="Active").all()
+    conversations_by_learner = {}
+    for rel in active_rels:
+        if not rel.conversation:
+            rel.conversation = Conversation(relationship=rel)
+            db.session.commit()
+        conversations_by_learner[rel.learner_id] = rel.conversation.id
+    return render_template("connections/mentor_requests.html", requests=items, conversations_by_learner=conversations_by_learner)
 
 
 @connection_bp.post("/mentor/requests/<int:request_id>/<action>")
@@ -164,6 +171,43 @@ def chat_messages(conversation_id):
     return jsonify({"messages": [{"id": item.id, "body": item.body, "sender": item.sender.full_name, "mine": item.sender_id == g.current_user.id, "created_at": item.created_at.isoformat()} for item in conversation.messages]})
 
 
+@connection_bp.get("/chat/with/<int:user_id>")
+@role_required("Learner", "Mentor")
+def chat_with_user(user_id):
+    target = User.query.get_or_404(user_id)
+    if g.current_user.role.name == "Mentor":
+        relationship = LearningRelationship.query.filter_by(
+            mentor_id=g.current_user.id, learner_id=target.id, status="Active"
+        ).first()
+        if not relationship:
+            pending = LearningRequest.query.filter_by(
+                mentor_id=g.current_user.id, learner_id=target.id, status="Pending"
+            ).first()
+            if pending:
+                flash("Please accept the learner's request to start chatting.", "info")
+                return redirect(url_for("learner.view_profile", user_id=target.id))
+            abort(403)
+    else:  # Learner
+        relationship = LearningRelationship.query.filter_by(
+            learner_id=g.current_user.id, mentor_id=target.id, status="Active"
+        ).first()
+        if not relationship:
+            pending = LearningRequest.query.filter_by(
+                learner_id=g.current_user.id, mentor_id=target.id, status="Pending"
+            ).first()
+            if pending:
+                flash("Your learning request is pending mentor approval. Once accepted, you can message this mentor.", "info")
+            else:
+                flash("Send a learning request to start learning and chatting with this mentor.", "info")
+            return redirect(url_for("discovery.mentor_profile", user_id=target.id))
+
+    if not relationship.conversation:
+        relationship.conversation = Conversation(relationship=relationship)
+        db.session.commit()
+
+    return redirect(url_for("connections.chat", conversation_id=relationship.conversation.id))
+
+
 @connection_bp.get("/notifications")
 @role_required("Learner", "Mentor", "Admin")
 def notifications():
@@ -185,4 +229,41 @@ def mark_notification_read(notification_id):
 def mark_all_notifications_read():
     Notification.query.filter_by(user_id=g.current_user.id, is_read=False).update({"is_read": True})
     db.session.commit()
+    return redirect(url_for("connections.notifications"))
+
+
+@connection_bp.get("/notifications/<int:notification_id>/open")
+@role_required("Learner", "Mentor", "Admin")
+def open_notification(notification_id):
+    item = Notification.query.filter_by(id=notification_id, user_id=g.current_user.id).first_or_404()
+    item.is_read = True
+    db.session.commit()
+
+    # If it is a chat notification, directly open the conversation
+    if item.related_type == "conversation" and item.related_id:
+        conversation = Conversation.query.get(item.related_id)
+        if conversation and conversation.relationship.status == "Active":
+            if g.current_user.id in {conversation.relationship.learner_id, conversation.relationship.mentor_id}:
+                return redirect(url_for("connections.chat", conversation_id=conversation.id))
+
+    if item.notification_type == "chat_message":
+        if item.related_type == "conversation" and item.related_id:
+            return redirect(url_for("connections.chat", conversation_id=item.related_id))
+
+    # If it is a relationship notification (e.g. relationship_created)
+    if item.related_type == "relationship" and item.related_id:
+        relationship = LearningRelationship.query.get(item.related_id)
+        if relationship and relationship.status == "Active" and relationship.conversation:
+            if g.current_user.id in {relationship.learner_id, relationship.mentor_id}:
+                return redirect(url_for("connections.chat", conversation_id=relationship.conversation.id))
+        if g.current_user.role.name == "Mentor":
+            return redirect(url_for("connections.mentor_learners"))
+        return redirect(url_for("connections.learner_mentors"))
+
+    # If it is a learning request notification
+    if item.related_type == "learning_request" or item.notification_type.startswith("request_"):
+        if g.current_user.role.name == "Mentor":
+            return redirect(url_for("connections.mentor_requests"))
+        return redirect(url_for("connections.learner_requests"))
+
     return redirect(url_for("connections.notifications"))

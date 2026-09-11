@@ -5,7 +5,7 @@ from flask import Blueprint, flash, g, render_template, request, url_for
 from extensions import db
 
 from models.auth import Location, MentorProfile, MentorSkill, Role, Skill, User
-from models.connection import LearningRelationship
+from models.connection import Conversation, LearningRelationship
 from models.reviews import Review
 from services.premium import has_premium
 
@@ -88,6 +88,9 @@ def mentor_profile(user_id):
     active_relationship = None
     if getattr(g, "current_user", None) and g.current_user.role.name == "Learner":
         active_relationship = LearningRelationship.query.filter_by(learner_id=g.current_user.id, mentor_id=mentor.id, status="Active").first()
+        if active_relationship and not active_relationship.conversation:
+            active_relationship.conversation = Conversation(relationship=active_relationship)
+            db.session.commit()
     rating = db.session.query(func.avg(Review.rating)).filter_by(mentor_id=mentor.id, status="Published").scalar() or 0
     review_count = Review.query.filter_by(mentor_id=mentor.id, status="Published").count()
     recent_reviews = Review.query.filter_by(mentor_id=mentor.id, status="Published").order_by(Review.created_at.desc()).limit(5).all()

@@ -2,12 +2,12 @@
 
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
-from decorators.auth import role_required
+from decorators.auth import login_required, role_required
 from extensions import db
-from models.auth import LearnerProfile, LearnerSkill, MentorSkill, Skill
-from models.connection import LearningRelationship, LearningRequest, Notification
+from models.auth import LearnerProfile, LearnerSkill, MentorSkill, Role, Skill, User
+from models.connection import Conversation, LearningRelationship, LearningRequest, Notification
 from models.learning import Payment
 from models.reviews import Review
 from models.store import Order
@@ -212,6 +212,64 @@ def profile():
     return render_template(
         "learner/profile.html",
         profile=profile
+    )
+
+
+# ============================================================
+# LEARNER PUBLIC / VIEW PROFILE
+# ============================================================
+
+@learner_bp.get("/<int:user_id>")
+@login_required
+def view_profile(user_id):
+    learner = (
+        User.query.join(User.role)
+        .filter(User.id == user_id, Role.name == "Learner")
+        .first_or_404()
+    )
+
+    viewer = g.current_user
+    is_admin = viewer.role.name == "Admin"
+    is_self = viewer.id == learner.id
+    is_authorized_mentor = False
+    pending_request = None
+    relationship = None
+    conversation = None
+
+    if viewer.role.name == "Mentor":
+        pending_request = (
+            LearningRequest.query.filter_by(mentor_id=viewer.id, learner_id=learner.id)
+            .order_by(LearningRequest.created_at.desc())
+            .first()
+        )
+        relationship = LearningRelationship.query.filter_by(
+            mentor_id=viewer.id, learner_id=learner.id, status="Active"
+        ).first()
+        if not relationship:
+            relationship = LearningRelationship.query.filter_by(
+                mentor_id=viewer.id, learner_id=learner.id
+            ).first()
+        if pending_request or relationship:
+            is_authorized_mentor = True
+        if relationship and relationship.status == "Active":
+            if not relationship.conversation:
+                relationship.conversation = Conversation(relationship=relationship)
+                db.session.commit()
+            conversation = relationship.conversation
+
+    if not (is_admin or is_self or is_authorized_mentor):
+        abort(403)
+
+    return render_template(
+        "learner/public_profile.html",
+        learner=learner,
+        profile=learner.learner_profile,
+        pending_request=pending_request,
+        relationship=relationship,
+        conversation=conversation,
+        is_admin=is_admin,
+        is_self=is_self,
+        is_authorized_mentor=is_authorized_mentor,
     )
 
 

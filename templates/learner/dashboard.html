@@ -62,7 +62,7 @@
       <div class="col-lg-5">
         <section class="dashboard-panel h-100">
           <div class="dashboard-panel-heading"><div><h2>Recent notifications</h2><p>Important account and learning updates.</p></div><a href="{{ url_for('connections.notifications') }}">View all</a></div>
-          <div class="notification-list">{% for item in recent_notifications %}<a class="notification-item {% if not item.is_read %}is-unread{% endif %}" href="{{ url_for('connections.notifications') }}"><strong>{{ item.title }}</strong><span>{{ item.message|truncate(82) }}</span><small>{{ item.created_at.strftime('%d %b') }}</small></a>{% else %}<div class="dashboard-empty compact"><strong>No recent notifications.</strong><span>Updates will appear here.</span></div>{% endfor %}</div>
+          <div class="notification-list">{% for item in recent_notifications %}<a class="notification-item {% if not item.is_read %}is-unread{% endif %}" href="{{ url_for('connections.open_notification', notification_id=item.id) }}"><strong>{{ item.title }}</strong><span>{{ item.message|truncate(82) }}</span><small>{{ item.created_at.strftime('%d %b') }}</small></a>{% else %}<div class="dashboard-empty compact"><strong>No recent notifications.</strong><span>Updates will appear here.</span></div>{% endfor %}</div>
         </section>
       </div>
 

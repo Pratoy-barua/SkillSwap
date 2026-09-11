@@ -32,7 +32,7 @@ def home():
 
 @public_bp.get("/about")
 def about():
-    return render_template("public/placeholder.html", feature="About SkillSwap")
+    return render_template("public/about.html", page_title="About Us")
 
 
 @public_bp.get("/contact")

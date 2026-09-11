@@ -20,7 +20,7 @@
         {% endif %}
         <li class="nav-item"><a class="nav-link" href="{{ url_for('public.skills') }}">Explore Skills <span class="visually-hidden">(coming soon)</span></a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('public.store') }}">Store <span class="visually-hidden">(coming soon)</span></a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('public.about') }}">About <span class="visually-hidden">(coming soon)</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('public.about') }}">About</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('public.contact') }}">Contact <span class="visually-hidden">(coming soon)</span></a></li>
       </ul>
       <div class="d-flex align-items-lg-center gap-2 nav-actions">
@@ -32,7 +32,7 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end p-2 notification-dropdown">
               {% for item in unread_notifications %}
-                <li><a class="dropdown-item rounded" href="{{ url_for('connections.notifications') }}"><strong class="d-block">{{ item.title }}</strong><small>{{ item.message|truncate(80) }}</small></a></li>
+                <li><a class="dropdown-item rounded" href="{{ url_for('connections.open_notification', notification_id=item.id) }}"><strong class="d-block">{{ item.title }}</strong><small>{{ item.message|truncate(80) }}</small></a></li>
               {% else %}
                 <li><span class="dropdown-item-text text-secondary">No unread notifications.</span></li>
               {% endfor %}
