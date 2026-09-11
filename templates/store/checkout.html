@@ -1,1 +1,596 @@
-{% extends 'base.html' %}{% block title %}Store Checkout · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><div class="soft-card p-4 p-md-5 mx-auto" style="max-width: 760px;"><p class="eyebrow">Demo Payment</p><h1 class="section-heading h2">Checkout</h1><div class="alert alert-warning"><strong>Demo Payment — No real money will be collected.</strong></div>{% for item in cart.items %}<div class="d-flex justify-content-between py-2 border-bottom"><span>{{ item.product.name }} × {{ item.quantity }}</span><strong>{{ item.product.price * item.quantity }}</strong></div>{% endfor %}<p class="h4 text-end mt-3">Total: {{ subtotal }}</p><form method="post" class="mt-4"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label class="form-label">Delivery address</label><textarea class="form-control mb-3" name="delivery_address" required>{{ current_user.address }}</textarea><label class="form-label">Delivery phone</label><input class="form-control mb-3" name="delivery_phone" value="{{ current_user.phone }}" required><label class="form-label">Demo result</label><select class="form-select mb-4" name="demo_outcome"><option value="success">Successful demo payment</option><option value="failure">Failed demo payment</option></select><button class="btn btn-primary">Place demo order</button></form></div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Checkout · SkillSwap Store{% endblock %}
+
+{% block head %}
+<style>
+  /* ─── Modern Store Checkout Styles ─── */
+  .store-checkout-page {
+    padding: 2.25rem 0 4.5rem;
+    background-color: var(--ss-bg);
+  }
+
+  .store-checkout-container {
+    max-width: 1140px;
+    margin: 0 auto;
+  }
+
+  /* Back to cart button */
+  .checkout-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ss-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.4rem 0.75rem;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    background: transparent;
+    transition: all 0.15s ease-in-out;
+  }
+  .checkout-back-link:hover {
+    color: var(--ss-blue);
+    background: #eef5ff;
+  }
+  .checkout-back-link svg {
+    transition: transform 0.15s ease;
+  }
+  .checkout-back-link:hover svg {
+    transform: translateX(-3px);
+  }
+
+  /* Page Header */
+  .checkout-page-header {
+    margin-bottom: 2rem;
+  }
+  .checkout-eyebrow {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ss-blue);
+    margin-bottom: 0.35rem;
+  }
+  .checkout-title {
+    font-size: clamp(1.65rem, 3vw, 2.2rem);
+    font-weight: 800;
+    color: var(--ss-ink);
+    letter-spacing: -0.03em;
+    margin-bottom: 0.35rem;
+  }
+  .checkout-subtitle {
+    font-size: 0.95rem;
+    color: var(--ss-muted);
+    margin: 0;
+  }
+
+  /* Checkout Cards */
+  .checkout-card {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(23, 58, 105, 0.04);
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .checkout-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.35rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--ss-border);
+  }
+
+  .checkout-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #eef5ff;
+    color: var(--ss-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .checkout-card-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+  .checkout-card-desc {
+    font-size: 0.82rem;
+    color: var(--ss-muted);
+    margin: 0.15rem 0 0;
+  }
+
+  /* Form Controls */
+  .checkout-label {
+    display: block;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--ss-ink);
+    margin-bottom: 0.45rem;
+  }
+  .checkout-input,
+  .checkout-textarea {
+    width: 100%;
+    border: 1.5px solid var(--ss-border);
+    border-radius: 10px;
+    padding: 0.65rem 0.95rem;
+    font-size: 0.92rem;
+    color: var(--ss-ink);
+    background: #fbfdff;
+    transition: all 0.15s ease-in-out;
+  }
+  .checkout-input:focus,
+  .checkout-textarea:focus {
+    border-color: var(--ss-blue);
+    background: #ffffff;
+    box-shadow: 0 0 0 3.5px rgba(22, 103, 217, 0.12);
+    outline: 0;
+  }
+  .checkout-hint {
+    font-size: 0.78rem;
+    color: var(--ss-muted);
+    margin-top: 0.35rem;
+    display: block;
+  }
+
+  /* Payment Option Component */
+  .payment-method-box {
+    border: 1.5px solid #b9d6fb;
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    background: #f8fbff;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    position: relative;
+  }
+  .payment-radio-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 5px solid var(--ss-blue);
+    background: #ffffff;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+  .payment-method-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .payment-method-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+  }
+  .payment-method-name {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+  .payment-badge {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    background: #e8f7ef;
+    color: #187148;
+    border: 1px solid #c0ebd2;
+  }
+  .payment-method-desc {
+    font-size: 0.83rem;
+    color: var(--ss-muted);
+    margin: 0;
+  }
+
+  /* Trust & Security Box */
+  .checkout-security-note {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-top: 1.25rem;
+    font-size: 0.82rem;
+    color: var(--ss-muted);
+  }
+  .checkout-security-note svg {
+    color: var(--ss-blue);
+    flex-shrink: 0;
+  }
+
+  /* Order Summary Card (Sticky on desktop) */
+  .order-summary-card {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(23, 58, 105, 0.04);
+    padding: 1.75rem;
+    position: sticky;
+    top: 1.5rem;
+  }
+
+  .summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--ss-border);
+    margin-bottom: 1.15rem;
+  }
+  .summary-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+  .summary-count-badge {
+    font-size: 0.76rem;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+  }
+
+  /* Item List in Summary */
+  .summary-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .summary-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem;
+    padding: 0.4rem 0;
+  }
+  .summary-item-media {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .summary-item-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .summary-item-icon {
+    color: var(--ss-muted);
+  }
+  .summary-item-details {
+    flex: 1;
+    min-width: 0;
+  }
+  .summary-item-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--ss-ink);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .summary-item-subtext {
+    font-size: 0.78rem;
+    color: var(--ss-muted);
+    margin-top: 0.15rem;
+  }
+  .summary-item-total {
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  /* Price calculations */
+  .summary-price-breakdown {
+    border-top: 1px solid var(--ss-border);
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+  }
+  .price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.88rem;
+    color: var(--ss-muted);
+  }
+  .price-row.total-row {
+    border-top: 1.5px dashed var(--ss-border);
+    padding-top: 0.85rem;
+    margin-top: 0.25rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+  }
+  .price-row.total-row .total-amount {
+    font-size: 1.35rem;
+    color: var(--ss-blue);
+    letter-spacing: -0.02em;
+  }
+
+  /* Primary Action Button */
+  .btn-place-order {
+    width: 100%;
+    min-height: 46px;
+    height: 46px;
+    padding: 0 1.25rem;
+    font-size: 0.98rem;
+    font-weight: 700;
+    border-radius: 9px;
+    background: var(--ss-blue);
+    border: 1.5px solid var(--ss-blue);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    cursor: pointer;
+    transition: all 0.18s ease-in-out;
+    box-shadow: 0 2px 8px rgba(22, 103, 217, 0.2);
+  }
+  .btn-place-order:hover,
+  .btn-place-order:focus {
+    background: var(--ss-blue-dark);
+    border-color: var(--ss-blue-dark);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(22, 103, 217, 0.3);
+    transform: translateY(-1px);
+  }
+
+  .summary-guarantee-text {
+    font-size: 0.76rem;
+    color: var(--ss-muted);
+    text-align: center;
+    margin-top: 0.85rem;
+    margin-bottom: 0;
+    line-height: 1.4;
+  }
+
+  /* Responsive styling */
+  @media (max-width: 991.98px) {
+    .order-summary-card {
+      position: static;
+      margin-top: 1rem;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .checkout-card,
+    .order-summary-card {
+      padding: 1.25rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="store-checkout-page">
+  <div class="container store-checkout-container">
+
+    <!-- Back to Shopping Cart Link -->
+    <a class="checkout-back-link" href="{{ url_for('store.cart') }}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+      </svg>
+      <span>Back to Cart</span>
+    </a>
+
+    <!-- Page Header -->
+    <header class="checkout-page-header">
+      <p class="checkout-eyebrow">STORE CHECKOUT</p>
+      <h1 class="checkout-title">Checkout</h1>
+      <p class="checkout-subtitle">Review your items, provide delivery details, and confirm your order.</p>
+    </header>
+
+    {% include 'partials/flash.html' %}
+
+    <!-- Main Checkout Form & Layout -->
+    <form method="post" id="checkoutForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <!-- Hidden outcome parameter to ensure seamless execution with existing backend -->
+      <input type="hidden" name="demo_outcome" value="success">
+
+      <div class="row g-4">
+
+        <!-- LEFT COLUMN: Delivery Information & Payment Method -->
+        <div class="col-lg-7">
+
+          <!-- 1. Delivery Information Card -->
+          <div class="checkout-card">
+            <div class="checkout-card-header">
+              <div class="checkout-icon-box" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10m0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="checkout-card-title">Delivery Information</h2>
+                <p class="checkout-card-desc">Where should we deliver your order?</p>
+              </div>
+            </div>
+
+            <!-- Delivery Address -->
+            <div class="mb-3">
+              <label class="checkout-label" for="delivery_address">
+                Full Delivery Address <span class="text-danger">*</span>
+              </label>
+              <textarea
+                class="checkout-textarea"
+                id="delivery_address"
+                name="delivery_address"
+                rows="3"
+                required
+                placeholder="House / Apartment, Road, Area, City, Postal Code">{{ current_user.address }}</textarea>
+              <span class="checkout-hint">Please provide detailed instructions for accurate delivery.</span>
+            </div>
+
+            <!-- Delivery Phone -->
+            <div>
+              <label class="checkout-label" for="delivery_phone">
+                Contact Phone Number <span class="text-danger">*</span>
+              </label>
+              <input
+                type="tel"
+                class="checkout-input"
+                id="delivery_phone"
+                name="delivery_phone"
+                value="{{ current_user.phone }}"
+                required
+                placeholder="e.g. 017xxxxxxxx">
+              <span class="checkout-hint">Our delivery agent will reach out to this number upon arrival.</span>
+            </div>
+          </div>
+
+          <!-- 2. Payment Method Card -->
+          <div class="checkout-card">
+            <div class="checkout-card-header">
+              <div class="checkout-icon-box" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1z"/>
+                  <path d="M2 10a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="checkout-card-title">Payment Method</h2>
+                <p class="checkout-card-desc">Select how you would like to pay for your purchase.</p>
+              </div>
+            </div>
+
+            <!-- Selected Payment Option -->
+            <div class="payment-method-box">
+              <div class="payment-radio-indicator" aria-hidden="true"></div>
+              <div class="payment-method-body">
+                <div class="payment-method-header">
+                  <span class="payment-method-name">Direct Order Payment</span>
+                  <span class="payment-badge">Instant Confirmation</span>
+                </div>
+                <p class="payment-method-desc">
+                  Fast, encrypted order processing. Your order will be confirmed immediately upon placement.
+                </p>
+              </div>
+            </div>
+
+            <!-- Security Assurance Note -->
+            <div class="checkout-security-note">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 0c-.69 0-1.843.265-2.928.56-1.11.3-2.229.655-2.887.87a1.54 1.54 0 0 0-1.044 1.262c-.596 4.477.787 7.795 2.465 9.99a11.78 11.78 0 0 0 2.517 2.453c.386.273.744.482 1.048.625.28.132.581.24.829.24s.548-.108.829-.24a7.16 7.16 0 0 0 1.048-.625 11.78 11.78 0 0 0 2.517-2.453c1.678-2.195 3.061-5.513 2.465-9.99a1.54 1.54 0 0 0-1.044-1.263 62.67 62.67 0 0 0-2.887-.87C9.843.266 8.69 0 8 0m0 5a1.5 1.5 0 0 1 .5 2.915l.385 1.99a.5.5 0 0 1-.491.6h-.788a.5.5 0 0 1-.49-.6l.384-1.99A1.5 1.5 0 0 1 8 5"/>
+              </svg>
+              <span>Safe &amp; encrypted transaction. Your order information is strictly protected.</span>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: Order Summary & Place Order Action -->
+        <div class="col-lg-5">
+          <div class="order-summary-card">
+            <div class="summary-header">
+              <h2 class="summary-title">Order Summary</h2>
+              <span class="summary-count-badge">
+                {{ cart.items|length }} {% if cart.items|length == 1 %}item{% else %}items{% endif %}
+              </span>
+            </div>
+
+            <!-- List of Items in Cart -->
+            <div class="summary-items-list">
+              {% for item in cart.items %}
+                <div class="summary-item-row">
+                  <div class="summary-item-media" aria-hidden="true">
+                    {% if item.product.image %}
+                      <img
+                        src="{{ url_for('static', filename='uploads/public/' + item.product.image) }}"
+                        alt="{{ item.product.name }}"
+                        class="summary-item-img">
+                    {% else %}
+                      <div class="summary-item-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                          <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+                        </svg>
+                      </div>
+                    {% endif %}
+                  </div>
+
+                  <div class="summary-item-details">
+                    <h3 class="summary-item-name" title="{{ item.product.name }}">{{ item.product.name }}</h3>
+                    <div class="summary-item-subtext">
+                      Qty: {{ item.quantity }} × ৳{{ '%.2f'|format(item.product.price|float) }}
+                    </div>
+                  </div>
+
+                  <div class="summary-item-total">
+                    ৳{{ '%.2f'|format((item.product.price * item.quantity)|float) }}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <!-- Pricing Breakdown -->
+            <div class="summary-price-breakdown">
+              <div class="price-row">
+                <span>Items Subtotal</span>
+                <span class="fw-semibold text-dark">৳{{ '%.2f'|format(subtotal|float) }}</span>
+              </div>
+              <div class="price-row">
+                <span>Standard Delivery</span>
+                <span class="text-success fw-semibold">Free</span>
+              </div>
+              <div class="price-row total-row">
+                <span>Total Due</span>
+                <span class="total-amount">৳{{ '%.2f'|format(subtotal|float) }}</span>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn-place-order" id="placeOrderBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+              </svg>
+              <span>Place Order</span>
+            </button>
+
+            <p class="summary-guarantee-text">
+              By placing your order, you confirm that your delivery address and contact information are accurate.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+  </div>
+</section>
+{% endblock %}

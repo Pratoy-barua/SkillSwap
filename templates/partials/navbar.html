@@ -8,6 +8,7 @@
     </button>
     <div class="collapse navbar-collapse" id="mainNavigation">
       <ul class="navbar-nav mx-auto gap-lg-2">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('public.home') }}">Home</a></li>
         {% if current_user %}
           {% if current_user.role.name == 'Learner' %}
             <li class="nav-item"><a class="nav-link" href="{{ url_for('learner.dashboard') }}">Dashboard</a></li>
@@ -16,8 +17,6 @@
           {% else %}
             <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}">Dashboard</a></li>
           {% endif %}
-        {% else %}
-          <li class="nav-item"><a class="nav-link" href="{{ url_for('public.home') }}">Home</a></li>
         {% endif %}
         <li class="nav-item"><a class="nav-link" href="{{ url_for('public.skills') }}">Explore Skills <span class="visually-hidden">(coming soon)</span></a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('public.store') }}">Store <span class="visually-hidden">(coming soon)</span></a></li>

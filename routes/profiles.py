@@ -10,6 +10,7 @@ from models.auth import LearnerProfile, LearnerSkill, MentorSkill, Skill
 from models.connection import LearningRelationship, LearningRequest, Notification
 from models.learning import Payment
 from models.reviews import Review
+from models.store import Order
 from services.security import issue_csrf_token
 from services.uploads import save_upload
 
@@ -35,12 +36,14 @@ def dashboard():
     active_relationships = LearningRelationship.query.filter_by(learner_id=user_id, status="Active").order_by(LearningRelationship.updated_at.desc()).limit(3).all()
     recent_requests = LearningRequest.query.filter_by(learner_id=user_id).order_by(LearningRequest.created_at.desc()).limit(4).all()
     recent_notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(4).all()
+    recent_orders = Order.query.filter_by(buyer_id=user_id).order_by(Order.created_at.desc()).limit(5).all()
     return render_template(
         "learner/dashboard.html",
         profile=g.current_user.learner_profile,
         active_relationships=active_relationships,
         recent_requests=recent_requests,
         recent_notifications=recent_notifications,
+        recent_orders=recent_orders,
         pending_requests=LearningRequest.query.filter_by(learner_id=user_id, status="Pending").count(),
         relationships=LearningRelationship.query.filter_by(learner_id=user_id, status="Active").count(),
         completed_learning=LearningRelationship.query.filter_by(learner_id=user_id, status="Completed").count(),
@@ -225,6 +228,7 @@ def dashboard():
     recent_notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(4).all()
     recent_reviews = Review.query.filter_by(mentor_id=user_id).order_by(Review.created_at.desc()).limit(3).all()
     successful_payments = Payment.query.filter_by(mentor_id=user_id, status="Successful").all()
+    recent_orders = Order.query.filter_by(buyer_id=user_id).order_by(Order.created_at.desc()).limit(5).all()
     return render_template(
         "mentor/dashboard.html",
         profile=g.current_user.mentor_profile,
@@ -232,6 +236,7 @@ def dashboard():
         pending_items=pending_items,
         recent_notifications=recent_notifications,
         recent_reviews=recent_reviews,
+        recent_orders=recent_orders,
         pending_requests=LearningRequest.query.filter_by(mentor_id=user_id, status="Pending").count(),
         relationships=LearningRelationship.query.filter_by(mentor_id=user_id, status="Active").count(),
         completed_learning=LearningRelationship.query.filter_by(mentor_id=user_id, status="Completed").count(),

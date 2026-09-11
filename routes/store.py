@@ -219,7 +219,7 @@ def checkout():
                 item.product.stock -= item.quantity
         if result["status"] == "Successful":
             cart.items.clear()
-        notify(g.current_user.id, "order_payment", "Store Demo Payment", f"Your store Demo Payment is {result['status'].lower()}.", "order", order.id)
+        notify(g.current_user.id, "order_payment", "Store Order Confirmed", f"Your store order has been placed and payment is {result['status'].lower()}.", "order", order.id)
         db.session.commit()
         return redirect(url_for("store.order_details", order_id=order.id))
     subtotal = sum((item.product.price * item.quantity for item in items), Decimal("0"))

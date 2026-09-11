@@ -1,1 +1,373 @@
-{% extends 'base.html' %}{% block title %}My Orders · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><p class="eyebrow">Store history</p><h1 class="section-heading h2">My orders</h1><div class="soft-card p-3 mt-4">{% for order in orders %}<a class="d-flex justify-content-between border-bottom py-3" href="{{ url_for('store.order_details', order_id=order.id) }}"><span><strong>Order #{{ order.id }}</strong><small class="d-block text-secondary">{{ order.created_at.strftime('%Y-%m-%d') }} · {{ order.order_status }}</small></span><span>{{ order.total_amount }} · {{ order.payment_status }}</span></a>{% else %}<div class="empty-state">No orders yet.</div>{% endfor %}</div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}My Orders · SkillSwap Store{% endblock %}
+
+{% block head %}
+<style>
+  /* ─── Modern Order History Styles ─── */
+  .orders-page {
+    padding: 2.25rem 0 4.5rem;
+    background-color: var(--ss-bg);
+  }
+
+  .orders-container {
+    max-width: 1040px;
+    margin: 0 auto;
+  }
+
+  /* Page Header */
+  .orders-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+  .orders-eyebrow {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ss-blue);
+    margin-bottom: 0.35rem;
+  }
+  .orders-title {
+    font-size: clamp(1.65rem, 3vw, 2.2rem);
+    font-weight: 800;
+    color: var(--ss-ink);
+    letter-spacing: -0.03em;
+    margin-bottom: 0.35rem;
+  }
+  .orders-subtitle {
+    font-size: 0.95rem;
+    color: var(--ss-muted);
+    margin: 0;
+  }
+
+  .btn-browse-store {
+    min-height: 40px;
+    height: 40px;
+    padding: 0 1.15rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid var(--ss-border);
+    color: var(--ss-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    text-decoration: none;
+    transition: all 0.15s ease-in-out;
+  }
+  .btn-browse-store:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: var(--ss-blue);
+  }
+
+  /* Order Cards List */
+  .orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+
+  .order-history-card {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: 14px;
+    box-shadow: 0 3px 14px rgba(23, 58, 105, 0.03);
+    padding: 1.35rem 1.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    transition: all 0.15s ease-in-out;
+  }
+  .order-history-card:hover {
+    border-color: #c9ddf9;
+    box-shadow: 0 6px 20px rgba(23, 58, 105, 0.06);
+  }
+
+  .order-main-info {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex: 1;
+    min-width: 260px;
+  }
+
+  .order-icon-box {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: #eef5ff;
+    color: var(--ss-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .order-meta-texts {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .order-id-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.25rem;
+    flex-wrap: wrap;
+  }
+  .order-id-label {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+  .invoice-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ss-muted);
+    background: #f1f5f9;
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+  }
+
+  .order-date-text {
+    font-size: 0.82rem;
+    color: var(--ss-muted);
+    margin: 0;
+  }
+
+  /* Status and Total */
+  .order-financials-side {
+    display: flex;
+    align-items: center;
+    gap: 1.75rem;
+    flex-wrap: wrap;
+  }
+
+  .order-status-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .status-tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.22rem 0.6rem;
+    border-radius: 6px;
+  }
+  .status-tag.status-confirmed,
+  .status-tag.status-delivered,
+  .status-tag.status-successful {
+    background: #e8f7ef;
+    color: #187148;
+    border: 1px solid #c0ebd2;
+  }
+  .status-tag.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+  .status-tag.status-cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  .order-total-block {
+    text-align: right;
+    min-width: 100px;
+  }
+  .order-total-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ss-muted);
+    display: block;
+    margin-bottom: 0.1rem;
+  }
+  .order-total-value {
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+
+  /* View Action */
+  .btn-view-invoice {
+    min-height: 40px;
+    height: 40px;
+    padding: 0 1rem;
+    font-size: 0.86rem;
+    font-weight: 700;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1.5px solid var(--ss-border);
+    color: var(--ss-blue);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.15s ease-in-out;
+  }
+  .btn-view-invoice:hover {
+    background: var(--ss-blue);
+    border-color: var(--ss-blue);
+    color: #ffffff;
+    box-shadow: 0 3px 10px rgba(22, 103, 217, 0.2);
+  }
+
+  /* Empty State */
+  .orders-empty-state {
+    text-align: center;
+    padding: 4rem 1.5rem;
+    background: var(--ss-surface);
+    border: 1px dashed #cbd5e1;
+    border-radius: 16px;
+  }
+  .orders-empty-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+  }
+  .orders-empty-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0 0 0.4rem;
+  }
+  .orders-empty-desc {
+    font-size: 0.9rem;
+    color: var(--ss-muted);
+    margin: 0 0 1.5rem;
+  }
+
+  @media (max-width: 767.98px) {
+    .order-history-card {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1.15rem;
+    }
+    .order-financials-side {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .order-total-block {
+      text-align: left;
+    }
+    .btn-view-invoice {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="orders-page">
+  <div class="container orders-container">
+
+    <!-- Page Header -->
+    <header class="orders-header">
+      <div>
+        <p class="orders-eyebrow">ORDER HISTORY</p>
+        <h1 class="orders-title">My Orders</h1>
+        <p class="orders-subtitle">Track, review, and print official invoices for your store purchases.</p>
+      </div>
+
+      <a class="btn-browse-store" href="{{ url_for('store.index') }}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+        </svg>
+        <span>Browse Store</span>
+      </a>
+    </header>
+
+    {% include 'partials/flash.html' %}
+
+    <!-- Orders List -->
+    <div class="orders-list">
+      {% for order in orders %}
+        <div class="order-history-card">
+
+          <!-- Left Info: Icon + Order No + Invoice No + Date -->
+          <div class="order-main-info">
+            <div class="order-icon-box" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+              </svg>
+            </div>
+
+            <div class="order-meta-texts">
+              <div class="order-id-row">
+                <h2 class="order-id-label">Order #{{ order.id }}</h2>
+                <span class="invoice-tag">INV-{{ '%06d'|format(order.id) }}</span>
+              </div>
+              <p class="order-date-text">
+                Placed on {{ order.created_at.strftime('%d %B %Y') }} · {{ order.items|length }} {% if order.items|length == 1 %}item{% else %}items{% endif %}
+              </p>
+            </div>
+          </div>
+
+          <!-- Middle / Right: Status + Total Amount -->
+          <div class="order-financials-side">
+            <div class="order-status-group">
+              <span class="status-tag status-{{ order.order_status|lower }}">
+                {{ order.order_status }}
+              </span>
+            </div>
+
+            <div class="order-total-block">
+              <span class="order-total-label">Total Amount</span>
+              <p class="order-total-value">৳{{ '%.2f'|format(order.total_amount|float) }}</p>
+            </div>
+
+            <!-- View Invoice & Details Action -->
+            <a class="btn-view-invoice" href="{{ url_for('store.order_details', order_id=order.id) }}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
+                <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
+              </svg>
+              <span>View Invoice</span>
+            </a>
+          </div>
+
+        </div>
+      {% else %}
+        <!-- Empty State -->
+        <div class="orders-empty-state">
+          <div class="orders-empty-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+          </div>
+          <h3 class="orders-empty-title">No orders yet</h3>
+          <p class="orders-empty-desc">You haven't placed any store orders yet. Browse our marketplace to find study and creative materials.</p>
+          <a class="btn btn-primary" href="{{ url_for('store.index') }}">Start Shopping</a>
+        </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</section>
+{% endblock %}
