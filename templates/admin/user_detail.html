@@ -1,1 +1,1244 @@
-{% extends 'base.html' %}{% block title %}Review {{ user.full_name }} · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><a class="small text-primary fw-bold" href="{{ url_for('admin.dashboard') }}">← Back to dashboard</a><div class="soft-card p-4 p-md-5 mt-3"><div class="d-flex flex-column flex-md-row justify-content-between gap-3"><div><p class="eyebrow">Application review</p><h1 class="section-heading h2 mb-2">{{ user.full_name }}</h1><p class="text-secondary mb-0">{{ user.email }} · {{ user.phone }} · {{ user.role.name }}</p></div><span class="badge status-badge text-bg-{% if user.account_status == 'Approved' %}success{% elif user.account_status == 'Pending' %}warning{% else %}secondary{% endif %}">{{ user.account_status }}</span></div><hr class="my-4"><div class="row g-4"><div class="col-md-6"><p class="small text-secondary mb-1">Location</p><p class="fw-semibold">{{ user.location.city }}{% if user.location.area %}, {{ user.location.area }}{% endif %}</p>{% if user.role.name == 'Learner' %}<p class="small text-secondary mb-1">Interests</p><p>{{ user.learner_profile.interests or 'Not provided' }}</p>{% else %}<p class="small text-secondary mb-1">Bio</p><p>{{ user.mentor_profile.bio }}</p><p class="small text-secondary mb-1">Skills</p><p>{% for item in user.mentor_profile.skills %}<span class="badge text-bg-light me-1">{{ item.skill.name }}</span>{% endfor %}</p><p class="small text-secondary mb-1">Teaching</p><p>{{ user.mentor_profile.experience }} · {{ user.mentor_profile.teaching_type }} · {% if user.mentor_profile.is_paid %}Paid{% else %}Free{% endif %}</p>{% endif %}</div><div class="col-md-6"><h2 class="h6 fw-bold">Private verification documents</h2><p class="small text-secondary">Files are protected and only available to authenticated administrators.</p>{% for item in user.documents %}<div class="d-flex justify-content-between border-top py-2"><span>{{ item.document_type }} <small class="text-secondary">({{ item.original_name }})</small></span><a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.document', document_id=item.id) }}">Download</a></div>{% else %}<p class="text-secondary">No documents submitted.</p>{% endfor %}</div></div><div class="d-flex flex-wrap gap-2 mt-4"><form method="post" action="{{ url_for('admin.user_action', user_id=user.id, action='approve') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary">Approve</button></form><form method="post" action="{{ url_for('admin.user_action', user_id=user.id, action='reject') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-outline-danger">Reject</button></form>{% if user.account_status == 'Approved' %}<form method="post" action="{{ url_for('admin.user_action', user_id=user.id, action='suspend') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-outline-warning">Suspend</button></form>{% elif user.account_status == 'Suspended' %}<form method="post" action="{{ url_for('admin.user_action', user_id=user.id, action='reactivate') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-outline-success">Reactivate</button></form>{% endif %}</div></div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Review {{ user.full_name }} · SkillSwap Admin{% endblock %}
+
+{% block head %}
+<style>
+  /* ─── Admin Mentor Application Review Styles ─── */
+  .admin-review-page {
+    padding: 2rem 0 4.5rem;
+    background-color: var(--ss-bg);
+  }
+
+  .admin-review-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* Back to dashboard button */
+  .admin-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ss-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.4rem 0.75rem;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    background: transparent;
+    transition: all 0.15s ease-in-out;
+  }
+  .admin-back-btn:hover,
+  .admin-back-btn:focus {
+    color: var(--ss-blue);
+    background: #eef5ff;
+  }
+  .admin-back-btn svg {
+    transition: transform 0.15s ease;
+  }
+  .admin-back-btn:hover svg {
+    transform: translateX(-3px);
+  }
+
+  /* Application Header */
+  .admin-app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .admin-app-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ss-blue);
+    margin-bottom: 0.35rem;
+  }
+
+  .admin-app-title {
+    font-size: clamp(1.6rem, 2.8vw, 2.1rem);
+    font-weight: 800;
+    color: var(--ss-ink);
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    margin-bottom: 0.4rem;
+  }
+
+  .admin-app-subtitle {
+    font-size: 0.95rem;
+    color: var(--ss-muted);
+    margin-bottom: 0;
+    max-width: 38rem;
+  }
+
+  /* Status Badge Card in Header */
+  .admin-status-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.65rem 1.15rem;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid var(--ss-border);
+    box-shadow: 0 2px 8px rgba(23, 58, 105, 0.04);
+    flex-shrink: 0;
+  }
+
+  .admin-status-icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .admin-status-text-wrap {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+  }
+
+  .admin-status-label {
+    font-size: 0.92rem;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .admin-status-subtext {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--ss-muted);
+  }
+
+  /* Status specific styles */
+  .admin-status-card.status-pending {
+    background: #fffdf5;
+    border-color: #fde68a;
+  }
+  .admin-status-card.status-pending .admin-status-icon-wrap {
+    background: #fef3c7;
+    color: #b45309;
+  }
+  .admin-status-card.status-pending .admin-status-label {
+    color: #92400e;
+  }
+
+  .admin-status-card.status-approved {
+    background: #f6fdf9;
+    border-color: #a7f3d0;
+  }
+  .admin-status-card.status-approved .admin-status-icon-wrap {
+    background: #d1fae5;
+    color: #059669;
+  }
+  .admin-status-card.status-approved .admin-status-label {
+    color: #065f46;
+  }
+
+  .admin-status-card.status-rejected {
+    background: #fff8f8;
+    border-color: #fecaca;
+  }
+  .admin-status-card.status-rejected .admin-status-icon-wrap {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+  .admin-status-card.status-rejected .admin-status-label {
+    color: #991b1b;
+  }
+
+  .admin-status-card.status-suspended {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+  .admin-status-card.status-suspended .admin-status-icon-wrap {
+    background: #e2e8f0;
+    color: #475569;
+  }
+  .admin-status-card.status-suspended .admin-status-label {
+    color: #334155;
+  }
+
+  /* Core Card Styling */
+  .admin-review-card {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(23, 58, 105, 0.04);
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .admin-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+
+  .admin-card-title-group {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .admin-card-icon-pill {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #eef5ff;
+    color: var(--ss-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .admin-card-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+
+  .admin-card-subtitle {
+    font-size: 0.84rem;
+    color: var(--ss-muted);
+    margin-top: 0.2rem;
+    margin-bottom: 0;
+  }
+
+  /* Applicant Header Block inside Left Card */
+  .admin-applicant-profile-top {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .admin-applicant-avatar {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #ffffff;
+    box-shadow: 0 3px 12px rgba(23, 58, 105, 0.12);
+    flex-shrink: 0;
+  }
+
+  .admin-applicant-avatar-fallback {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: var(--ss-blue);
+    color: #ffffff;
+    font-size: 2rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid #ffffff;
+    box-shadow: 0 3px 12px rgba(23, 58, 105, 0.12);
+    flex-shrink: 0;
+  }
+
+  .admin-applicant-meta {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .admin-applicant-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.35rem;
+  }
+
+  .admin-applicant-name {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  .admin-role-badge {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.22rem 0.65rem;
+    border-radius: 6px;
+    background: #e8f2ff;
+    color: var(--ss-blue);
+    border: 1px solid #d0e3ff;
+  }
+
+  .admin-contact-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.85rem 1.25rem;
+  }
+
+  .admin-contact-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.88rem;
+    color: var(--ss-muted);
+  }
+  .admin-contact-item a {
+    color: var(--ss-ink);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .admin-contact-item a:hover {
+    color: var(--ss-blue);
+    text-decoration: underline;
+  }
+
+  .admin-divider {
+    border-color: var(--ss-border);
+    opacity: 1;
+    margin: 1.35rem 0;
+  }
+
+  /* Info Rows with Soft Icon Containers */
+  .admin-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+  }
+
+  .admin-info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .admin-info-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #f1f6fd;
+    color: var(--ss-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+
+  .admin-info-details {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .admin-info-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ss-muted);
+    margin-bottom: 0.25rem;
+  }
+
+  .admin-info-value {
+    font-size: 0.93rem;
+    font-weight: 600;
+    color: var(--ss-ink);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  .admin-info-secondary {
+    font-size: 0.83rem;
+    color: var(--ss-muted);
+    margin-top: 0.15rem;
+    display: block;
+  }
+
+  /* Skills Chips */
+  .admin-skills-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.2rem;
+  }
+
+  .admin-skill-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    background: #f8fbff;
+    border: 1px solid #dce8f8;
+    color: var(--ss-ink);
+    font-size: 0.85rem;
+    font-weight: 700;
+    gap: 0.4rem;
+  }
+
+  .admin-skill-chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ss-blue);
+  }
+
+  /* Teaching & Pricing Pill */
+  .admin-teaching-pill {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ss-ink);
+  }
+
+  .admin-pricing-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 800;
+  }
+  .admin-pricing-tag.is-free {
+    background: #e8f7ef;
+    color: #187148;
+    border: 1px solid #c0ebd2;
+  }
+  .admin-pricing-tag.is-paid {
+    background: #edf5ff;
+    color: var(--ss-blue);
+    border: 1px solid #c9e0ff;
+  }
+
+  /* Verification Documents Card */
+  .admin-doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .admin-doc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1rem;
+    background: #fbfdff;
+    border: 1px solid var(--ss-border);
+    border-radius: 12px;
+    transition: all 0.15s ease-in-out;
+  }
+  .admin-doc-row:hover {
+    background: #f4f8fe;
+    border-color: #cde0f7;
+  }
+
+  .admin-doc-info-side {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .admin-doc-icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: #ffffff;
+    border: 1px solid #dbe6f4;
+    color: var(--ss-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(23, 58, 105, 0.04);
+  }
+
+  .admin-doc-texts {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .admin-doc-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--ss-ink);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .admin-doc-meta {
+    font-size: 0.78rem;
+    color: var(--ss-muted);
+    margin-top: 0.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .admin-doc-filename {
+    color: #475569;
+    max-width: 170px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    vertical-align: bottom;
+  }
+
+  /* Compact Comfortable Download Button */
+  .admin-btn-download {
+    height: 38px;
+    min-height: 38px;
+    padding: 0 0.95rem;
+    font-size: 0.84rem;
+    font-weight: 700;
+    border-radius: 8px;
+    border: 1px solid #c9ddf9;
+    background: #ffffff;
+    color: var(--ss-blue);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+  .admin-btn-download:hover,
+  .admin-btn-download:focus {
+    background: var(--ss-blue);
+    border-color: var(--ss-blue);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(22, 103, 217, 0.2);
+  }
+
+  /* Empty Documents State */
+  .admin-doc-empty {
+    text-align: center;
+    padding: 2.25rem 1rem;
+    background: #fbfdff;
+    border: 1px dashed #d5e2f2;
+    border-radius: 12px;
+    margin-bottom: 1.25rem;
+  }
+  .admin-doc-empty svg {
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+  }
+  .admin-doc-empty p {
+    color: var(--ss-muted);
+    font-size: 0.88rem;
+    margin: 0;
+  }
+
+  /* Security Information Box */
+  .admin-security-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 0.95rem 1.1rem;
+    background: #f8fbff;
+    border: 1px solid #e2ecf9;
+    border-radius: 12px;
+  }
+
+  .admin-security-icon {
+    color: var(--ss-blue);
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+
+  .admin-security-content h4 {
+    font-size: 0.83rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0 0 0.2rem;
+  }
+
+  .admin-security-content p {
+    font-size: 0.78rem;
+    color: var(--ss-muted);
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  /* Action Buttons Box */
+  .admin-action-card {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(23, 58, 105, 0.04);
+    padding: 1.5rem 1.75rem;
+  }
+
+  .admin-action-header {
+    margin-bottom: 1.15rem;
+  }
+
+  .admin-action-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0 0 0.2rem;
+  }
+
+  .admin-action-subtitle {
+    font-size: 0.84rem;
+    color: var(--ss-muted);
+    margin: 0;
+  }
+
+  .admin-action-buttons-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+  }
+
+  /* Standardized Review Buttons (44-48px height, 14-20px pad, 8-10px radius, 15-16px font) */
+  .btn-review-action {
+    min-height: 46px;
+    height: 46px;
+    padding: 0 1.15rem;
+    font-size: 0.96rem;
+    font-weight: 700;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.18s ease-in-out;
+  }
+
+  .btn-review-approve {
+    background: var(--ss-blue);
+    border: 1.5px solid var(--ss-blue);
+    color: #ffffff;
+  }
+  .btn-review-approve:hover,
+  .btn-review-approve:focus {
+    background: var(--ss-blue-dark);
+    border-color: var(--ss-blue-dark);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(22, 103, 217, 0.28);
+    transform: translateY(-1px);
+  }
+
+  .btn-review-reject {
+    background: #ffffff;
+    border: 1.5px solid #ef4444;
+    color: #dc2626;
+  }
+  .btn-review-reject:hover,
+  .btn-review-reject:focus {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #b91c1c;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.15);
+    transform: translateY(-1px);
+  }
+
+  /* Secondary Status Action Buttons */
+  .admin-secondary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--ss-border);
+  }
+
+  .btn-review-suspend {
+    min-height: 40px;
+    height: 40px;
+    padding: 0 1rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1.5px solid #f59e0b;
+    color: #b45309;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+  }
+  .btn-review-suspend:hover {
+    background: #fffdf5;
+    border-color: #d97706;
+    color: #92400e;
+  }
+
+  .btn-review-reactivate {
+    min-height: 40px;
+    height: 40px;
+    padding: 0 1rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1.5px solid #10b981;
+    color: #047857;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+  }
+  .btn-review-reactivate:hover {
+    background: #f0fdf4;
+    border-color: #059669;
+    color: #065f46;
+  }
+
+  /* Responsive Adjustments */
+  @media (max-width: 991.98px) {
+    .admin-review-page {
+      padding: 1.75rem 0 3.5rem;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .admin-app-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .admin-status-card {
+      width: 100%;
+    }
+    .admin-review-card,
+    .admin-action-card {
+      padding: 1.25rem;
+    }
+    .admin-applicant-profile-top {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .admin-action-buttons-group {
+      grid-template-columns: 1fr;
+    }
+    .admin-doc-filename {
+      max-width: 120px;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .admin-doc-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .admin-btn-download {
+      width: 100%;
+      justify-content: center;
+    }
+    .admin-contact-list {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.4rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="admin-review-page">
+  <div class="container admin-review-container">
+
+    <!-- 1. BACK TO DASHBOARD LINK -->
+    <a class="admin-back-btn" href="{{ url_for('admin.dashboard') }}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+      </svg>
+      <span>Back to dashboard</span>
+    </a>
+
+    <!-- 2. APPLICATION HEADER -->
+    <header class="admin-app-header">
+      <div>
+        <p class="admin-app-eyebrow">APPLICATION REVIEW</p>
+        <h1 class="admin-app-title">
+          {% if user.role.name == 'Mentor' %}
+            Mentor Application
+          {% else %}
+            {{ user.role.name }} Application
+          {% endif %}
+        </h1>
+        <p class="admin-app-subtitle">
+          Review the mentor's profile, details and verification documents before making a decision.
+        </p>
+      </div>
+
+      <!-- Real Dynamic Status Badge Card -->
+      {% if user.account_status == 'Pending' %}
+        <div class="admin-status-card status-pending" role="status">
+          <div class="admin-status-icon-wrap" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+              <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+            </svg>
+          </div>
+          <div class="admin-status-text-wrap">
+            <span class="admin-status-label">Pending</span>
+            <span class="admin-status-subtext">Awaiting your review</span>
+          </div>
+        </div>
+      {% elif user.account_status == 'Approved' %}
+        <div class="admin-status-card status-approved" role="status">
+          <div class="admin-status-icon-wrap" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+            </svg>
+          </div>
+          <div class="admin-status-text-wrap">
+            <span class="admin-status-label">Approved</span>
+            <span class="admin-status-subtext">Active account</span>
+          </div>
+        </div>
+      {% elif user.account_status == 'Rejected' %}
+        <div class="admin-status-card status-rejected" role="status">
+          <div class="admin-status-icon-wrap" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293z"/>
+            </svg>
+          </div>
+          <div class="admin-status-text-wrap">
+            <span class="admin-status-label">Rejected</span>
+            <span class="admin-status-subtext">Application declined</span>
+          </div>
+        </div>
+      {% else %}
+        <div class="admin-status-card status-suspended" role="status">
+          <div class="admin-status-icon-wrap" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+              <path d="M5 6.25a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0zm3.5 0a1.25 1.25 0 1 1 2.5 0v3.5a1.25 1.25 0 1 1-2.5 0z"/>
+            </svg>
+          </div>
+          <div class="admin-status-text-wrap">
+            <span class="admin-status-label">{{ user.account_status }}</span>
+            <span class="admin-status-subtext">Account restricted</span>
+          </div>
+        </div>
+      {% endif %}
+    </header>
+
+    <!-- Flash notifications -->
+    {% include 'partials/flash.html' %}
+
+    <!-- 3. MAIN CONTENT: BALANCED TWO-COLUMN LAYOUT -->
+    <div class="row g-4">
+
+      <!-- LEFT COLUMN: MENTOR INFORMATION CARD -->
+      <div class="col-lg-7">
+        <div class="admin-review-card h-100">
+
+          <!-- Applicant Profile Top: Avatar + Name + Email + Phone + Role -->
+          <div class="admin-applicant-profile-top">
+            {% if user.profile_photo %}
+              <img src="{{ url_for('static', filename='uploads/public/' + user.profile_photo) }}"
+                   alt="{{ user.full_name }}"
+                   class="admin-applicant-avatar">
+            {% else %}
+              <div class="admin-applicant-avatar-fallback" aria-hidden="true">
+                {{ user.full_name[0] | upper }}
+              </div>
+            {% endif %}
+
+            <div class="admin-applicant-meta">
+              <div class="admin-applicant-name-row">
+                <h2 class="admin-applicant-name">{{ user.full_name }}</h2>
+                <span class="admin-role-badge">{{ user.role.name }}</span>
+              </div>
+              <div class="admin-contact-list">
+                <span class="admin-contact-item" title="Email address">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/>
+                  </svg>
+                  <a href="mailto:{{ user.email }}">{{ user.email }}</a>
+                </span>
+                <span class="admin-contact-item" title="Phone number">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877z"/>
+                  </svg>
+                  <a href="tel:{{ user.phone }}">{{ user.phone }}</a>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <hr class="admin-divider">
+
+          <!-- Information Rows -->
+          <div class="admin-info-list">
+
+            <!-- Location -->
+            <div class="admin-info-row">
+              <div class="admin-info-icon-box" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10m0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6"/>
+                </svg>
+              </div>
+              <div class="admin-info-details">
+                <span class="admin-info-label">Location</span>
+                <p class="admin-info-value">
+                  {% if user.location %}
+                    {{ user.location.city }}{% if user.location.area %}, {{ user.location.area }}{% endif %}
+                  {% else %}
+                    <span class="text-muted">Not specified</span>
+                  {% endif %}
+                </p>
+                {% if user.address %}
+                  <span class="admin-info-secondary">{{ user.address }}</span>
+                {% endif %}
+              </div>
+            </div>
+
+            {% if user.role.name == 'Learner' %}
+              <!-- Learner Profile Fields -->
+              <div class="admin-info-row">
+                <div class="admin-info-icon-box" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1z"/>
+                  </svg>
+                </div>
+                <div class="admin-info-details">
+                  <span class="admin-info-label">Learning Interests</span>
+                  <p class="admin-info-value">{{ user.learner_profile.interests or 'Not provided' }}</p>
+                </div>
+              </div>
+              {% if user.learner_profile and user.learner_profile.bio %}
+                <div class="admin-info-row">
+                  <div class="admin-info-icon-box" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4.414a1 1 0 0 0-.707.293L.854 15.146A.5.5 0 0 1 0 14.793zm5 4a1 1 0 1 0-2 0 1 1 0 0 0 2 0m4 0a1 1 0 1 0-2 0 1 1 0 0 0 2 0m4 0a1 1 0 1 0-2 0 1 1 0 0 0 2 0"/>
+                    </svg>
+                  </div>
+                  <div class="admin-info-details">
+                    <span class="admin-info-label">Bio</span>
+                    <p class="admin-info-value">{{ user.learner_profile.bio }}</p>
+                  </div>
+                </div>
+              {% endif %}
+            {% else %}
+              <!-- Mentor Profile Fields -->
+              
+              <!-- Bio -->
+              <div class="admin-info-row">
+                <div class="admin-info-icon-box" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                    <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6m0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"/>
+                  </svg>
+                </div>
+                <div class="admin-info-details">
+                  <span class="admin-info-label">Bio</span>
+                  <p class="admin-info-value" style="white-space: pre-line;">{{ user.mentor_profile.bio if (user.mentor_profile and user.mentor_profile.bio) else 'No bio provided.' }}</p>
+                </div>
+              </div>
+
+              <!-- Skills -->
+              <div class="admin-info-row">
+                <div class="admin-info-icon-box" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>
+                  </svg>
+                </div>
+                <div class="admin-info-details">
+                  <span class="admin-info-label">Skills</span>
+                  <div class="admin-skills-wrapper">
+                    {% if user.mentor_profile and user.mentor_profile.skills %}
+                      {% for item in user.mentor_profile.skills %}
+                        <span class="admin-skill-chip">
+                          <span class="admin-skill-chip-dot" aria-hidden="true"></span>
+                          {{ item.skill.name }}
+                          {% if item.experience %}
+                            <span class="text-secondary fw-normal">({{ item.experience }})</span>
+                          {% endif %}
+                        </span>
+                      {% endfor %}
+                    {% else %}
+                      <span class="text-secondary small">No skills registered</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Teaching & Pricing -->
+              <div class="admin-info-row">
+                <div class="admin-info-icon-box" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8.211 2.047a.5.5 0 0 0-.422 0l-7.5 3.5a.5.5 0 0 0 .025.917l7.5 3a.5.5 0 0 0 .372 0L14 7.14V13a1 1 0 0 0-1 1v2h3v-2a1 1 0 0 0-1-1V6.739l.686-.275a.5.5 0 0 0 .025-.917z"/>
+                    <path d="M4.176 9.032a.5.5 0 0 0-.656.327l-.5 1.7a.5.5 0 0 0 .294.605l4.5 1.8a.5.5 0 0 0 .372 0l4.5-1.8a.5.5 0 0 0 .294-.605l-.5-1.7a.5.5 0 0 0-.656-.327L8 10.584z"/>
+                  </svg>
+                </div>
+                <div class="admin-info-details">
+                  <span class="admin-info-label">Teaching</span>
+                  <div class="admin-teaching-pill">
+                    {% if user.mentor_profile %}
+                      <span>{{ user.mentor_profile.experience }} experience</span>
+                      <span class="text-muted">·</span>
+                      <span>{{ user.mentor_profile.teaching_type }}</span>
+                      <span class="text-muted">·</span>
+                      {% if user.mentor_profile.is_paid %}
+                        <span class="admin-pricing-tag is-paid">
+                          Paid · ৳{{ '%.2f'|format(user.mentor_profile.pricing|float) if user.mentor_profile.pricing else '0.00' }}
+                        </span>
+                      {% else %}
+                        <span class="admin-pricing-tag is-free">
+                          Free
+                        </span>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">Not specified</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Professional Details (Occupation, Links) if available -->
+              {% if user.mentor_profile and (user.mentor_profile.occupation or user.mentor_profile.date_of_birth or user.mentor_profile.gender or user.mentor_profile.linkedin_url or user.mentor_profile.github_url or user.mentor_profile.website_url) %}
+                <div class="admin-info-row">
+                  <div class="admin-info-icon-box" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M6.5 1A1.5 1.5 0 0 0 5 2.5V3H1.5A1.5 1.5 0 0 0 0 4.5v8A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 14.5 3H11v-.5A1.5 1.5 0 0 0 9.5 1zm0 1h3a.5.5 0 0 1 .5.5V3H6v-.5a.5.5 0 0 1 .5-.5m1.886 6.914L15 7.151V12.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V7.15l6.614 1.764a1.5 1.5 0 0 0 .772 0M1.5 4h13a.5.5 0 0 1 .5.5v1.616L8.129 7.948a.5.5 0 0 1-.258 0L1 6.116V4.5a.5.5 0 0 1 .5-.5"/>
+                    </svg>
+                  </div>
+                  <div class="admin-info-details">
+                    <span class="admin-info-label">Professional Background</span>
+                    {% if user.mentor_profile.occupation %}
+                      <p class="admin-info-value mb-1">{{ user.mentor_profile.occupation }}</p>
+                    {% endif %}
+                    {% if user.mentor_profile.date_of_birth or user.mentor_profile.gender %}
+                      <span class="admin-info-secondary mb-2">
+                        {% if user.mentor_profile.date_of_birth %}Born {{ user.mentor_profile.date_of_birth.strftime('%d %b %Y') }}{% endif %}
+                        {% if user.mentor_profile.date_of_birth and user.mentor_profile.gender %} · {% endif %}
+                        {% if user.mentor_profile.gender %}{{ user.mentor_profile.gender }}{% endif %}
+                      </span>
+                    {% endif %}
+                    {% if user.mentor_profile.linkedin_url or user.mentor_profile.github_url or user.mentor_profile.website_url %}
+                      <div class="d-flex flex-wrap gap-2 mt-2">
+                        {% if user.mentor_profile.linkedin_url %}
+                          <a href="{{ user.mentor_profile.linkedin_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.78rem;">
+                            LinkedIn ↗
+                          </a>
+                        {% endif %}
+                        {% if user.mentor_profile.github_url %}
+                          <a href="{{ user.mentor_profile.github_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.78rem;">
+                            GitHub ↗
+                          </a>
+                        {% endif %}
+                        {% if user.mentor_profile.website_url %}
+                          <a href="{{ user.mentor_profile.website_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:0.78rem;">
+                            Website ↗
+                          </a>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endif %}
+
+            {% endif %}
+
+            <!-- Registration Date -->
+            <div class="admin-info-row">
+              <div class="admin-info-icon-box" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
+                </svg>
+              </div>
+              <div class="admin-info-details">
+                <span class="admin-info-label">Application Submitted</span>
+                <p class="admin-info-value">{{ user.created_at.strftime('%d %B %Y at %I:%M %p') }}</p>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: VERIFICATION DOCUMENTS & DECISION ACTIONS -->
+      <div class="col-lg-5">
+
+        <!-- 4. VERIFICATION DOCUMENTS CARD -->
+        <div class="admin-review-card">
+          <div class="admin-card-header">
+            <div class="admin-card-title-group">
+              <div class="admin-card-icon-pill" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="admin-card-title">Private verification documents</h3>
+                <p class="admin-card-subtitle">These files are protected and only available to authenticated administrators.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Document List -->
+          <div class="admin-doc-list">
+            {% for item in user.documents %}
+              <div class="admin-doc-row">
+                <div class="admin-doc-info-side">
+                  <div class="admin-doc-icon-box" aria-hidden="true">
+                    {% if 'image' in item.mime_type or item.original_name.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')) %}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/>
+                        <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1z"/>
+                      </svg>
+                    {% else %}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M4 0h5.293A1 1 0 0 1 10 .293L13.707 4a1 1 0 0 1 .293.707V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2m5.5 1.5v2a1 1 0 0 0 1 1h2z"/>
+                      </svg>
+                    {% endif %}
+                  </div>
+                  <div class="admin-doc-texts">
+                    <h4 class="admin-doc-title">{{ item.document_type|replace('_', ' ')|title }}</h4>
+                    <div class="admin-doc-meta">
+                      <span class="admin-doc-filename" title="{{ item.original_name }}">{{ item.original_name }}</span>
+                      {% if item.size_bytes %}
+                        <span>·</span>
+                        <span>
+                          {% if item.size_bytes < 1048576 %}
+                            {{ (item.size_bytes / 1024)|round(1) }} KB
+                          {% else %}
+                            {{ (item.size_bytes / 1048576)|round(2) }} MB
+                          {% endif %}
+                        </span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Existing download route -->
+                <a class="admin-btn-download" href="{{ url_for('admin.document', document_id=item.id) }}">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+                  </svg>
+                  <span>Download</span>
+                </a>
+              </div>
+            {% else %}
+              <div class="admin-doc-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                </svg>
+                <p>No verification documents submitted.</p>
+              </div>
+            {% endfor %}
+          </div>
+
+          <!-- Subtle Security Information Box -->
+          <div class="admin-security-banner">
+            <div class="admin-security-icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M5.338 1.59a61 61 0 0 0-2.837.856.48.48 0 0 0-.328.39c-.554 4.157.726 7.19 2.253 9.188a10.7 10.7 0 0 0 2.287 2.233c.346.244.652.42.893.533q.18.085.293.134a.1.1 0 0 0 .101 0q.114-.05.295-.134c.24-.113.546-.29.893-.534a10.7 10.7 0 0 0 2.287-2.233c1.527-1.997 2.807-5.031 2.253-9.188a.48.48 0 0 0-.328-.39c-.651-.213-1.75-.56-2.837-.855C9.552 1.29 8.531 1.067 8 1.067c-.53 0-1.552.223-2.662.524zM5.072.56C6.157.265 7.31 0 8 0s1.843.265 2.928.56c1.11.3 2.229.655 2.887.87a1.54 1.54 0 0 1 1.044 1.262c.596 4.477-.787 7.795-2.465 9.99a11.8 11.8 0 0 1-2.517 2.453 7 7 0 0 1-1.048.625c-.28.132-.581.24-.829.24s-.548-.108-.829-.24a7 7 0 0 1-1.048-.625 11.8 11.8 0 0 1-2.517-2.453C1.928 10.487.545 7.169 1.141 2.692A1.54 1.54 0 0 1 2.185 1.43 63 63 0 0 1 5.072.56"/>
+                <path d="M10.854 5.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 7.793l2.646-2.647a.5.5 0 0 1 .708 0"/>
+              </svg>
+            </div>
+            <div class="admin-security-content">
+              <h4>Protected Documents</h4>
+              <p>Sensitive verification files are stored in a private restricted location and are never exposed publicly. Access is strictly audited and limited to authenticated administrators.</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 5. APPROVE / REJECT ACTIONS CARD -->
+        <div class="admin-action-card">
+          <div class="admin-action-header">
+            <h3 class="admin-action-title">Application Decision</h3>
+            <p class="admin-action-subtitle">Confirm approval or rejection for this applicant.</p>
+          </div>
+
+          <!-- Main Actions: Approve and Reject -->
+          <div class="admin-action-buttons-group">
+
+            <!-- Approve Form -->
+            <form method="post" action="{{ url_for('admin.user_action', user_id=user.id, action='approve') }}" class="m-0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn-review-action btn-review-approve" aria-label="Approve application">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
+                </svg>
+                <span>Approve</span>
+              </button>
+            </form>
+
+            <!-- Reject Form -->
+            <form method="post" action="{{ url_for('admin.user_action', user_id=user.id, action='reject') }}" class="m-0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn-review-action btn-review-reject" aria-label="Reject application">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+                </svg>
+                <span>Reject</span>
+              </button>
+            </form>
+
+          </div>
+
+          <!-- Secondary Actions (Suspend / Reactivate) -->
+          {% if user.account_status == 'Approved' or user.account_status == 'Suspended' %}
+            <div class="admin-secondary-actions">
+              {% if user.account_status == 'Approved' %}
+                <form method="post" action="{{ url_for('admin.user_action', user_id=user.id, action='suspend') }}" class="m-0">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="btn-review-suspend">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
+                    </svg>
+                    <span>Suspend Account</span>
+                  </button>
+                </form>
+              {% elif user.account_status == 'Suspended' %}
+                <form method="post" action="{{ url_for('admin.user_action', user_id=user.id, action='reactivate') }}" class="m-0">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="btn-review-reactivate">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+                      <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+                    </svg>
+                    <span>Reactivate Account</span>
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          {% endif %}
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+</section>
+{% endblock %}
