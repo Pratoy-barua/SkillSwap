@@ -7,9 +7,289 @@
     {% include 'partials/flash.html' %}
 
     <section class="dashboard-metric-section"><div class="metric-section-heading"><h2>Platform overview</h2><p>People and account activity across SkillSwap.</p></div><div class="dashboard-stat-grid four-up"><a class="dashboard-stat-card" href="{{ url_for('admin.users', role='Learner') }}"><span>Learners</span><strong>{{ counts.learners }}</strong><small>Registered learner accounts</small></a><a class="dashboard-stat-card" href="{{ url_for('admin.users', role='Mentor') }}"><span>Mentors</span><strong>{{ counts.mentors }}</strong><small>Registered mentor accounts</small></a><a class="dashboard-stat-card" href="{{ url_for('admin.users', status='Approved') }}"><span>Active users</span><strong>{{ counts.active_users }}</strong><small>Approved accounts</small></a><a class="dashboard-stat-card" href="{{ url_for('admin.users', status='Pending') }}"><span>Pending users</span><strong>{{ counts.pending_users }}</strong><small>Awaiting verification</small></a></div></section>
-    <div class="row g-4 mb-4"><div class="col-lg-6"><section class="dashboard-metric-section h-100"><div class="metric-section-heading"><h2>Learning</h2><p>Connections, skills and learner feedback.</p></div><div class="mini-metric-grid"><a href="{{ url_for('admin.skills') }}"><span>Active skills</span><strong>{{ counts.active_skills }}</strong></a><a href="{{ url_for('admin.users') }}"><span>Active relationships</span><strong>{{ counts.relationships }}</strong></a><a href="{{ url_for('reviews.admin_reviews') }}"><span>Reviews</span><strong>{{ counts.reviews }}</strong></a><a href="{{ url_for('admin.users', status='Suspended') }}"><span>Suspended users</span><strong>{{ counts.suspended_users }}</strong></a></div></section></div><div class="col-lg-6"><section class="dashboard-metric-section h-100"><div class="metric-section-heading"><h2>Business</h2><p>Payments, store activity and subscriptions.</p></div><div class="mini-metric-grid"><a href="{{ url_for('admin.payments') }}"><span>Successful payments</span><strong>{{ counts.successful_payments }}</strong></a><a href="{{ url_for('admin.store_orders') }}"><span>Store orders</span><strong>{{ counts.orders }}</strong></a><a href="{{ url_for('premium.admin_plans') }}"><span>Premium subscribers</span><strong>{{ counts.premium_subscribers }}</strong></a><a href="{{ url_for('admin.revenue') }}"><span>Net revenue</span><strong>৳{{ '%.0f'|format(counts.revenue|float) }}</strong></a></div></section></div></div>
+    
+    <div class="row g-4 mb-4">
+      <div class="col-lg-6">
+        <section class="dashboard-metric-section h-100">
+          <div class="metric-section-heading"><h2>Learning</h2><p>Connections, skills and learner feedback.</p></div>
+          <div class="mini-metric-grid">
+            <a href="{{ url_for('admin.skills') }}"><span>Active skills</span><strong>{{ counts.active_skills }}</strong></a>
+            <a href="{{ url_for('admin.users') }}"><span>Active relationships</span><strong>{{ counts.relationships }}</strong></a>
+            <a href="{{ url_for('reviews.admin_reviews') }}"><span>Reviews</span><strong>{{ counts.reviews }}</strong></a>
+            <a href="{{ url_for('admin.users', status='Suspended') }}"><span>Suspended users</span><strong>{{ counts.suspended_users }}</strong></a>
+          </div>
+        </section>
+      </div>
+      
+      <div class="col-lg-6">
+        <section class="dashboard-metric-section h-100">
+          <div class="metric-section-heading"><h2>Business</h2><p>Payments, store activity and subscriptions.</p></div>
+          <div class="mini-metric-grid mb-3">
+            <a href="{{ url_for('admin.payments') }}"><span>Successful payments</span><strong>{{ counts.successful_payments }}</strong></a>
+            <a href="{{ url_for('admin.store_orders') }}"><span>Store orders</span><strong>{{ counts.orders }}</strong></a>
+            <a href="{{ url_for('premium.admin_plans') }}"><span>Premium subscribers</span><strong>{{ counts.premium_subscribers }}</strong></a>
+            <a href="{{ url_for('admin.revenue') }}"><span>Net revenue</span><strong>৳{{ '%.0f'|format(counts.revenue|float) }}</strong></a>
+          </div>
+
+          <!-- Business Overview Analytics Chart Card -->
+          <div class="business-analytics-card mt-3">
+            <div class="business-analytics-header d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <div>
+                <h3 class="business-analytics-title m-0">Business overview</h3>
+                <p class="business-analytics-subtitle text-muted small m-0">Revenue, orders and successful payments over time</p>
+              </div>
+              <div class="business-range-selector btn-group btn-group-sm" role="group" aria-label="Time range">
+                <button type="button" class="btn btn-outline-primary active" data-range="6" id="btnRange6M">6 Months</button>
+                <button type="button" class="btn btn-outline-primary" data-range="12" id="btnRange12M">12 Months</button>
+              </div>
+            </div>
+
+            <!-- Empty state (shown when has_data is false) -->
+            <div id="businessChartEmpty" class="business-chart-empty py-4 text-center {% if business_data.has_data %}d-none{% endif %}">
+              <div class="business-empty-icon mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="currentColor" class="text-muted" viewBox="0 0 16 16">
+                  <path d="M0 0h1v15h15v1H0zm14.817 3.113a.5.5 0 0 1 .07.704l-4.5 5.5a.5.5 0 0 1-.74.037L7.06 6.767l-3.656 5.027a.5.5 0 0 1-.808-.588l4-5.5a.5.5 0 0 1 .758-.06l2.609 2.61 4.15-5.073a.5.5 0 0 1 .704-.07"/>
+                </svg>
+              </div>
+              <p class="text-muted fw-semibold mb-1">No business activity recorded yet.</p>
+              <p class="text-secondary small mb-0">Platform revenue, store orders, and payments will appear here as transactions occur.</p>
+            </div>
+
+            <!-- Chart Canvas Container (shown when has_data is true) -->
+            <div id="businessChartWrapper" class="business-chart-canvas-wrap {% if not business_data.has_data %}d-none{% endif %}" style="position: relative; height: 260px; width: 100%;">
+              <canvas id="businessAnalyticsChart"></canvas>
+            </div>
+
+            <!-- Chart Meta Footer -->
+            <div id="businessChartMeta" class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top small text-muted {% if not business_data.has_data %}d-none{% endif %}">
+              <span class="d-inline-flex align-items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+                  <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+                </svg>
+                Real database ledger
+              </span>
+              <span>Period Net Revenue: <strong class="text-dark" id="businessTotalRev">৳{{ '%.2f'|format(business_data.total_revenue) }}</strong></span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
 
     <div class="row g-4"><div class="col-lg-7"><section class="dashboard-panel h-100"><div class="dashboard-panel-heading"><div><h2>Pending applications</h2><p>Review accounts before granting access.</p></div><a href="{{ url_for('admin.users', status='Pending') }}">View all</a></div><div class="table-responsive"><table class="dashboard-table"><thead><tr><th>Applicant</th><th>Role</th><th>Submitted</th><th></th></tr></thead><tbody>{% for user in pending_learners + pending_mentors %}<tr><td><strong>{{ user.full_name }}</strong><small>{{ user.email }}</small></td><td><span class="status-pill status-pending">{{ user.role.name }}</span></td><td>{{ user.created_at.strftime('%d %b %Y') }}</td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.user_detail', user_id=user.id) }}">Review</a></td></tr>{% else %}<tr><td colspan="4" class="dashboard-table-empty">No pending applications.</td></tr>{% endfor %}</tbody></table></div></section></div><div class="col-lg-5"><section class="dashboard-panel h-100"><div class="dashboard-panel-heading"><div><h2>Admin quick actions</h2><p>Jump to key management areas.</p></div></div><div class="quick-action-list"><a href="{{ url_for('admin.users') }}"><span>Manage users</span><b>→</b></a><a href="{{ url_for('admin.payments') }}"><span>Payments</span><b>→</b></a><a href="{{ url_for('admin.revenue') }}"><span>Revenue</span><b>→</b></a><a href="{{ url_for('reviews.admin_reviews') }}"><span>Reviews</span><b>→</b></a><a href="{{ url_for('premium.admin_plans') }}"><span>Premium plans</span><b>→</b></a><a href="{{ url_for('admin.store_orders') }}"><span>Store orders</span><b>→</b></a></div></section></div></div>
   </div>
 </section>
 {% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const initialData = {{ business_data|tojson }};
+  const ctx = document.getElementById("businessAnalyticsChart");
+  const chartWrapper = document.getElementById("businessChartWrapper");
+  const chartEmpty = document.getElementById("businessChartEmpty");
+  const chartMeta = document.getElementById("businessChartMeta");
+  const btn6M = document.getElementById("btnRange6M");
+  const btn12M = document.getElementById("btnRange12M");
+  const totalRevEl = document.getElementById("businessTotalRev");
+
+  let businessChart = null;
+
+  function renderChart(data) {
+    if (!data.has_data || !data.months || data.months.length === 0) {
+      if (chartWrapper) chartWrapper.classList.add("d-none");
+      if (chartMeta) chartMeta.classList.add("d-none");
+      if (chartEmpty) chartEmpty.classList.remove("d-none");
+      if (totalRevEl) totalRevEl.textContent = "৳0.00";
+      return;
+    }
+
+    if (chartEmpty) chartEmpty.classList.add("d-none");
+    if (chartWrapper) chartWrapper.classList.remove("d-none");
+    if (chartMeta) chartMeta.classList.remove("d-none");
+    if (totalRevEl) {
+      totalRevEl.textContent = "৳" + Number(data.total_revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    if (typeof Chart === "undefined") {
+      renderSvgFallback(data);
+      return;
+    }
+
+    if (businessChart) {
+      businessChart.data.labels = data.months;
+      businessChart.data.datasets[0].data = data.revenue;
+      businessChart.data.datasets[1].data = data.orders;
+      businessChart.data.datasets[2].data = data.payments;
+      businessChart.update();
+      return;
+    }
+
+    if (!ctx) return;
+
+    businessChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: data.months,
+        datasets: [
+          {
+            label: "Net Revenue (৳)",
+            data: data.revenue,
+            borderColor: "#1667d9",
+            backgroundColor: "rgba(22, 103, 217, 0.08)",
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.35,
+            yAxisID: "yRevenue",
+            pointBackgroundColor: "#1667d9",
+            pointBorderColor: "#ffffff",
+            pointBorderWidth: 2,
+            pointRadius: data.months.length === 1 ? 6 : 4,
+            pointHoverRadius: 7,
+            pointHitRadius: 15
+          },
+          {
+            label: "Store Orders",
+            data: data.orders,
+            borderColor: "#f28a1e",
+            backgroundColor: "rgba(242, 138, 30, 0.08)",
+            borderWidth: 2,
+            borderDash: [4, 4],
+            fill: false,
+            tension: 0.35,
+            yAxisID: "yCounts",
+            pointBackgroundColor: "#f28a1e",
+            pointBorderColor: "#ffffff",
+            pointBorderWidth: 2,
+            pointRadius: data.months.length === 1 ? 6 : 4,
+            pointHoverRadius: 7,
+            pointHitRadius: 15
+          },
+          {
+            label: "Successful Payments",
+            data: data.payments,
+            borderColor: "#10b981",
+            backgroundColor: "rgba(16, 185, 129, 0.08)",
+            borderWidth: 2,
+            fill: false,
+            tension: 0.35,
+            yAxisID: "yCounts",
+            pointBackgroundColor: "#10b981",
+            pointBorderColor: "#ffffff",
+            pointBorderWidth: 2,
+            pointRadius: data.months.length === 1 ? 6 : 4,
+            pointHoverRadius: 7,
+            pointHitRadius: 15
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: "index",
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            position: "top",
+            align: "end",
+            labels: {
+              boxWidth: 10,
+              boxHeight: 10,
+              padding: 10,
+              usePointStyle: true,
+              font: { size: 11, weight: "600" },
+              color: "#334155"
+            }
+          },
+          tooltip: {
+            backgroundColor: "rgba(23, 58, 105, 0.95)",
+            titleColor: "#ffffff",
+            bodyColor: "#ffffff",
+            padding: 10,
+            cornerRadius: 8,
+            titleFont: { size: 12, weight: "700" },
+            bodyFont: { size: 12 },
+            callbacks: {
+              label: function(context) {
+                var label = context.dataset.label || "";
+                var val = context.parsed.y;
+                if (context.dataset.yAxisID === "yRevenue") {
+                  return label + ": ৳" + Number(val).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                }
+                return label + ": " + Number(val).toLocaleString();
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: "rgba(230, 237, 246, 0.7)", drawBorder: false },
+            ticks: { color: "#64748b", font: { size: 11, weight: "600" } }
+          },
+          yRevenue: {
+            type: "linear",
+            position: "left",
+            beginAtZero: true,
+            grid: { color: "rgba(230, 237, 246, 0.7)", drawBorder: false },
+            ticks: {
+              color: "#1667d9",
+              font: { size: 11, weight: "600" },
+              callback: function(val) { return "৳" + Number(val).toLocaleString(); }
+            }
+          },
+          yCounts: {
+            type: "linear",
+            position: "right",
+            beginAtZero: true,
+            grid: { display: false },
+            ticks: {
+              stepSize: 1,
+              precision: 0,
+              color: "#64748b",
+              font: { size: 11, weight: "600" }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderSvgFallback(data) {
+    if (!chartWrapper) return;
+    let html = '<div class="p-3 text-center"><p class="small text-muted mb-2">Business Activity Summary</p><div class="d-flex justify-content-around flex-wrap gap-2">';
+    for (let i = 0; i < data.months.length; i++) {
+      html += '<div class="border rounded p-2 bg-light"><strong class="d-block small text-dark">' + data.months[i] + '</strong><span class="text-primary d-block small fw-bold">৳' + Number(data.revenue[i]).toFixed(2) + '</span><span class="text-secondary d-block" style="font-size:11px;">Orders: ' + data.orders[i] + ' | Payments: ' + data.payments[i] + '</span></div>';
+    }
+    html += '</div></div>';
+    chartWrapper.innerHTML = html;
+  }
+
+  async function fetchRange(range) {
+    if (range === 6) {
+      if (btn6M) btn6M.classList.add("active");
+      if (btn12M) btn12M.classList.remove("active");
+    } else {
+      if (btn12M) btn12M.classList.add("active");
+      if (btn6M) btn6M.classList.remove("active");
+    }
+    try {
+      const res = await fetch("/admin/api/business-analytics?range=" + range);
+      if (!res.ok) return;
+      const data = await res.json();
+      renderChart(data);
+    } catch (e) {
+      console.error("Failed to load business analytics:", e);
+    }
+  }
+
+  if (btn6M) btn6M.addEventListener("click", () => fetchRange(6));
+  if (btn12M) btn12M.addEventListener("click", () => fetchRange(12));
+
+  renderChart(initialData);
+});
+</script>
+{% endblock %}
+

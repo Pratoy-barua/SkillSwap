@@ -3,7 +3,7 @@
 from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
-from decorators.auth import role_required
+from decorators.auth import authenticated_role, role_required
 from extensions import db
 from models.auth import MentorSkill, Skill, User
 from models.connection import Conversation, LearningRelationship, LearningRequest, Message, Notification
@@ -209,14 +209,14 @@ def chat_with_user(user_id):
 
 
 @connection_bp.get("/notifications")
-@role_required("Learner", "Mentor", "Admin")
+@authenticated_role("Learner", "Mentor", "Admin")
 def notifications():
     items = Notification.query.filter_by(user_id=g.current_user.id).order_by(Notification.created_at.desc()).all()
     return render_template("connections/notifications.html", notifications=items)
 
 
 @connection_bp.post("/notifications/<int:notification_id>/read")
-@role_required("Learner", "Mentor", "Admin")
+@authenticated_role("Learner", "Mentor", "Admin")
 def mark_notification_read(notification_id):
     item = Notification.query.filter_by(id=notification_id, user_id=g.current_user.id).first_or_404()
     item.is_read = True
@@ -225,7 +225,7 @@ def mark_notification_read(notification_id):
 
 
 @connection_bp.post("/notifications/read-all")
-@role_required("Learner", "Mentor", "Admin")
+@authenticated_role("Learner", "Mentor", "Admin")
 def mark_all_notifications_read():
     Notification.query.filter_by(user_id=g.current_user.id, is_read=False).update({"is_read": True})
     db.session.commit()
@@ -233,7 +233,7 @@ def mark_all_notifications_read():
 
 
 @connection_bp.get("/notifications/<int:notification_id>/open")
-@role_required("Learner", "Mentor", "Admin")
+@authenticated_role("Learner", "Mentor", "Admin")
 def open_notification(notification_id):
     item = Notification.query.filter_by(id=notification_id, user_id=g.current_user.id).first_or_404()
     item.is_read = True

@@ -1,1 +1,127 @@
-{% extends 'base.html' %}{% block title %}User management · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><div class="d-flex justify-content-between align-items-center mb-4"><div><p class="eyebrow">Platform control</p><h1 class="section-heading h2">User management</h1></div><a class="btn btn-outline-primary" href="{{ url_for('admin.dashboard') }}">Dashboard</a></div><form class="soft-card p-3 mb-4" method="get"><div class="row g-2"><div class="col-md-5"><input class="form-control" name="q" value="{{ filters.get('q','') }}" placeholder="Search name or email"></div><div class="col-md-3"><select class="form-select" name="role"><option value="">All roles</option>{% for item in ['Learner','Mentor','Admin'] %}<option {% if filters.get('role') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div><div class="col-md-3"><select class="form-select" name="status"><option value="">All statuses</option>{% for item in ['Pending','Approved','Rejected','Suspended'] %}<option {% if filters.get('status') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div><div class="col-md-1"><button class="btn btn-primary w-100">Go</button></div></div></form><div class="soft-card p-3 table-responsive"><table class="table align-middle"><thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr></thead><tbody>{% for user in users %}<tr><td><strong>{{ user.full_name }}</strong><small class="d-block text-secondary">{{ user.email }}</small></td><td>{{ user.role.name }}</td><td><span class="badge text-bg-light">{{ user.account_status }}</span></td><td>{{ user.created_at.strftime('%Y-%m-%d') }}</td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.user_detail', user_id=user.id) }}">Review</a></td></tr>{% else %}<tr><td colspan="5" class="text-secondary">No users match these filters.</td></tr>{% endfor %}</tbody></table></div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}User management · SkillSwap{% endblock %}
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <p class="eyebrow">Platform control</p>
+        <h1 class="section-heading h2">User management</h1>
+      </div>
+      <a class="btn btn-outline-primary" href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+    </div>
+
+    <form class="soft-card p-3 mb-4" method="get">
+      <div class="row g-2">
+        <div class="col-md-5">
+          <input class="form-control" name="q" value="{{ filters.get('q','') }}" placeholder="Search name or email">
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" name="role">
+            <option value="">All roles</option>
+            {% for item in ['Learner','Mentor','Admin'] %}
+              <option {% if filters.get('role') == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" name="status">
+            <option value="">All statuses</option>
+            {% for item in ['Pending','Approved','Rejected','Suspended'] %}
+              <option {% if filters.get('status') == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-primary w-100">Go</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="soft-card p-3 table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Joined</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+            <tr>
+              <td>
+                <strong>{{ user.full_name }}</strong>
+                <small class="d-block text-secondary">{{ user.email }}</small>
+              </td>
+              <td>{{ user.role.name }}</td>
+              <td>
+                {% if user.account_status == 'Approved' %}
+                  <span class="badge text-bg-success">Approved</span>
+                {% elif user.account_status == 'Pending' %}
+                  <span class="badge text-bg-warning text-dark">Pending</span>
+                {% elif user.account_status == 'Suspended' %}
+                  <span class="badge text-bg-danger">Suspended</span>
+                {% elif user.account_status == 'Rejected' %}
+                  <span class="badge text-bg-secondary">Rejected</span>
+                {% else %}
+                  <span class="badge text-bg-light">{{ user.account_status }}</span>
+                {% endif %}
+              </td>
+              <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+              <td>
+                <div class="d-flex gap-2 justify-content-end align-items-center">
+                  <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.user_detail', user_id=user.id) }}">Review</a>
+                  {% if user.role.name != 'Admin' %}
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal{{ user.id }}">Delete</button>
+                  {% endif %}
+                </div>
+
+                {% if user.role.name != 'Admin' %}
+                  <!-- Delete Confirmation Modal -->
+                  <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1" aria-labelledby="deleteUserModalLabel{{ user.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content border-0 shadow-lg rounded-4 text-start">
+                        <div class="modal-header border-bottom pb-3">
+                          <h5 class="modal-title fw-bold text-danger d-flex align-items-center gap-2" id="deleteUserModalLabel{{ user.id }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+                            </svg>
+                            Delete {{ user.role.name }} Account?
+                          </h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="post" action="{{ url_for('admin.delete_user', user_id=user.id) }}">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                          <div class="modal-body py-3">
+                            <p class="text-dark mb-2">
+                              This action permanently deletes this account and its associated profile data. This cannot be undone.
+                            </p>
+                            <div class="alert alert-danger mb-0 small p-2">
+                              <strong>Target user:</strong> {{ user.full_name }} ({{ user.email }})
+                            </div>
+                          </div>
+                          <div class="modal-footer border-top pt-3">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-danger fw-bold">Delete Permanently</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="5" class="text-secondary text-center py-4">No users match these filters.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

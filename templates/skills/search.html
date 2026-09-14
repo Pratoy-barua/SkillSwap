@@ -1,5 +1,167 @@
 {% extends 'base.html' %}
-{% block title %}Mentor Search · SkillSwap{% endblock %}
+{% block title %}Mentor Search & AI Recommendation · SkillSwap{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  .ai-discovery-panel {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border: 1px solid #cce0f5;
+    border-radius: 20px;
+    box-shadow: 0 12px 32px rgba(20, 60, 120, 0.07);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .ai-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+  .ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #e6f0fa;
+    color: #0b57d0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .ai-panel-title {
+    color: var(--ss-ink, #0c2340);
+    font-size: 1.35rem;
+    font-weight: 800;
+    margin: 0.35rem 0 0.2rem;
+  }
+  .ai-panel-desc {
+    color: var(--ss-muted, #5f748d);
+    font-size: 0.88rem;
+    margin: 0;
+  }
+  .ai-controls-bar {
+    background: #ffffff;
+    border: 1px solid #d9e6f2;
+    border-radius: 14px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .ai-status-pill {
+    font-size: 0.82rem;
+    color: #3b526d;
+    background: #f0f6fc;
+    border: 1px solid #d0e1f3;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .ai-status-pill.active {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+  }
+  #ai-map {
+    height: 430px;
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid #c8dcf0;
+    box-shadow: 0 4px 14px rgba(16, 52, 98, 0.06);
+    z-index: 10;
+  }
+  .ai-map-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #475569;
+    margin-top: 0.65rem;
+    padding: 0.4rem 0.6rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+  }
+  .ai-map-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .ai-card-highlight {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #d4e3f5;
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 12px rgba(15, 60, 110, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .ai-card-highlight:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(15, 60, 110, 0.1);
+  }
+  .ai-card-highlight.best-match {
+    border-left: 5px solid #0b57d0;
+  }
+  .ai-card-highlight.nearest-match {
+    border-left: 5px solid #10b981;
+  }
+  .ai-score-pill {
+    background: #eff6ff;
+    color: #1e40af;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    display: inline-block;
+  }
+  .ai-score-bar-wrap {
+    margin-top: 0.5rem;
+  }
+  .ai-score-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-bottom: 0.15rem;
+  }
+  .ai-score-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+  }
+  .ai-score-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #3b82f6, #0b57d0);
+  }
+  .ai-pulse-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #0b57d0;
+    box-shadow: 0 0 0 rgba(11, 87, 208, 0.6);
+    animation: learnerPulse 1.8s infinite;
+  }
+  @keyframes learnerPulse {
+    0% { box-shadow: 0 0 0 0 rgba(11, 87, 208, 0.7); }
+    70% { box-shadow: 0 0 0 12px rgba(11, 87, 208, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(11, 87, 208, 0); }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="discovery-page">
   <div class="container">
@@ -12,6 +174,93 @@
 
     {% include 'partials/flash.html' %}
 
+    <!-- AI Mentor Recommendation & Interactive Map Section -->
+    <section class="ai-discovery-panel" id="ai-recommendation-hub">
+      <div class="ai-panel-header">
+        <div>
+          <span class="ai-badge">✨ AI-POWERED EXPLORATION</span>
+          <h2 class="ai-panel-title">AI Mentor Recommendation & Interactive Map</h2>
+          <p class="ai-panel-desc">Find mentors that best match your skills, preferences, and current location.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" id="btn-geolocate" type="button">
+            <span aria-hidden="true">⌖</span> Use My Current Location
+          </button>
+        </div>
+      </div>
+
+      <!-- Controls & Fallback Location Selection -->
+      <div class="ai-controls-bar">
+        <div class="d-flex align-items-center gap-2 flex-grow-1 flex-wrap">
+          <label class="d-flex align-items-center gap-1 small text-muted">
+            <span class="fw-bold text-dark">Location:</span>
+            <select class="form-select form-select-sm" id="ai-location-select" style="min-width: 175px;">
+              <option value="23.7979,90.4236" selected>Notunbazar / Gulshan, Dhaka</option>
+              <option value="23.7461,90.3742">Dhanmondi, Dhaka</option>
+              <option value="23.8223,90.3654">Mirpur, Dhaka</option>
+              <option value="23.8759,90.3795">Uttara, Dhaka</option>
+              <option value="23.8103,90.4125">Central Dhaka</option>
+              <option value="24.3636,88.6042">Shahebbazar, Rajshahi</option>
+            </select>
+          </label>
+
+          <label class="d-flex align-items-center gap-1 small text-muted">
+            <span class="fw-bold text-dark">Skill:</span>
+            <select class="form-select form-select-sm" id="ai-skill-select" style="min-width: 140px;">
+              <option value="">All Skills</option>
+              {% for skill in skills %}
+              <option value="{{ skill.id }}" {% if selected_skill_id == skill.id %}selected{% endif %}>{{ skill.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label class="d-flex align-items-center gap-1 small text-muted">
+            <span class="fw-bold text-dark">Pricing:</span>
+            <select class="form-select form-select-sm" id="ai-pricing-select" style="min-width: 110px;">
+              <option value="">Any</option>
+              <option value="free">Free</option>
+              <option value="paid">Paid</option>
+            </select>
+          </label>
+        </div>
+
+        <button class="btn btn-primary btn-sm px-3 d-inline-flex align-items-center gap-1" id="btn-run-ai" type="button">
+          <span aria-hidden="true">✦</span> Run AI Recommendations
+        </button>
+      </div>
+
+      <!-- Current Coordinates Status Badge -->
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <span class="ai-status-pill" id="ai-location-status">
+          <span class="ai-pulse-dot"></span>
+          <span>📍 Your current location: <strong id="learner-coord-label">23.7979° N, 90.4236° E (Notunbazar, Dhaka)</strong></span>
+        </span>
+      </div>
+
+      <!-- Interactive Map & Recommendation Cards Grid -->
+      <div class="row g-3">
+        <div class="col-lg-7">
+          <div id="ai-map"></div>
+          <div class="ai-map-legend">
+            <span><span style="color:#0b57d0;font-size:1.1rem;">●</span> Your location</span>
+            <span><span style="color:#f59e0b;font-size:1.1rem;">★</span> AI Best Match</span>
+            <span><span style="color:#10b981;font-size:1.1rem;">📍</span> Nearest Mentor</span>
+            <span><span style="color:#2563eb;font-weight:900;">━</span> Recommended Route</span>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div id="ai-recommendations-container" style="max-height: 470px; overflow-y: auto; padding-right: 0.25rem;">
+            <div class="text-center py-5 text-muted">
+              <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+              <p class="small mb-0">Finding your best mentor matches...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Standard Filter Form (Preserved Intact) -->
     <form class="discovery-filters" method="get" action="{{ url_for('discovery.mentor_search') }}">
       <div class="discovery-filter-heading"><div><h2>Find your best match</h2><p>Use the filters below to refine your search.</p></div><a class="reset-filter-button" href="{{ url_for('discovery.mentor_search') }}"><span aria-hidden="true">↻</span> Reset filters</a></div>
       <div class="row g-3">
@@ -37,3 +286,327 @@
   </div>
 </section>
 {% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  let map = null;
+  let currentLat = 23.7979;
+  let currentLon = 90.4236;
+  let markersLayer = L.layerGroup();
+  let routeLayer = L.layerGroup();
+
+  // 1. Initialize Map
+  function initMap(lat, lon) {
+    if (!map) {
+      map = L.map("ai-map", { scrollWheelZoom: false }).setView([lat, lon], 12);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(map);
+      markersLayer.addTo(map);
+      routeLayer.addTo(map);
+    } else {
+      map.setView([lat, lon], 12);
+    }
+  }
+
+  // 2. Custom Leaflet Marker Icons
+  const learnerIcon = L.divIcon({
+    className: "custom-learner-pin",
+    html: '<div style="background:#0b57d0; width:22px; height:22px; border-radius:50%; border:3px solid #ffffff; box-shadow:0 0 10px rgba(11,87,208,0.7); display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:900;">YOU</div>',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
+  });
+
+  function getMentorIcon(isBest, isNearest) {
+    let bg = "#2563eb";
+    let iconChar = "●";
+    let border = "#ffffff";
+    if (isBest && isNearest) {
+      bg = "#d97706";
+      iconChar = "★";
+    } else if (isBest) {
+      bg = "#f59e0b";
+      iconChar = "★";
+    } else if (isNearest) {
+      bg = "#10b981";
+      iconChar = "📍";
+    }
+    return L.divIcon({
+      className: "custom-mentor-pin",
+      html: `<div style="background:${bg}; width:28px; height:28px; border-radius:50%; border:3px solid ${border}; box-shadow:0 4px 10px rgba(0,0,0,0.25); display:flex; align-items:center; justify-content:center; color:#ffffff; font-size:13px; font-weight:800;">${iconChar}</div>`,
+      iconSize: [28, 28],
+      iconAnchor: [14, 14]
+    });
+  }
+
+  // 3. Geolocation Trigger
+  const btnGeolocate = document.getElementById("btn-geolocate");
+  const statusPill = document.getElementById("ai-location-status");
+  const coordLabel = document.getElementById("learner-coord-label");
+  const locationSelect = document.getElementById("ai-location-select");
+
+  if (btnGeolocate) {
+    btnGeolocate.addEventListener("click", function () {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+      btnGeolocate.disabled = true;
+      btnGeolocate.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Detecting...';
+
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          currentLat = pos.coords.latitude;
+          currentLon = pos.coords.longitude;
+          coordLabel.textContent = `${currentLat.toFixed(4)}° N, ${currentLon.toFixed(4)}° E (GPS Location)`;
+          statusPill.classList.add("active");
+          btnGeolocate.disabled = false;
+          btnGeolocate.innerHTML = '<span aria-hidden="true">✓</span> Location Acquired';
+          runRecommendations();
+        },
+        function (err) {
+          btnGeolocate.disabled = false;
+          btnGeolocate.innerHTML = '<span aria-hidden="true">⌖</span> Use My Current Location';
+          alert(`Could not acquire location (${err.message}). Using preset location instead.`);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  if (locationSelect) {
+    locationSelect.addEventListener("change", function () {
+      const parts = this.value.split(",");
+      currentLat = parseFloat(parts[0]);
+      currentLon = parseFloat(parts[1]);
+      const text = this.options[this.selectedIndex].text;
+      coordLabel.textContent = `${currentLat.toFixed(4)}° N, ${currentLon.toFixed(4)}° E (${text})`;
+      statusPill.classList.remove("active");
+      runRecommendations();
+    });
+  }
+
+  // 4. Fetch AI Recommendations and Draw Map Elements
+  function runRecommendations() {
+    initMap(currentLat, currentLon);
+    markersLayer.clearLayers();
+    routeLayer.clearLayers();
+
+    const skillId = document.getElementById("ai-skill-select").value;
+    const pricing = document.getElementById("ai-pricing-select").value;
+    const container = document.getElementById("ai-recommendations-container");
+    container.innerHTML = `
+      <div class="text-center py-5 text-muted">
+        <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+        <p class="small mb-0">Finding your best mentor matches...</p>
+      </div>
+    `;
+
+    // Drop Learner marker
+    const learnerMarker = L.marker([currentLat, currentLon], { icon: learnerIcon })
+      .bindPopup(`<strong>Your Location</strong><br><small>${currentLat.toFixed(4)}, ${currentLon.toFixed(4)}</small>`)
+      .addTo(markersLayer);
+
+    const params = new URLSearchParams({
+      latitude: currentLat,
+      longitude: currentLon
+    });
+    if (skillId) params.append("skill_id", skillId);
+    if (pricing) params.append("preference", pricing);
+
+    fetch(`/api/ai-recommend?${params.toString()}`)
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to load recommendations");
+        return res.json();
+      })
+      .then(data => {
+        renderRecommendations(data);
+
+        const bounds = [[currentLat, currentLon]];
+
+        // Draw Mentor Markers
+        if (data.ranked_mentors && data.ranked_mentors.length > 0) {
+          data.ranked_mentors.forEach(m => {
+            if (m.latitude && m.longitude) {
+              bounds.push([m.latitude, m.longitude]);
+              const isBest = data.ai_best_match && m.user_id === data.ai_best_match.user_id;
+              const isNearest = data.nearest_mentor && m.user_id === data.nearest_mentor.user_id;
+              const icon = getMentorIcon(isBest, isNearest);
+
+              let badgeText = "Mentor";
+              if (isBest && isNearest) badgeText = "⭐ AI Best Match & Nearest";
+              else if (isBest) badgeText = "⭐ AI Best Match";
+              else if (isNearest) badgeText = "📍 Nearest Mentor";
+
+              const popupHtml = `
+                <div style="min-width:180px;">
+                  <span style="font-size:11px; font-weight:800; color:#0b57d0; text-transform:uppercase;">${badgeText}</span>
+                  <h6 style="margin:2px 0 4px; font-weight:700;">${m.full_name}</h6>
+                  <p style="margin:0 0 4px; font-size:12px; color:#475569;"><strong>${m.skill_name}</strong> · ${m.area}</p>
+                  <p style="margin:0 0 6px; font-size:12px;"><strong>${m.distance_km} km away</strong> · ${m.is_paid ? '৳' + m.price : 'Free'}</p>
+                  <div class="d-flex gap-1 mt-1">
+                    <a href="${m.profile_url}" class="btn btn-primary btn-sm py-0 px-2 flex-grow-1" style="font-size:11px;">View Profile</a>
+                    <a href="${m.profile_url}#chat" class="btn btn-outline-primary btn-sm py-0 px-2 flex-grow-1" style="font-size:11px;">Chat</a>
+                  </div>
+                </div>
+              `;
+              L.marker([m.latitude, m.longitude], { icon: icon })
+                .bindPopup(popupHtml)
+                .addTo(markersLayer);
+            }
+          });
+        }
+
+        // Draw Route Polyline
+        const routeToDraw = data.astar_route_best || data.astar_route_nearest;
+        if (routeToDraw && routeToDraw.path_coordinates && routeToDraw.path_coordinates.length > 1) {
+          const polyline = L.polyline(routeToDraw.path_coordinates, {
+            color: "#0b57d0",
+            weight: 5,
+            opacity: 0.85,
+            dashArray: "8, 6"
+          }).addTo(routeLayer);
+          polyline.bindPopup(`<strong>Recommended Route</strong><br>Distance: ${routeToDraw.total_distance_km} km`);
+        }
+
+        if (bounds.length > 1) {
+          map.fitBounds(bounds, { padding: [35, 35] });
+        } else {
+          map.setView([currentLat, currentLon], 12);
+        }
+      })
+      .catch(err => {
+        container.innerHTML = `<div class="alert alert-danger small my-3">Error fetching recommendations: ${err.message}</div>`;
+      });
+  }
+
+  // 5. Render Recommendation Cards
+  function renderRecommendations(data) {
+    const container = document.getElementById("ai-recommendations-container");
+    container.innerHTML = "";
+
+    const best = data.ai_best_match;
+    const nearest = data.nearest_mentor;
+
+    if (!best && !nearest) {
+      container.innerHTML = `
+        <div class="p-4 text-center text-muted">
+          <div class="empty-icon mb-2" style="font-size:1.8rem;">⌕</div>
+          <h6 class="fw-bold text-dark mb-1">No suitable mentors found for this skill near your location.</h6>
+          <p class="small mb-0">Try selecting another skill or checking back later as new mentors join.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const sameMentor = best && nearest && best.user_id === nearest.user_id;
+
+    if (data.is_fallback && data.fallback_message) {
+      const banner = document.createElement("div");
+      banner.className = "alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-3";
+      banner.innerHTML = `<span>📍</span><span>${data.fallback_message}</span>`;
+      container.appendChild(banner);
+    }
+
+    // Card 1: AI Best Match
+    if (best) {
+      const matchPct = Math.round((best.ai_score || 0) * 100);
+      const card = document.createElement("div");
+      card.className = "ai-card-highlight best-match";
+      card.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <span class="badge ${sameMentor ? 'bg-warning text-dark' : 'bg-primary'} mb-1">
+              ${sameMentor ? '⭐ AI Best Match & Nearest' : '⭐ AI Best Match'}
+            </span>
+            <h5 class="mb-0 fw-bold">${best.full_name}</h5>
+            <small class="text-muted">${best.skill_name} · ${best.area}, ${best.city}</small>
+          </div>
+          <span class="ai-score-pill">${matchPct}% Match</span>
+        </div>
+
+        <p class="small text-secondary mb-2" style="line-height:1.4;">${best.bio ? best.bio.substring(0, 95) + '...' : ''}</p>
+
+        <div class="row g-2 small text-muted mb-2">
+          <div class="col-6"><span>⌖ Distance: <strong>${best.distance_km} km</strong></span></div>
+          <div class="col-6"><span>★ Rating: <strong>${best.rating.toFixed(1)} / 5</strong></span></div>
+          <div class="col-6"><span>৳ Pricing: <strong>${best.is_paid ? '৳' + best.price : 'Free'}</strong></span></div>
+          <div class="col-6"><span>▣ Experience: <strong>${best.experience || 'Experienced'}</strong></span></div>
+        </div>
+
+        <div class="ai-score-bar-wrap">
+          <div class="ai-score-bar-label">
+            <span>Overall Match Compatibility</span>
+            <strong>${matchPct}%</strong>
+          </div>
+          <div class="ai-score-bar">
+            <div class="ai-score-bar-fill" style="width: ${matchPct}%"></div>
+          </div>
+        </div>
+
+        <div class="mt-3 d-flex gap-2">
+          <a href="${best.profile_url}" class="btn btn-primary btn-sm flex-grow-1">View Full Profile →</a>
+        </div>
+      `;
+      container.appendChild(card);
+    }
+
+    // Card 2: Nearest Mentor (if distinct from Best Match)
+    if (nearest && !sameMentor) {
+      const card = document.createElement("div");
+      card.className = "ai-card-highlight nearest-match";
+      const astarDist = data.astar_route_nearest ? data.astar_route_nearest.total_distance_km : nearest.distance_km;
+      card.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <span class="badge bg-success mb-1">📍 Nearest Mentor</span>
+            <h5 class="mb-0 fw-bold">${nearest.full_name}</h5>
+            <small class="text-muted">${nearest.skill_name} · ${nearest.area}, ${nearest.city}</small>
+          </div>
+          <span class="badge bg-light text-dark border">${astarDist} km away</span>
+        </div>
+
+        <p class="small text-secondary mb-2" style="line-height:1.4;">${nearest.bio ? nearest.bio.substring(0, 95) + '...' : ''}</p>
+
+        <div class="row g-2 small text-muted mb-2">
+          <div class="col-6"><span>📍 Distance: <strong>${astarDist} km</strong></span></div>
+          <div class="col-6"><span>★ Rating: <strong>${nearest.rating.toFixed(1)} / 5</strong></span></div>
+          <div class="col-6"><span>৳ Pricing: <strong>${nearest.is_paid ? '৳' + nearest.price : 'Free'}</strong></span></div>
+          <div class="col-6"><span>▣ Match: <strong>${Math.round((nearest.ai_score || 0) * 100)}%</strong></span></div>
+        </div>
+
+        <div class="mt-2 d-flex gap-2">
+          <a href="${nearest.profile_url}" class="btn btn-outline-success btn-sm flex-grow-1">View Profile →</a>
+        </div>
+      `;
+      container.appendChild(card);
+    }
+  }
+
+  // Event Listeners for Controls
+  const skillSelect = document.getElementById("ai-skill-select");
+  if (skillSelect) {
+    skillSelect.addEventListener("change", runRecommendations);
+  }
+
+  const pricingSelect = document.getElementById("ai-pricing-select");
+  if (pricingSelect) {
+    pricingSelect.addEventListener("change", runRecommendations);
+  }
+
+  const btnRun = document.getElementById("btn-run-ai");
+  if (btnRun) {
+    btnRun.addEventListener("click", runRecommendations);
+  }
+
+  // Automatic initial run on page load
+  runRecommendations();
+});
+</script>
+{% endblock %}
+
+
+

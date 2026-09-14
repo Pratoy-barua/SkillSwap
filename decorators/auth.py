@@ -19,9 +19,6 @@ def login_required(view):
         user = load_user()
         if not user:
             return redirect(url_for("auth.login"))
-        if user.account_status in {"Rejected", "Suspended"}:
-            session.clear()
-            return redirect(url_for("auth.account_status", status=user.account_status))
         if user.account_status != "Approved" and user.role.name != "Admin":
             return redirect(url_for("auth.account_status", status=user.account_status))
         return view(*args, **kwargs)
@@ -35,6 +32,23 @@ def role_required(*roles):
         @login_required
         def wrapped(*args, **kwargs):
             if g.current_user.role.name not in roles:
+                abort(403)
+            return view(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
+
+
+def authenticated_role(*roles):
+    """Allows authenticated users in given roles to access views like notifications regardless of account status."""
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            user = load_user()
+            if not user:
+                return redirect(url_for("auth.login"))
+            if user.role.name not in roles:
                 abort(403)
             return view(*args, **kwargs)
 

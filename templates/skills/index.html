@@ -1,1 +1,321 @@
-{% extends 'base.html' %}{% block title %}Explore Skills · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><p class="eyebrow">Explore the catalogue</p><h1 class="section-heading h2">Find a skill worth sharing.</h1><p class="section-copy mb-4">Every category and mentor count below is loaded from the database.</p><div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">{% for skill, count in skills %}<div class="col"><div class="skill-card h-100"><span class="skill-icon">{{ skill.icon or '✦' }}</span><span class="flex-grow-1"><strong>{{ skill.name }}</strong><small>{{ count }} approved mentor{% if count != 1 %}s{% endif %}</small></span><a class="btn btn-sm btn-outline-primary" href="{{ url_for('discovery.mentor_search', skill_id=skill.id) }}">Explore</a></div></div>{% else %}<div class="col-12"><div class="empty-state">No active skills have been added yet.</div></div>{% endfor %}</div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Explore Skills · SkillSwap{% endblock %}
+
+{% macro skill_svg_icon(name) %}
+  {%- set n = name|lower -%}
+  {%- if 'program' in n or 'code' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+  {%- elif 'web' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+  {%- elif 'app' in n or 'mobile' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+  {%- elif 'graphic' in n or 'ui' in n or 'ux' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+  {%- elif 'photo' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+  {%- elif 'video' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+  {%- elif 'excel' in n or 'data' in n or 'office' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><rect x="2" y="2" width="20" height="20" rx="2"/></svg>
+  {%- elif 'market' in n or 'seo' in n or 'social' in n or 'freelanc' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+  {%- elif 'english' in n or 'speak' in n or 'language' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  {%- elif 'writ' in n or 'content' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+  {%- elif 'guitar' in n or 'piano' in n or 'sing' in n or 'keyboard' in n or 'music' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+  {%- elif 'draw' in n or 'sketch' in n or 'paint' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.375 2.625a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.375-9.375z"/><line x1="2" y1="22" x2="6" y2="18"/></svg>
+  {%- elif 'cook' in n or 'bake' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+  {%- elif 'driv' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+  {%- elif 'cycl' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L8.5 9H12l3.5 5 2.5-3.5H21"/><path d="M12 17.5V14l-2.5-2"/></svg>
+  {%- elif 'swim' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c1.5-1 3-1 4.5 0s3 1 4.5 0 3-1 4.5 0 3 1 4.5 0"/><path d="M2 17c1.5-1 3-1 4.5 0s3 1 4.5 0 3-1 4.5 0 3 1 4.5 0"/><circle cx="12" cy="5" r="2"/></svg>
+  {%- elif 'fit' in n or 'gym' in n -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5v14M18 5v14M2 9v6M22 9v6M6 12h12"/></svg>
+  {%- else -%}
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+  {%- endif -%}
+{% endmacro %}
+
+{% macro skill_category_key(name) %}
+  {%- set n = name|lower -%}
+  {%- if 'program' in n or 'code' in n or 'web' in n or 'app' in n -%}
+    tech
+  {%- elif 'graphic' in n or 'ui' in n or 'ux' in n or 'draw' in n or 'sketch' in n or 'paint' in n -%}
+    design
+  {%- elif 'photo' in n or 'video' in n -%}
+    media
+  {%- elif 'market' in n or 'seo' in n or 'excel' in n or 'office' in n or 'data' in n or 'social' in n or 'freelanc' in n or 'content' in n -%}
+    business
+  {%- elif 'english' in n or 'speak' in n or 'language' in n -%}
+    language
+  {%- elif 'guitar' in n or 'piano' in n or 'sing' in n or 'keyboard' in n -%}
+    music
+  {%- elif 'cook' in n or 'bake' in n or 'driv' in n or 'cycl' in n or 'swim' in n or 'fit' in n or 'gym' in n -%}
+    lifestyle
+  {%- else -%}
+    general
+  {%- endif -%}
+{% endmacro %}
+
+{% macro skill_theme_class(name) %}
+  {%- set n = name|lower -%}
+  {%- if 'program' in n or 'code' in n or 'web' in n or 'app' in n -%}
+    theme-tech
+  {%- elif 'graphic' in n or 'ui' in n or 'ux' in n or 'draw' in n or 'sketch' in n or 'paint' in n -%}
+    theme-design
+  {%- elif 'photo' in n or 'video' in n -%}
+    theme-media
+  {%- elif 'market' in n or 'seo' in n or 'excel' in n or 'office' in n or 'data' in n or 'social' in n or 'freelanc' in n or 'content' in n -%}
+    theme-business
+  {%- elif 'english' in n or 'speak' in n or 'language' in n -%}
+    theme-language
+  {%- elif 'guitar' in n or 'piano' in n or 'sing' in n or 'keyboard' in n -%}
+    theme-music
+  {%- elif 'cook' in n or 'bake' in n or 'driv' in n or 'cycl' in n or 'swim' in n or 'fit' in n or 'gym' in n -%}
+    theme-lifestyle
+  {%- else -%}
+    theme-general
+  {%- endif -%}
+{% endmacro %}
+
+{% block content %}
+<section class="section py-4">
+  <div class="container">
+    <!-- PAGE HERO -->
+    <div class="explore-hero-section">
+      <div class="explore-eyebrow">EXPLORE SKILLS</div>
+      <h1 class="explore-title">Find a skill worth sharing.</h1>
+      <p class="explore-subtitle">Discover skills, find mentors nearby, and start learning something new.</p>
+      
+      <!-- SEARCH FIELD -->
+      <div class="explore-search-wrap">
+        <span class="explore-search-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </span>
+        <input 
+          type="search" 
+          id="exploreSkillSearch" 
+          class="explore-search-input" 
+          placeholder="Search skills..." 
+          aria-label="Search skills"
+          autocomplete="off"
+        >
+      </div>
+
+      <!-- CATEGORY / TOPIC FILTER PILLS -->
+      <div class="explore-filter-pills" role="tablist" aria-label="Skill category filters">
+        <button type="button" class="filter-pill-btn active" data-filter="all">All Skills</button>
+        <button type="button" class="filter-pill-btn" data-filter="tech">Programming &amp; Tech</button>
+        <button type="button" class="filter-pill-btn" data-filter="design">Design &amp; Creative</button>
+        <button type="button" class="filter-pill-btn" data-filter="media">Media &amp; Video</button>
+        <button type="button" class="filter-pill-btn" data-filter="business">Business &amp; Marketing</button>
+        <button type="button" class="filter-pill-btn" data-filter="language">Languages</button>
+        <button type="button" class="filter-pill-btn" data-filter="music">Music &amp; Arts</button>
+        <button type="button" class="filter-pill-btn" data-filter="lifestyle">Lifestyle &amp; Fitness</button>
+      </div>
+
+      <!-- POPULAR SKILLS ROW (Real DB skills with approved mentors) -->
+      {% set popular_skills = [] %}
+      {% for skill, count in skills %}
+        {% if count > 0 %}
+          {% set _ = popular_skills.append((skill, count)) %}
+        {% endif %}
+      {% endfor %}
+
+      {% if popular_skills %}
+      <div class="popular-skills-bar">
+        <span class="popular-label">Popular now:</span>
+        {% for pop_skill, pop_count in popular_skills %}
+          <button type="button" class="popular-skill-chip" data-skill-name="{{ pop_skill.name }}">
+            {{ pop_skill.name }} <span class="badge rounded-pill bg-light text-dark ms-1">{{ pop_count }}</span>
+          </button>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="text-muted small">
+          Showing <span id="visibleSkillCount">{{ skills|length }}</span> of {{ skills|length }} skills
+        </div>
+      </div>
+    </div>
+
+    <!-- SKILLS GRID -->
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4" id="skillsGrid">
+      {% for skill, count in skills %}
+        {% set cat_key = skill_category_key(skill.name)|trim %}
+        {% set theme_cls = skill_theme_class(skill.name)|trim %}
+        <div class="col skill-col" data-name="{{ skill.name|lower }}" data-category="{{ cat_key }}">
+          <div class="skill-card-modern {{ theme_cls }}">
+            <div class="skill-card-header">
+              <div class="skill-icon-wrap" aria-hidden="true">
+                {{ skill_svg_icon(skill.name) }}
+              </div>
+              <div>
+                {% if count > 0 %}
+                  <span class="skill-badge has-mentors">
+                    <span class="badge-dot">●</span> {{ count }} mentor{% if count != 1 %}s{% endif %}
+                  </span>
+                {% else %}
+                  <span class="skill-badge no-mentors">
+                    Looking for mentors
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="skill-card-body">
+              <h2 class="skill-title h5">{{ skill.name }}</h2>
+            </div>
+
+            <div class="skill-card-footer">
+              <a class="skill-link-explore" href="{{ url_for('discovery.mentor_search', skill_id=skill.id) }}">
+                Explore
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="col-12">
+          <div class="empty-state">No active skills have been added yet.</div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- EMPTY SEARCH STATE -->
+    <div id="exploreEmptyState" class="explore-empty-state" style="display: none;">
+      <div class="mb-3 text-muted">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+      </div>
+      <h3>No skills found</h3>
+      <p>Try a different search term or browse all available categories.</p>
+      <button type="button" class="btn btn-outline-primary btn-sm px-3" id="resetSearchBtn">
+        Reset Search
+      </button>
+    </div>
+  </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const searchInput = document.getElementById('exploreSkillSearch');
+  const filterPills = document.querySelectorAll('.filter-pill-btn');
+  const popularChips = document.querySelectorAll('.popular-skill-chip');
+  const skillCards = document.querySelectorAll('.skill-col');
+  const emptyState = document.getElementById('exploreEmptyState');
+  const skillsGrid = document.getElementById('skillsGrid');
+  const countBadge = document.getElementById('visibleSkillCount');
+  const resetBtn = document.getElementById('resetSearchBtn');
+
+  let activeCategory = 'all';
+  let searchTerm = '';
+
+  function filterSkills() {
+    let visibleCount = 0;
+    const term = searchTerm.toLowerCase().trim();
+
+    skillCards.forEach(card => {
+      const name = card.getAttribute('data-name') || '';
+      const category = card.getAttribute('data-category') || '';
+
+      const matchesSearch = !term || name.includes(term);
+      const matchesCategory = activeCategory === 'all' || category === activeCategory;
+
+      if (matchesSearch && matchesCategory) {
+        card.style.display = '';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    if (countBadge) {
+      countBadge.textContent = visibleCount;
+    }
+
+    if (visibleCount === 0) {
+      emptyState.style.display = 'block';
+    } else {
+      emptyState.style.display = 'none';
+    }
+  }
+
+  // Realtime search
+  if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+      searchTerm = e.target.value;
+      filterSkills();
+    });
+  }
+
+  // Category pills
+  filterPills.forEach(pill => {
+    pill.addEventListener('click', function() {
+      filterPills.forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      activeCategory = this.getAttribute('data-filter') || 'all';
+      filterSkills();
+    });
+  });
+
+  // Popular chips
+  popularChips.forEach(chip => {
+    chip.addEventListener('click', function() {
+      const skillName = this.getAttribute('data-skill-name') || '';
+      if (searchInput) {
+        searchInput.value = skillName;
+        searchTerm = skillName;
+      }
+      activeCategory = 'all';
+      filterPills.forEach(p => {
+        if (p.getAttribute('data-filter') === 'all') {
+          p.classList.add('active');
+        } else {
+          p.classList.remove('active');
+        }
+      });
+      filterSkills();
+      if (searchInput) {
+        searchInput.focus();
+      }
+    });
+  });
+
+  // Reset button in empty state
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function() {
+      if (searchInput) {
+        searchInput.value = '';
+        searchTerm = '';
+      }
+      activeCategory = 'all';
+      filterPills.forEach(p => {
+        if (p.getAttribute('data-filter') === 'all') {
+          p.classList.add('active');
+        } else {
+          p.classList.remove('active');
+        }
+      });
+      filterSkills();
+    });
+  }
+});
+</script>
+{% endblock %}

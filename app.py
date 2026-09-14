@@ -185,7 +185,39 @@ def create_app(config_name=None):
             db.session.add(mentor_role)
             db.session.flush()
 
-        skill_names = ["Graphic Design", "Photography", "Spoken English", "Web Development"]
+        skill_names = [
+            "Programming / Coding",
+            "Web Development",
+            "App Development",
+            "Graphic Design",
+            "UI/UX Design",
+            "Digital Marketing",
+            "SEO",
+            "Video Editing",
+            "Photography",
+            "Videography",
+            "Microsoft Excel",
+            "Microsoft Office",
+            "Data Analysis",
+            "English",
+            "Public Speaking",
+            "Content Writing",
+            "Social Media Management",
+            "Freelancing",
+            "Guitar",
+            "Piano / Keyboard",
+            "Singing",
+            "Drawing / Sketching",
+            "Painting",
+            "Cooking",
+            "Baking",
+            "Driving",
+            "Cycling",
+            "Swimming",
+            "Fitness / Gym",
+            "Language Learning",
+            "Spoken English",
+        ]
         skills = {}
         for name in skill_names:
             skill = Skill.query.filter_by(name=name).first()

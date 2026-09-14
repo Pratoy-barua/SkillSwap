@@ -1,8 +1,9 @@
 """Admin verification and account-status management."""
 
+from datetime import datetime
 from pathlib import Path
 
-from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, send_file, url_for, request
+from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, send_file, url_for, request
 from sqlalchemy import func, or_
 
 from decorators.auth import role_required
@@ -12,9 +13,102 @@ from models.learning import LearningProgress, Payment, Subscription
 from models.connection import LearningRelationship
 from models.store import Order, ProductCategory
 from models.reviews import PremiumPlan, RevenueRecord, Review
+from services.notifications import notify
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+
+def get_business_analytics(months_limit=6):
+    """
+    Aggregates real business metrics from the existing database:
+    1. Net Revenue: RevenueRecord with status == 'Successful', summing net_platform_revenue.
+    2. Store Orders: Order, counting actual store orders.
+    3. Successful Payments: Payment with status == 'Successful', counting completed transactions.
+
+    Aggregated with GROUP BY using func.extract('year', ...) and func.extract('month', ...).
+    Returns only real historical data months (up to months_limit). Never invents missing months/data.
+    """
+    rev_q = (
+        db.session.query(
+            func.extract("year", RevenueRecord.created_at).label("yr"),
+            func.extract("month", RevenueRecord.created_at).label("mo"),
+            func.sum(RevenueRecord.net_platform_revenue).label("net_rev"),
+        )
+        .filter(RevenueRecord.status == "Successful")
+        .group_by("yr", "mo")
+        .all()
+    )
+    rev_map = {(int(r.yr), int(r.mo)): float(r.net_rev or 0) for r in rev_q}
+
+    ord_q = (
+        db.session.query(
+            func.extract("year", Order.created_at).label("yr"),
+            func.extract("month", Order.created_at).label("mo"),
+            func.count(Order.id).label("cnt"),
+        )
+        .group_by("yr", "mo")
+        .all()
+    )
+    ord_map = {(int(r.yr), int(r.mo)): int(r.cnt or 0) for r in ord_q}
+
+    pay_q = (
+        db.session.query(
+            func.extract("year", Payment.created_at).label("yr"),
+            func.extract("month", Payment.created_at).label("mo"),
+            func.count(Payment.id).label("cnt"),
+        )
+        .filter(Payment.status == "Successful")
+        .group_by("yr", "mo")
+        .all()
+    )
+    pay_map = {(int(r.yr), int(r.mo)): int(r.cnt or 0) for r in pay_q}
+
+    all_months = sorted(set(rev_map.keys()) | set(ord_map.keys()) | set(pay_map.keys()))
+
+    if not all_months:
+        return {
+            "has_data": False,
+            "range": months_limit,
+            "months": [],
+            "revenue": [],
+            "orders": [],
+            "payments": [],
+            "total_revenue": 0.0,
+            "total_orders": 0,
+            "total_payments": 0,
+        }
+
+    selected = all_months[-months_limit:]
+    labels = [datetime(y, m, 1).strftime("%b %Y") for y, m in selected]
+    revs = [round(rev_map.get(k, 0.0), 2) for k in selected]
+    ords = [ord_map.get(k, 0) for k in selected]
+    pays = [pay_map.get(k, 0) for k in selected]
+
+    return {
+        "has_data": True,
+        "range": months_limit,
+        "months": labels,
+        "revenue": revs,
+        "orders": ords,
+        "payments": pays,
+        "total_revenue": round(sum(revs), 2),
+        "total_orders": sum(ords),
+        "total_payments": sum(pays),
+    }
+
+
+@admin_bp.get("/api/business-analytics")
+@role_required("Admin")
+def business_analytics_api():
+    try:
+        months_limit = int(request.args.get("range", 6))
+        if months_limit not in (6, 12):
+            months_limit = 6
+    except (ValueError, TypeError):
+        months_limit = 6
+
+    return jsonify(get_business_analytics(months_limit=months_limit))
 
 
 @admin_bp.get("/dashboard")
@@ -36,7 +130,9 @@ def dashboard():
         "revenue": sum((item.net_platform_revenue for item in RevenueRecord.query.filter_by(status="Successful").all()), 0),
         "premium_subscribers": Subscription.query.filter_by(status="Active").count(),
     }
-    return render_template("admin/dashboard.html", pending_learners=pending_learners, pending_mentors=pending_mentors, counts=counts)
+    business_data = get_business_analytics(months_limit=6)
+    return render_template("admin/dashboard.html", pending_learners=pending_learners, pending_mentors=pending_mentors, counts=counts, business_data=business_data)
+
 
 
 @admin_bp.get("/users")
@@ -70,13 +166,98 @@ def user_action(user_id, action):
     user = User.query.get_or_404(user_id)
     if user.role.name == "Admin":
         abort(403)
+
+    if action == "delete":
+        return delete_user(user_id)
+
     transitions = {"approve": "Approved", "reject": "Rejected", "suspend": "Suspended", "reactivate": "Approved"}
     if action not in transitions:
         abort(404)
-    user.account_status = transitions[action]
-    db.session.commit()
-    flash(f"{user.full_name} is now {user.account_status}.", "success")
-    return redirect(url_for("admin.user_detail", user_id=user.id))
+
+    if action == "reject":
+        reason = request.form.get("reason", "").strip()
+        if not reason:
+            flash("A reason for rejection is required.", "danger")
+            return redirect(url_for("admin.user_detail", user_id=user.id))
+
+        user.account_status = "Rejected"
+        role_label = user.role.name.lower()
+        notify(
+            user_id=user.id,
+            notification_type="application_rejected",
+            title="Application Rejected",
+            message=f"Your {role_label} application has been rejected by the administrator.\n\nReason:\n{reason}",
+            related_type="user",
+            related_id=user.id,
+        )
+        db.session.commit()
+        flash(f"{user.full_name}'s application has been rejected.", "success")
+        return redirect(url_for("admin.user_detail", user_id=user.id))
+
+    elif action == "suspend":
+        reason = request.form.get("reason", "").strip()
+        if not reason:
+            flash("A reason for suspension is required.", "danger")
+            return redirect(url_for("admin.user_detail", user_id=user.id))
+
+        user.account_status = "Suspended"
+        notify(
+            user_id=user.id,
+            notification_type="account_suspended",
+            title="Account Suspended",
+            message=f"Your SkillSwap account has been suspended by the administrator.\n\nReason:\n{reason}",
+            related_type="user",
+            related_id=user.id,
+        )
+        db.session.commit()
+        flash(f"{user.full_name}'s account has been suspended.", "success")
+        return redirect(url_for("admin.user_detail", user_id=user.id))
+
+    elif action in ("approve", "reactivate"):
+        user.account_status = "Approved"
+        db.session.commit()
+        action_word = "approved" if action == "approve" else "reactivated"
+        flash(f"{user.full_name} is now {action_word}.", "success")
+        return redirect(url_for("admin.user_detail", user_id=user.id))
+
+
+@admin_bp.post("/users/<int:user_id>/delete")
+@role_required("Admin")
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.role.name == "Admin":
+        abort(403)
+
+    user_name = user.full_name
+    try:
+        # Clean up private documents from disk
+        for doc in user.documents:
+            try:
+                base = Path(current_app.config["PRIVATE_UPLOAD_FOLDER"]).resolve()
+                doc_path = (base / doc.stored_name).resolve()
+                if doc_path.is_file():
+                    doc_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+        # Clean up profile photo from disk
+        if user.profile_photo:
+            try:
+                pub_base = Path(current_app.config["PUBLIC_UPLOAD_FOLDER"]).resolve()
+                photo_path = (pub_base / user.profile_photo).resolve()
+                if photo_path.is_file():
+                    photo_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+        db.session.delete(user)
+        db.session.commit()
+        flash(f"Account for {user_name} has been permanently deleted.", "success")
+        return redirect(url_for("admin.users"))
+    except Exception:
+        db.session.rollback()
+        flash("Unable to delete user due to a database constraint.", "danger")
+        return redirect(url_for("admin.user_detail", user_id=user_id))
 
 
 @admin_bp.get("/documents/<int:document_id>")

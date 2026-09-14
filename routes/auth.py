@@ -3,6 +3,7 @@
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from decorators.auth import load_user
@@ -166,35 +167,149 @@ def register_learner():
     return render_template("auth/register.html", role="Learner", data=data)
 
 
+PREDEFINED_SKILLS = [
+    "Programming / Coding",
+    "Web Development",
+    "App Development",
+    "Graphic Design",
+    "UI/UX Design",
+    "Digital Marketing",
+    "SEO",
+    "Video Editing",
+    "Photography",
+    "Videography",
+    "Microsoft Excel",
+    "Microsoft Office",
+    "Data Analysis",
+    "English",
+    "Public Speaking",
+    "Content Writing",
+    "Social Media Management",
+    "Freelancing",
+    "Guitar",
+    "Piano / Keyboard",
+    "Singing",
+    "Drawing / Sketching",
+    "Painting",
+    "Cooking",
+    "Baking",
+    "Driving",
+    "Cycling",
+    "Swimming",
+    "Fitness / Gym",
+    "Language Learning",
+]
+
+
+def get_mentor_signup_skills():
+    """Ensure all 30 predefined skills are available and return them ordered."""
+    for name in PREDEFINED_SKILLS:
+        existing = Skill.query.filter(func.lower(Skill.name) == name.lower()).first()
+        if not existing:
+            db.session.add(Skill(name=name, is_active=True))
+        else:
+            if existing.name != name:
+                existing.name = name
+            if not existing.is_active:
+                existing.is_active = True
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    all_active = Skill.query.filter_by(is_active=True).all()
+    rank_map = {name.lower(): i for i, name in enumerate(PREDEFINED_SKILLS)}
+    return sorted(all_active, key=lambda s: (rank_map.get(s.name.lower(), 999), s.name.lower()))
+
+
 @auth_bp.route("/register/mentor", methods=["GET", "POST"])
 def register_mentor():
     data = common_fields()
+    available_skills = get_mentor_signup_skills()
+    selected_skill_ids = []
+
     if request.method == "POST":
+        # Extract selected skill IDs from skill_ids list
+        raw_ids = request.form.getlist("skill_ids")
+        for val in raw_ids:
+            for part in str(val).split(","):
+                part = part.strip()
+                if part.isdigit():
+                    selected_skill_ids.append(int(part))
+
+        # Fallback to skills text field if skill_ids was not passed
+        if not selected_skill_ids and request.form.get("skills"):
+            for item in request.form.get("skills", "").split(","):
+                item = item.strip()
+                if item.isdigit():
+                    selected_skill_ids.append(int(item))
+                elif item:
+                    matched = Skill.query.filter(func.lower(Skill.name) == item.lower(), Skill.is_active.is_(True)).first()
+                    if matched:
+                        selected_skill_ids.append(matched.id)
+
+        # Deduplicate while preserving order
+        selected_skill_ids = list(dict.fromkeys(selected_skill_ids))
+
+        # Server-side validation: must exist and be active
+        valid_skills = (
+            Skill.query.filter(Skill.id.in_(selected_skill_ids), Skill.is_active.is_(True)).all()
+            if selected_skill_ids
+            else []
+        )
+
         if not csrf_valid():
             flash("Your form expired. Please try again.", "danger")
         elif (error := validate_common(data)):
             flash(error, "danger")
         elif not request.files.get("nid_document") or not request.files["nid_document"].filename:
             flash("An NID/Voter ID document is required.", "danger")
-        elif not request.form.get("bio", "").strip() or not request.form.get("experience", "").strip() or not request.form.get("skills", "").strip():
+        elif not request.form.get("bio", "").strip() or not request.form.get("experience", "").strip() or not selected_skill_ids:
             flash("Bio, experience, and at least one skill are required.", "danger")
+        elif not valid_skills:
+            flash("Please select at least one valid skill from the list.", "danger")
         else:
             try:
                 pricing = Decimal(request.form.get("pricing", "0") or "0")
-                user = User(role=role_for("Mentor"), full_name=data["full_name"], email=data["email"], phone=data["phone"], address=data["address"], account_status="Pending", location=location_for(data["city"], data["area"]))
+                user = User(
+                    role=role_for("Mentor"),
+                    full_name=data["full_name"],
+                    email=data["email"],
+                    phone=data["phone"],
+                    address=data["address"],
+                    account_status="Pending",
+                    location=location_for(data["city"], data["area"]),
+                )
                 user.set_password(data["password"])
                 profile_info = save_upload(request.files.get("profile_photo"), "profile")
                 if profile_info:
                     user.profile_photo = profile_info["stored_name"]
                 db.session.add(user)
                 db.session.flush()
-                mentor = MentorProfile(user=user, bio=request.form["bio"].strip(), experience=request.form["experience"].strip(), teaching_type=request.form.get("teaching_type", "In person").strip(), is_paid=request.form.get("is_paid") == "paid", pricing=pricing)
+
+                mentor = MentorProfile(
+                    user=user,
+                    bio=request.form["bio"].strip(),
+                    experience=request.form["experience"].strip(),
+                    teaching_type=request.form.get("teaching_type", "In person").strip(),
+                    is_paid=request.form.get("is_paid") == "paid",
+                    pricing=pricing,
+                )
                 db.session.add(mentor)
-                for name in {item.strip().lower() for item in request.form["skills"].split(",") if item.strip()}:
-                    skill = Skill.query.filter_by(name=name).first() or Skill(name=name)
-                    db.session.add(skill)
-                    db.session.flush()
-                    db.session.add(MentorSkill(mentor_profile=mentor, skill=skill, experience=request.form.get("experience", "").strip(), is_paid=request.form.get("is_paid") == "paid", price=pricing, pricing_type=request.form.get("pricing_type", "Course-based")))
+                db.session.flush()
+
+                for skill in valid_skills:
+                    db.session.add(
+                        MentorSkill(
+                            mentor_profile=mentor,
+                            skill=skill,
+                            experience=request.form.get("experience", "").strip(),
+                            is_paid=request.form.get("is_paid") == "paid",
+                            price=pricing,
+                            pricing_type=request.form.get("pricing_type", "Course-based"),
+                        )
+                    )
+
                 persist_documents(user, data)
                 db.session.commit()
                 flash("Your mentor application was submitted for admin approval.", "success")
@@ -202,12 +317,24 @@ def register_mentor():
             except (ValueError, InvalidOperation, IntegrityError) as error:
                 db.session.rollback()
                 flash(str(error) if isinstance(error, (ValueError, InvalidOperation)) else "Unable to save this application.", "danger")
-    return render_template("auth/register.html", role="Mentor", data=data)
+
+    return render_template(
+        "auth/register.html",
+        role="Mentor",
+        data=data,
+        skills=available_skills,
+        selected_skill_ids=selected_skill_ids,
+    )
 
 
 @auth_bp.get("/status/<status>")
 def account_status(status):
-    return render_template("auth/status.html", status=status)
+    latest_notification = None
+    user = getattr(g, "current_user", None)
+    if user:
+        from models.connection import Notification
+        latest_notification = Notification.query.filter_by(user_id=user.id).order_by(Notification.created_at.desc()).first()
+    return render_template("auth/status.html", status=status, latest_notification=latest_notification)
 
 
 @auth_bp.get("/logout")

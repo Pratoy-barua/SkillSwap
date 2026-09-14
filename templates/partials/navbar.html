@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-lg site-nav sticky-top" aria-label="Primary navigation">
   <div class="container navbar-shell py-2">
-    <a class="navbar-brand me-lg-5" href="{{ url_for('public.home') }}" aria-label="SkillSwap home">
+    <a class="navbar-brand me-lg-4" href="{{ url_for('public.home') }}" aria-label="SkillSwap home">
       <img class="brand-logo brand-logo-image" src="{{ url_for('static', filename='images/skillswap-logo.png', v='2') }}" alt="SkillSwap">
     </a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavigation" aria-controls="mainNavigation" aria-expanded="false" aria-label="Open navigation">
@@ -45,12 +45,14 @@
           <div class="dropdown profile-menu">
             <button class="profile-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open profile menu">
               {% if current_user.profile_photo %}
-                <img class="nav-profile-avatar" src="{{ url_for('static', filename='uploads/public/' + current_user.profile_photo) }}" alt="{{ current_user.full_name }}">
+                <img class="nav-profile-avatar" src="{{ url_for('static', filename='uploads/public/' + current_user.profile_photo) }}" alt="{% if current_user.role.name == 'Admin' %}Admin{% else %}{{ current_user.full_name }}{% endif %}">
               {% else %}
                 <span class="nav-profile-avatar nav-profile-initial" aria-hidden="true">{{ current_user.full_name[0]|upper }}</span>
               {% endif %}
-              <span class="profile-name">{{ current_user.full_name }}</span>
-              <span class="profile-caret" aria-hidden="true">⌄</span>
+              <span class="profile-name">{% if current_user.role.name == 'Admin' %}Admin{% else %}{{ current_user.full_name }}{% endif %}</span>
+              <svg class="profile-caret" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+              </svg>
             </button>
             <ul class="dropdown-menu dropdown-menu-end profile-dropdown">
               <li><span class="dropdown-header">Signed in as {{ current_user.role.name }}</span></li>
