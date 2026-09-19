@@ -41,11 +41,12 @@ def checkout(relationship_id):
         db.session.flush()
         if result["status"] == "Successful":
             record_revenue("Mentor Payment", payment.id, payment.amount, payment.platform_commission, payment.mentor_earning)
-        notify(g.current_user.id, "payment_successful" if result["status"] == "Successful" else "payment_failed", f"Demo payment {result['status'].lower()}", f"Your Demo Payment reference is {payment.reference_id}.", "payment", payment.id if payment.id else None)
-        notify(relationship.mentor_id, "payment_successful" if result["status"] == "Successful" else "payment_failed", f"Demo payment {result['status'].lower()}", f"A Demo Payment for {relationship.skill.name} is {result['status'].lower()}.", "relationship", relationship.id)
+        notify(g.current_user.id, "payment_successful" if result["status"] == "Successful" else "payment_failed", "Payment successful" if result["status"] == "Successful" else "Payment failed", f"Your payment of ৳{payment.amount} for {relationship.skill.name} was {result['status'].lower()}.", "payment", payment.id if payment.id else None)
+        notify(relationship.mentor_id, "payment_successful" if result["status"] == "Successful" else "payment_failed", "Payment received" if result["status"] == "Successful" else "Payment failed", f"A payment of ৳{payment.amount} for {relationship.skill.name} was {result['status'].lower()}.", "relationship", relationship.id)
         db.session.commit()
         return redirect(url_for("payments.result", payment_id=payment.id))
-    return render_template("payments/checkout.html", relationship=relationship, plan=plan)
+    amount, commission, earning = split_amount(plan.pricing, db.session)
+    return render_template("payments/checkout.html", relationship=relationship, plan=plan, amount=amount, commission=commission, earning=earning)
 
 
 @payment_bp.get("/payments/result/<int:payment_id>")
@@ -53,6 +54,15 @@ def checkout(relationship_id):
 def result(payment_id):
     payment = Payment.query.filter_by(id=payment_id, learner_id=g.current_user.id).first_or_404()
     return render_template("payments/result.html", payment=payment)
+
+
+@payment_bp.get("/payments/invoice/<int:payment_id>")
+@role_required("Learner", "Mentor", "Admin")
+def invoice(payment_id):
+    payment = Payment.query.get_or_404(payment_id)
+    if g.current_user.role.name != "Admin" and g.current_user.id not in {payment.learner_id, payment.mentor_id}:
+        abort(403)
+    return render_template("payments/invoice.html", payment=payment)
 
 
 @payment_bp.get("/learner/payments")

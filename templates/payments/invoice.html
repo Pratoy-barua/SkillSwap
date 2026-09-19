@@ -1,0 +1,621 @@
+{% extends 'base.html' %}
+{% block title %}Invoice #INV-{{ payment.created_at.year }}-{{ '%05d'|format(payment.id) }} · Payment #{{ payment.id }} · SkillSwap{% endblock %}
+
+{% block head %}
+<style>
+  /* ─── Learning Payment Invoice Styling ─── */
+  .payment-invoice-page {
+    padding: 2.25rem 0 5rem;
+    background-color: var(--ss-bg);
+  }
+
+  .payment-invoice-container {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  /* Navigation Bar above Invoice */
+  .invoice-nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .invoice-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ss-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.4rem 0.75rem;
+    border-radius: 8px;
+    background: transparent;
+    transition: all 0.15s ease-in-out;
+  }
+  .invoice-back-link:hover {
+    color: var(--ss-blue);
+    background: #eef5ff;
+  }
+  .invoice-back-link svg {
+    transition: transform 0.15s ease;
+  }
+  .invoice-back-link:hover svg {
+    transform: translateX(-3px);
+  }
+
+  .invoice-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .btn-invoice-print {
+    min-height: 40px;
+    height: 40px;
+    padding: 0 1.15rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    border-radius: 8px;
+    background: var(--ss-blue);
+    border: 1px solid var(--ss-blue);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+  }
+  .btn-invoice-print:hover {
+    background: var(--ss-blue-dark);
+    border-color: var(--ss-blue-dark);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(22, 103, 217, 0.25);
+  }
+
+  .btn-invoice-outline {
+    min-height: 40px;
+    height: 40px;
+    padding: 0 1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid var(--ss-border);
+    color: var(--ss-ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    text-decoration: none;
+    transition: all 0.15s ease-in-out;
+  }
+  .btn-invoice-outline:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: var(--ss-ink);
+  }
+
+  /* ─── Printable Invoice Document Sheet ─── */
+  .invoice-sheet {
+    background: #ffffff;
+    border: 1px solid var(--ss-border);
+    border-radius: 16px;
+    box-shadow: 0 6px 24px rgba(23, 58, 105, 0.06);
+    padding: 3rem;
+    margin-bottom: 2rem;
+  }
+
+  /* Invoice Header */
+  .invoice-header-grid {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1.5px solid var(--ss-border);
+  }
+
+  .invoice-brand {
+    display: flex;
+    flex-direction: column;
+  }
+  .invoice-brand-logo {
+    width: 200px;
+    height: 52px;
+    object-fit: cover;
+    object-position: center;
+    margin: 0 0 0.4rem;
+    display: block;
+  }
+  .invoice-brand-subtitle {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--ss-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.4rem;
+  }
+  .invoice-brand-contact {
+    font-size: 0.82rem;
+    color: var(--ss-muted);
+    line-height: 1.45;
+  }
+
+  .invoice-meta-side {
+    text-align: right;
+  }
+  .invoice-big-title {
+    font-size: 1.85rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    color: var(--ss-ink);
+    margin: 0 0 0.5rem;
+    line-height: 1;
+  }
+  .invoice-meta-list {
+    font-size: 0.86rem;
+    color: var(--ss-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .invoice-meta-list strong {
+    color: var(--ss-ink);
+  }
+
+  /* Status Badges */
+  .invoice-badge-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.65rem;
+  }
+  .invoice-status-pill {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.25rem 0.65rem;
+    border-radius: 6px;
+  }
+  .invoice-status-pill.status-paid,
+  .invoice-status-pill.status-successful {
+    background: #e8f7ef;
+    color: #187148;
+    border: 1px solid #c0ebd2;
+  }
+  .invoice-status-pill.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+  .invoice-status-pill.status-failed {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+
+  /* Address Columns */
+  .invoice-addresses-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+    padding: 1.75rem 0;
+    border-bottom: 1px solid var(--ss-border);
+  }
+  .invoice-address-col h3 {
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ss-muted);
+    margin: 0 0 0.5rem;
+  }
+  .invoice-person-name {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0 0 0.25rem;
+  }
+  .invoice-address-details {
+    font-size: 0.88rem;
+    color: #475569;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* Learning Plan Details Banner */
+  .invoice-plan-box {
+    background: #f8fbff;
+    border: 1px solid #e2eaf5;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .invoice-plan-title {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+  .invoice-plan-meta {
+    font-size: 0.82rem;
+    color: var(--ss-muted);
+  }
+
+  /* Invoice Table */
+  .invoice-items-table {
+    width: 100%;
+    margin-top: 1.5rem;
+    border-collapse: collapse;
+  }
+  .invoice-items-table th {
+    background: #f8fafc;
+    border-top: 1px solid var(--ss-border);
+    border-bottom: 1px solid var(--ss-border);
+    color: var(--ss-muted);
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+  .invoice-items-table th:last-child {
+    text-align: right;
+  }
+  .invoice-items-table th:nth-child(2) {
+    text-align: center;
+  }
+
+  .invoice-items-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--ss-border);
+    font-size: 0.9rem;
+    color: var(--ss-ink);
+    vertical-align: middle;
+  }
+  .invoice-items-table td:last-child {
+    text-align: right;
+    font-weight: 700;
+  }
+  .invoice-items-table td:nth-child(2) {
+    text-align: center;
+  }
+  .invoice-item-title {
+    font-weight: 700;
+    color: var(--ss-ink);
+  }
+  .invoice-item-subtext {
+    font-size: 0.78rem;
+    color: var(--ss-muted);
+    margin-top: 0.15rem;
+  }
+
+  /* Invoice Financial Totals */
+  .invoice-totals-section {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+  }
+  .invoice-totals-box {
+    width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .invoice-total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--ss-muted);
+  }
+  .invoice-total-row strong {
+    color: var(--ss-ink);
+  }
+  .invoice-total-row.grand-total {
+    border-top: 2px solid var(--ss-border);
+    padding-top: 0.75rem;
+    margin-top: 0.25rem;
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: var(--ss-ink);
+  }
+  .invoice-total-row.grand-total .grand-amount {
+    color: var(--ss-blue);
+    font-size: 1.35rem;
+  }
+
+  /* Invoice Footer / Thank you */
+  .invoice-footer-note {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--ss-border);
+    text-align: center;
+  }
+  .invoice-footer-thanks {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0 0 0.25rem;
+  }
+  .invoice-footer-disclaimer {
+    font-size: 0.78rem;
+    color: var(--ss-muted);
+    margin: 0;
+  }
+
+  /* ─── Print Styles (@media print) ─── */
+  @media print {
+    header,
+    nav,
+    .site-nav,
+    footer,
+    .site-footer,
+    .invoice-nav-row,
+    .no-print {
+      display: none !important;
+    }
+
+    body {
+      background: #ffffff !important;
+      color: #000000 !important;
+      font-size: 12pt;
+    }
+
+    .payment-invoice-page {
+      padding: 0 !important;
+      background: #ffffff !important;
+    }
+
+    .payment-invoice-container {
+      max-width: 100% !important;
+      width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .invoice-sheet {
+      border: 0 !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      width: 100% !important;
+      border-radius: 0 !important;
+    }
+
+    @page {
+      size: A4;
+      margin: 12mm 15mm;
+    }
+
+    .invoice-items-table th {
+      background-color: #f1f5f9 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .invoice-status-pill {
+      border: 1px solid #cbd5e1 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 767.98px) {
+    .invoice-sheet {
+      padding: 1.5rem;
+    }
+    .invoice-header-grid {
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .invoice-meta-side {
+      text-align: left;
+    }
+    .invoice-badge-row {
+      justify-content: flex-start;
+    }
+    .invoice-addresses-grid {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+    .invoice-totals-box {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="payment-invoice-page">
+  <div class="container payment-invoice-container">
+
+    <!-- Top Navigation & Actions Row (Screen Only) -->
+    <div class="invoice-nav-row no-print">
+      {% if current_user.role.name == 'Mentor' %}
+        <a class="invoice-back-link" href="{{ url_for('payments.earnings') }}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+          </svg>
+          <span>Back to My Earnings</span>
+        </a>
+      {% else %}
+        <a class="invoice-back-link" href="{{ url_for('payments.history') }}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+          </svg>
+          <span>Back to Payment History</span>
+        </a>
+      {% endif %}
+
+      <div class="invoice-actions-group">
+        {% if payment.relationship_id %}
+          <a class="btn-invoice-outline" href="{{ url_for('learning.progress', relationship_id=payment.relationship_id) }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+              <path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05"/>
+            </svg>
+            <span>Learning Progress</span>
+          </a>
+        {% endif %}
+
+        <!-- Print / PDF Action -->
+        <button class="btn-invoice-print" onclick="window.print()" title="Print this invoice or save as PDF">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/>
+            <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1"/>
+          </svg>
+          <span>Print Invoice</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── OFFICIAL INVOICE SHEET ─── -->
+    <article class="invoice-sheet" id="invoiceDocument">
+
+      <!-- Invoice Header -->
+      <div class="invoice-header-grid">
+        <div class="invoice-brand">
+          <img src="{{ url_for('static', filename='images/skillswap-logo.png') }}" alt="SkillSwap" class="invoice-brand-logo">
+          <span class="invoice-brand-subtitle">Community Learning &amp; Skill Exchange</span>
+          <div class="invoice-brand-contact">
+            SkillSwap Verified Mentorship<br>
+            Dhaka, Bangladesh<br>
+            support@skillswap.local
+          </div>
+        </div>
+
+        <div class="invoice-meta-side">
+          <h1 class="invoice-big-title">PAYMENT INVOICE</h1>
+          <div class="invoice-meta-list">
+            <div>Invoice No: <strong>INV-{{ payment.created_at.year }}-{{ '%05d'|format(payment.id) }}</strong></div>
+            <div>Payment ID: <strong>#{{ payment.id }}</strong></div>
+            <div>Date: <strong>{{ payment.created_at.strftime('%B %d, %Y') }}</strong></div>
+            {% if payment.reference_id %}
+              <div>Transaction Ref: <strong>{{ payment.reference_id }}</strong></div>
+            {% endif %}
+          </div>
+          <div class="invoice-badge-row">
+            <span class="invoice-status-pill status-{{ 'paid' if payment.status == 'Successful' else payment.status|lower }}">
+              Payment: {{ 'PAID' if payment.status == 'Successful' else payment.status|upper }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer (Learner) & Mentor Information Columns -->
+      <div class="invoice-addresses-grid">
+        <div class="invoice-address-col">
+          <h3>Billed To (Learner)</h3>
+          <p class="invoice-person-name">{{ payment.learner.full_name }}</p>
+          <div class="invoice-address-details">
+            Email: {{ payment.learner.email }}<br>
+            Phone: {{ payment.learner.phone }}
+            {% if payment.learner.location %}
+              <br>Location: {{ payment.learner.location.city }}{% if payment.learner.location.area %}, {{ payment.learner.location.area }}{% endif %}
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="invoice-address-col">
+          <h3>Mentor Information</h3>
+          <p class="invoice-person-name">{{ payment.mentor.full_name }}</p>
+          <div class="invoice-address-details">
+            Email: {{ payment.mentor.email }}<br>
+            Phone: {{ payment.mentor.phone }}
+            {% if payment.mentor.location %}
+              <br>Location: {{ payment.mentor.location.city }}{% if payment.mentor.location.area %}, {{ payment.mentor.location.area }}{% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Learning Plan Summary Box -->
+      <div class="invoice-plan-box">
+        <div>
+          <span class="d-block text-secondary small fw-bold text-uppercase">Learning Plan</span>
+          <h2 class="invoice-plan-title">
+            {{ payment.relationship.plan.title if payment.relationship and payment.relationship.plan else (payment.relationship.skill.name ~ ' Mentorship' if payment.relationship else 'Skill Learning') }}
+          </h2>
+        </div>
+        <div class="invoice-plan-meta text-sm-end">
+          <span class="d-block text-secondary small fw-bold text-uppercase">Billing Type</span>
+          <strong class="text-dark">{{ payment.payment_type }}</strong>
+        </div>
+      </div>
+
+      <!-- Itemized Payment Table -->
+      <table class="invoice-items-table">
+        <thead>
+          <tr>
+            <th style="width: 60%;">Description</th>
+            <th style="width: 20%;">Billing Frequency</th>
+            <th style="width: 20%;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="invoice-item-title">
+                Learning Plan Payment &ndash; {{ payment.relationship.skill.name if payment.relationship else 'Mentorship' }}
+              </div>
+              <div class="invoice-item-subtext">
+                Mentor: {{ payment.mentor.full_name }}
+              </div>
+            </td>
+            <td>{{ payment.payment_type }}</td>
+            <td>৳{{ '%.2f'|format(payment.amount|float) }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Financial Totals Section -->
+      <div class="invoice-totals-section">
+        <div class="invoice-totals-box">
+          <div class="invoice-total-row">
+            <span>Subtotal:</span>
+            <strong>৳{{ '%.2f'|format(payment.amount|float) }}</strong>
+          </div>
+          <div class="invoice-total-row">
+            <span>Platform Commission (10%):</span>
+            <span>৳{{ '%.2f'|format(payment.platform_commission|float) }}</span>
+          </div>
+          <div class="invoice-total-row">
+            <span>Mentor Earning:</span>
+            <span>৳{{ '%.2f'|format(payment.mentor_earning|float) }}</span>
+          </div>
+          <div class="invoice-total-row grand-total">
+            <span>Total Paid:</span>
+            <span class="grand-amount">৳{{ '%.2f'|format(payment.amount|float) }}</span>
+          </div>
+          <div class="invoice-total-row mt-1" style="font-size: 0.8rem;">
+            <span>Payment Status:</span>
+            <strong class="text-success">{{ 'PAID' if payment.status == 'Successful' else payment.status|upper }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thank you footer note -->
+      <div class="invoice-footer-note">
+        <p class="invoice-footer-thanks">Thank you for learning and growing with SkillSwap!</p>
+        <p class="invoice-footer-disclaimer">
+          This is a computer-generated electronic invoice. For any inquiries regarding your mentorship or payment status, please contact support@skillswap.local.
+        </p>
+      </div>
+
+    </article>
+
+  </div>
+</section>
+{% endblock %}

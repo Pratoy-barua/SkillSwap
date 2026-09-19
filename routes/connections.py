@@ -239,31 +239,87 @@ def open_notification(notification_id):
     item.is_read = True
     db.session.commit()
 
-    # If it is a chat notification, directly open the conversation
-    if item.related_type == "conversation" and item.related_id:
-        conversation = Conversation.query.get(item.related_id)
-        if conversation and conversation.relationship.status == "Active":
-            if g.current_user.id in {conversation.relationship.learner_id, conversation.relationship.mentor_id}:
-                return redirect(url_for("connections.chat", conversation_id=conversation.id))
+    user_role = g.current_user.role.name
 
-    if item.notification_type == "chat_message":
-        if item.related_type == "conversation" and item.related_id:
-            return redirect(url_for("connections.chat", conversation_id=item.related_id))
+    # 1. Chat / Direct message notifications -> Chat
+    if item.notification_type == "chat_message" or item.related_type == "conversation":
+        if item.related_id:
+            conversation = db.session.get(Conversation, item.related_id)
+            if conversation and conversation.relationship.status == "Active":
+                if g.current_user.id in {conversation.relationship.learner_id, conversation.relationship.mentor_id}:
+                    return redirect(url_for("connections.chat", conversation_id=conversation.id))
+        return redirect(url_for("connections.chat_list"))
 
-    # If it is a relationship notification (e.g. relationship_created)
-    if item.related_type == "relationship" and item.related_id:
-        relationship = LearningRelationship.query.get(item.related_id)
-        if relationship and relationship.status == "Active" and relationship.conversation:
-            if g.current_user.id in {relationship.learner_id, relationship.mentor_id}:
-                return redirect(url_for("connections.chat", conversation_id=relationship.conversation.id))
-        if g.current_user.role.name == "Mentor":
+    # 2. Learning plan & progress notifications -> Learning Progress / Plan page
+    is_plan_or_progress = (
+        item.notification_type in {"learning_plan", "progress_updated", "learning_completed"}
+        or (item.related_type == "relationship" and any(k in item.title.lower() for k in ["plan", "progress"]))
+    )
+    if is_plan_or_progress:
+        if item.related_type == "relationship" and item.related_id:
+            relationship = db.session.get(LearningRelationship, item.related_id)
+            if relationship and g.current_user.id in {relationship.learner_id, relationship.mentor_id}:
+                return redirect(url_for("learning.progress", relationship_id=relationship.id))
+        if user_role == "Mentor":
             return redirect(url_for("connections.mentor_learners"))
         return redirect(url_for("connections.learner_mentors"))
 
-    # If it is a learning request notification
-    if item.related_type == "learning_request" or item.notification_type.startswith("request_"):
-        if g.current_user.role.name == "Mentor":
+    # 3. Learning request notifications (new request, cancel, reject)
+    if item.notification_type in {"learning_request", "request_cancelled", "request_rejected"} or item.related_type == "learning_request" or item.notification_type.startswith("request_"):
+        if user_role == "Mentor":
             return redirect(url_for("connections.mentor_requests"))
         return redirect(url_for("connections.learner_requests"))
+
+    # 4. Learning request accepted / relationship created
+    if item.notification_type == "relationship_created":
+        if user_role == "Mentor":
+            return redirect(url_for("connections.mentor_learners"))
+        return redirect(url_for("connections.learner_mentors"))
+
+    # 5. Payment notifications
+    if item.notification_type in {"payment_successful", "payment_failed"} or item.related_type == "payment":
+        if user_role == "Learner":
+            if item.related_type == "payment" and item.related_id:
+                from models.learning import Payment
+                payment = db.session.get(Payment, item.related_id)
+                if payment and payment.learner_id == g.current_user.id:
+                    return redirect(url_for("payments.result", payment_id=payment.id))
+            return redirect(url_for("payments.history"))
+        elif user_role == "Mentor":
+            return redirect(url_for("payments.earnings"))
+
+    # 6. Subscription notifications
+    if item.notification_type == "subscription_activated" or item.related_type == "subscription":
+        return redirect(url_for("payments.subscription"))
+
+    # 7. Review notifications
+    if item.notification_type == "review_received" or item.related_type == "review":
+        if user_role == "Mentor":
+            return redirect(url_for("reviews.mentor_reviews"))
+        elif user_role == "Admin":
+            return redirect(url_for("reviews.admin_reviews"))
+        return redirect(url_for("connections.learner_mentors"))
+
+    # 8. Store order notifications
+    if item.notification_type == "order_payment" or item.related_type == "order":
+        if item.related_id:
+            from models.store import Order
+            order = db.session.get(Order, item.related_id)
+            if order and order.buyer_id == g.current_user.id:
+                return redirect(url_for("store.order_details", order_id=order.id))
+        return redirect(url_for("store.orders"))
+
+    # 9. Account / user status notifications
+    if item.notification_type in {"application_rejected", "account_suspended"} or item.related_type == "user":
+        if user_role == "Mentor":
+            return redirect(url_for("mentor.profile"))
+        elif user_role == "Learner":
+            return redirect(url_for("learner.profile"))
+
+    # 10. Generic relationship fallback (if not matched by plan/progress/accepted)
+    if item.related_type == "relationship":
+        if user_role == "Mentor":
+            return redirect(url_for("connections.mentor_learners"))
+        return redirect(url_for("connections.learner_mentors"))
 
     return redirect(url_for("connections.notifications"))

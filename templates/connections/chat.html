@@ -1,1 +1,227 @@
-{% extends 'base.html' %}{% block title %}Conversation · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><a class="small text-primary fw-bold" href="{{ url_for('connections.chat_list') }}">← All conversations</a><div class="soft-card p-4 mt-3"><h1 class="section-heading h3">{% if conversation.relationship.learner_id == current_user.id %}{{ conversation.relationship.mentor.full_name }}{% else %}{{ conversation.relationship.learner.full_name }}{% endif %}</h1><div class="chat-history my-4" id="chatHistory">{% for message in conversation.messages %}<div class="chat-bubble {% if message.sender_id == current_user.id %}mine{% endif %}"><p class="mb-1">{{ message.body }}</p><small>{{ message.sender.full_name }} · {{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</small></div>{% else %}<p class="text-secondary">No messages yet. Start the conversation.</p>{% endfor %}</div><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="input-group"><input class="form-control" name="body" maxlength="4000" required placeholder="Write a message..."><button class="btn btn-primary">Send</button></div></form><p class="small text-secondary mt-2 mb-0">Messages refresh automatically while this page is open.</p></div></div></section>{% endblock %}{% block scripts %}<script>setInterval(async()=>{const r=await fetch('{{ url_for('connections.chat_messages', conversation_id=conversation.id) }}');if(!r.ok)return;const data=await r.json();const history=document.getElementById('chatHistory');history.innerHTML=data.messages.map(m=>`<div class="chat-bubble ${m.mine?'mine':''}"><p class="mb-1"></p><small></small></div>`).join('')||'<p class="text-secondary">No messages yet. Start the conversation.</p>';data.messages.forEach((m,i)=>{const b=history.children[i];if(b){b.querySelector('p').textContent=m.body;b.querySelector('small').textContent=`${m.sender} · ${new Date(m.created_at).toLocaleString()}`;}})},5000);</script>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Chat with {% if conversation.relationship.learner_id == current_user.id %}{{ conversation.relationship.mentor.full_name }}{% else %}{{ conversation.relationship.learner.full_name }}{% endif %} · SkillSwap{% endblock %}
+
+{% block content %}
+{% set other_user = conversation.relationship.mentor if conversation.relationship.learner_id == current_user.id else conversation.relationship.learner %}
+<section class="section py-4">
+  <div class="container">
+    <div class="chat-shell">
+      <div class="chat-back-nav">
+        <a class="chat-back-link" href="{{ url_for('connections.chat_list') }}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>All conversations</span>
+        </a>
+      </div>
+
+      <div class="chat-card">
+        <!-- Chat Header -->
+        <header class="chat-header-bar">
+          <div class="chat-header-user">
+            {% if other_user.profile_photo %}
+              <img class="chat-header-avatar" src="{{ url_for('static', filename='uploads/public/' + other_user.profile_photo) }}" alt="{{ other_user.full_name }}">
+            {% else %}
+              <div class="chat-header-avatar avatar-fallback">{{ other_user.full_name[0] }}</div>
+            {% endif %}
+            <div class="chat-header-info">
+              <h1 class="chat-header-name">{{ other_user.full_name }}</h1>
+              <div class="chat-header-subtext">
+                <span class="chat-role-pill">{{ other_user.role.name }}</span>
+                {% if conversation.relationship.skill %}
+                  <span class="chat-skill-tag">{{ conversation.relationship.skill.name }}</span>
+                {% endif %}
+                {% if conversation.relationship.status == 'Active' %}
+                  <span class="chat-status-indicator" title="Connection is active">
+                    <span class="chat-status-dot"></span>Active
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <div class="d-none d-md-flex align-items-center gap-2">
+            {% if other_user.role.name == 'Mentor' %}
+              <a href="{{ url_for('discovery.mentor_profile', user_id=other_user.id) }}" class="btn btn-sm btn-outline-secondary px-3 py-1">View Profile</a>
+            {% elif other_user.role.name == 'Learner' %}
+              <a href="{{ url_for('learner.view_profile', user_id=other_user.id) }}" class="btn btn-sm btn-outline-secondary px-3 py-1">View Profile</a>
+            {% endif %}
+          </div>
+        </header>
+
+        <!-- Message History -->
+        <div class="chat-history" id="chatHistory" role="log" aria-live="polite">
+          {% for message in conversation.messages %}
+            {% set is_mine = (message.sender_id == current_user.id) %}
+            <div class="chat-msg-row {% if is_mine %}mine{% else %}incoming{% endif %}" data-msg-id="{{ message.id }}">
+              {% if not is_mine %}
+                <div class="chat-msg-avatar-col">
+                  {% if other_user.profile_photo %}
+                    <img class="chat-avatar-sm" src="{{ url_for('static', filename='uploads/public/' + other_user.profile_photo) }}" alt="{{ other_user.full_name }}">
+                  {% else %}
+                    <div class="chat-avatar-sm avatar-fallback">{{ other_user.full_name[0] }}</div>
+                  {% endif %}
+                </div>
+              {% endif %}
+              <div class="chat-msg-bubble-col">
+                <div class="chat-bubble {% if is_mine %}mine{% else %}incoming{% endif %}">
+                  <div class="chat-bubble-text">{{ message.body }}</div>
+                  <time class="chat-bubble-time">{{ message.created_at.strftime('%b %d, %I:%M %p') }}</time>
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div class="chat-empty-state" id="chatEmptyState">
+              <div class="chat-empty-icon">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </div>
+              <h3 class="chat-empty-title">Start the conversation</h3>
+              <p class="chat-empty-text">Send a message to begin chatting with {{ other_user.full_name }}.</p>
+            </div>
+          {% endfor %}
+        </div>
+
+        <!-- Composer -->
+        <div class="chat-composer-wrap">
+          <form method="post" id="chatForm" class="chat-composer-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="chat-input-box">
+              <input type="text"
+                     class="chat-input-field"
+                     id="messageBodyInput"
+                     name="body"
+                     maxlength="4000"
+                     required
+                     placeholder="Write a message..."
+                     autocomplete="off"
+                     autofocus>
+              <button type="submit" class="chat-submit-btn" id="sendBtn" title="Send message" aria-label="Send message">
+                <span class="d-none d-sm-inline">Send</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function() {
+    {% set other_user = conversation.relationship.mentor if conversation.relationship.learner_id == current_user.id else conversation.relationship.learner %}
+    const historyEl = document.getElementById('chatHistory');
+    const otherUserAvatarHtml = `{% if other_user.profile_photo %}<img class="chat-avatar-sm" src="{{ url_for('static', filename='uploads/public/' + other_user.profile_photo) }}" alt="{{ other_user.full_name|e }}">{% else %}<div class="chat-avatar-sm avatar-fallback">{{ other_user.full_name[0]|e }}</div>{% endif %}`;
+    const otherUserName = {{ other_user.full_name|tojson }};
+    
+    let lastRenderedCount = {{ conversation.messages|length }};
+    let lastMessageId = {% if conversation.messages %}{{ conversation.messages[-1].id }}{% else %}null{% endif %};
+
+    function formatTime(isoString) {
+      if (!isoString) return '';
+      try {
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ', ' +
+               d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function escapeHtml(text) {
+      const d = document.createElement('div');
+      d.textContent = text;
+      return d.innerHTML;
+    }
+
+    function scrollToBottom() {
+      if (historyEl) {
+        historyEl.scrollTop = historyEl.scrollHeight;
+      }
+    }
+
+    // Scroll to bottom immediately on page load
+    scrollToBottom();
+
+    async function pollMessages() {
+      try {
+        const r = await fetch('{{ url_for('connections.chat_messages', conversation_id=conversation.id) }}');
+        if (!r.ok) return;
+        const data = await r.json();
+        const msgs = data.messages || [];
+        const newCount = msgs.length;
+        const newLastId = newCount > 0 ? msgs[newCount - 1].id : null;
+
+        if (newCount !== lastRenderedCount || newLastId !== lastMessageId) {
+          const wasNearBottom = (historyEl.scrollHeight - historyEl.scrollTop - historyEl.clientHeight) < 140;
+
+          if (newCount === 0) {
+            historyEl.innerHTML = `
+              <div class="chat-empty-state" id="chatEmptyState">
+                <div class="chat-empty-icon">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                </div>
+                <h3 class="chat-empty-title">Start the conversation</h3>
+                <p class="chat-empty-text">Send a message to begin chatting with ${escapeHtml(otherUserName)}.</p>
+              </div>
+            `;
+          } else {
+            historyEl.innerHTML = msgs.map(m => {
+              const time = formatTime(m.created_at);
+              const safeBody = escapeHtml(m.body);
+              if (m.mine) {
+                return `
+                  <div class="chat-msg-row mine" data-msg-id="${m.id}">
+                    <div class="chat-msg-bubble-col">
+                      <div class="chat-bubble mine">
+                        <div class="chat-bubble-text">${safeBody}</div>
+                        <time class="chat-bubble-time">${time}</time>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              } else {
+                return `
+                  <div class="chat-msg-row incoming" data-msg-id="${m.id}">
+                    <div class="chat-msg-avatar-col">
+                      ${otherUserAvatarHtml}
+                    </div>
+                    <div class="chat-msg-bubble-col">
+                      <div class="chat-bubble incoming">
+                        <div class="chat-bubble-text">${safeBody}</div>
+                        <time class="chat-bubble-time">${time}</time>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }
+            }).join('');
+          }
+
+          lastRenderedCount = newCount;
+          lastMessageId = newLastId;
+
+          if (wasNearBottom) {
+            scrollToBottom();
+          }
+        }
+      } catch (err) {
+        console.error('Chat polling error:', err);
+      }
+    }
+
+    setInterval(pollMessages, 5000);
+  })();
+</script>
+{% endblock %}

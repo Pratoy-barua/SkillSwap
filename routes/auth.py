@@ -89,10 +89,6 @@ def persist_documents(user, fields):
             db.session.add(VerificationDocument(user=user, document_type=category, **file_info))
 
 
-def skill_names(raw):
-    return {item.strip().lower() for item in (raw or "").split(",") if item.strip()}
-
-
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -152,11 +148,6 @@ def register_learner():
                 learner_profile = LearnerProfile(user=user, bio="", interests=request.form.get("interests", "").strip())
                 db.session.add(learner_profile)
                 db.session.flush()
-                for name in skill_names(request.form.get("interests")):
-                    skill = Skill.query.filter_by(name=name).first() or Skill(name=name, is_active=True)
-                    db.session.add(skill)
-                    db.session.flush()
-                    db.session.add(LearnerSkill(learner_profile=learner_profile, skill=skill))
                 persist_documents(user, data)
                 db.session.commit()
                 flash("Your learner application was submitted for admin approval.", "success")

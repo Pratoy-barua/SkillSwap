@@ -38,7 +38,7 @@
                 </svg>
                 <span>Open chat</span>
               </a>
-            {% elif item.related_type in ['learning_request', 'relationship'] %}
+            {% elif item.related_type in ['learning_request', 'relationship', 'payment', 'subscription', 'review', 'order'] or item.notification_type in ['learning_plan', 'progress_updated', 'learning_completed', 'relationship_created', 'payment_successful', 'payment_failed', 'subscription_activated', 'review_received', 'order_payment'] %}
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('connections.open_notification', notification_id=item.id) }}">
                 View
               </a>

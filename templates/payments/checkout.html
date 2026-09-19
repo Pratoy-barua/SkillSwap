@@ -1,1 +1,577 @@
-{% extends 'base.html' %}{% block title %}Demo Payment · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><div class="soft-card p-4 p-md-5 mx-auto" style="max-width: 680px;"><p class="eyebrow">Demo Payment</p><h1 class="section-heading h2">Checkout learning plan</h1><p>{{ plan.title }} with {{ relationship.mentor.full_name }}</p><div class="alert alert-warning"><strong>Demo Payment only.</strong> No real money will be collected and no production gateway is connected.</div><p class="h4">Server-calculated amount: {{ plan.pricing }}</p><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label class="form-label">Payment type</label><select class="form-select mb-3" name="payment_type"><option>Daily</option><option>Weekly</option><option>Monthly</option><option selected>Course-based</option></select><label class="form-label">Demo result</label><select class="form-select mb-4" name="demo_outcome"><option value="success">Successful demo payment</option><option value="failure">Failed demo payment</option></select><button class="btn btn-primary">Run Demo Payment</button></form></div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Complete Payment · {{ plan.title }} · SkillSwap{% endblock %}
+
+{% block head %}
+<style>
+  /* ─── Modern Learning Payment Checkout Styles ─── */
+  .payment-checkout-page {
+    padding: 2.25rem 0 4.5rem;
+    background-color: var(--ss-bg);
+  }
+
+  .payment-checkout-container {
+    max-width: 1140px;
+    margin: 0 auto;
+  }
+
+  /* Back button */
+  .checkout-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ss-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.4rem 0.75rem;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    background: transparent;
+    transition: all 0.15s ease-in-out;
+  }
+  .checkout-back-link:hover {
+    color: var(--ss-blue);
+    background: #eef5ff;
+  }
+  .checkout-back-link svg {
+    transition: transform 0.15s ease;
+  }
+  .checkout-back-link:hover svg {
+    transform: translateX(-3px);
+  }
+
+  /* Page Header */
+  .checkout-page-header {
+    margin-bottom: 2rem;
+  }
+  .checkout-eyebrow {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ss-blue);
+    margin-bottom: 0.35rem;
+  }
+  .checkout-title {
+    font-size: clamp(1.65rem, 3vw, 2.2rem);
+    font-weight: 800;
+    color: var(--ss-ink);
+    letter-spacing: -0.03em;
+    margin-bottom: 0.35rem;
+  }
+  .checkout-subtitle {
+    font-size: 0.95rem;
+    color: var(--ss-muted);
+    margin: 0;
+  }
+
+  /* Checkout Cards */
+  .checkout-card {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(23, 58, 105, 0.04);
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .checkout-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.35rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--ss-border);
+  }
+
+  .checkout-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #eef5ff;
+    color: var(--ss-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .checkout-card-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+  .checkout-card-desc {
+    font-size: 0.82rem;
+    color: var(--ss-muted);
+    margin: 0.15rem 0 0;
+  }
+
+  /* Form Controls */
+  .checkout-label {
+    display: block;
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--ss-ink);
+    margin-bottom: 0.45rem;
+  }
+  .checkout-select {
+    width: 100%;
+    border: 1.5px solid var(--ss-border);
+    border-radius: 10px;
+    padding: 0.65rem 0.95rem;
+    font-size: 0.92rem;
+    color: var(--ss-ink);
+    background: #fbfdff;
+    transition: all 0.15s ease-in-out;
+  }
+  .checkout-select:focus {
+    border-color: var(--ss-blue);
+    background: #ffffff;
+    box-shadow: 0 0 0 3.5px rgba(22, 103, 217, 0.12);
+    outline: 0;
+  }
+
+  /* Plan Details Preview */
+  .plan-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    background: #f8fbff;
+    border: 1px solid #e2eaf5;
+    border-radius: 12px;
+    padding: 1.2rem;
+  }
+  .plan-info-item {
+    display: flex;
+    flex-direction: column;
+  }
+  .plan-info-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--ss-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.2rem;
+  }
+  .plan-info-value {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+  }
+
+  /* Payment Option Component */
+  .payment-method-box {
+    border: 1.5px solid #b9d6fb;
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    background: #f8fbff;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    position: relative;
+  }
+  .payment-radio-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 5px solid var(--ss-blue);
+    background: #ffffff;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+  .payment-method-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .payment-method-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+  }
+  .payment-method-name {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+  .payment-badge {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    background: #e8f7ef;
+    color: #187148;
+    border: 1px solid #c0ebd2;
+  }
+  .payment-method-desc {
+    font-size: 0.83rem;
+    color: var(--ss-muted);
+    margin: 0;
+  }
+
+  /* Trust & Security Box */
+  .checkout-security-note {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-top: 1.25rem;
+    font-size: 0.82rem;
+    color: var(--ss-muted);
+  }
+  .checkout-security-note svg {
+    color: var(--ss-blue);
+    flex-shrink: 0;
+  }
+
+  /* Payment Summary Card */
+  .order-summary-card {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(23, 58, 105, 0.04);
+    padding: 1.75rem;
+    position: sticky;
+    top: 1.5rem;
+  }
+
+  .summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--ss-border);
+    margin-bottom: 1.15rem;
+  }
+  .summary-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+  }
+  .summary-count-badge {
+    font-size: 0.76rem;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+  }
+
+  /* Summary details list */
+  .summary-details-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  .summary-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.88rem;
+  }
+  .summary-detail-label {
+    color: var(--ss-muted);
+  }
+  .summary-detail-val {
+    font-weight: 700;
+    color: var(--ss-ink);
+    text-align: right;
+  }
+
+  /* Price breakdown */
+  .summary-price-breakdown {
+    border-top: 1px solid var(--ss-border);
+    padding-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+  }
+  .price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.88rem;
+    color: var(--ss-muted);
+  }
+  .price-row.total-row {
+    border-top: 1.5px dashed var(--ss-border);
+    padding-top: 0.85rem;
+    margin-top: 0.25rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+  }
+  .price-row.total-row .total-amount {
+    font-size: 1.35rem;
+    color: var(--ss-blue);
+    letter-spacing: -0.02em;
+  }
+
+  /* Primary Action Button */
+  .btn-place-order {
+    width: 100%;
+    min-height: 48px;
+    height: 48px;
+    padding: 0 1.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 10px;
+    background: var(--ss-blue);
+    border: 1.5px solid var(--ss-blue);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    cursor: pointer;
+    transition: all 0.18s ease-in-out;
+    box-shadow: 0 2px 8px rgba(22, 103, 217, 0.2);
+  }
+  .btn-place-order:hover,
+  .btn-place-order:focus {
+    background: var(--ss-blue-dark);
+    border-color: var(--ss-blue-dark);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(22, 103, 217, 0.3);
+    transform: translateY(-1px);
+  }
+
+  .summary-guarantee-text {
+    font-size: 0.76rem;
+    color: var(--ss-muted);
+    text-align: center;
+    margin-top: 0.85rem;
+    margin-bottom: 0;
+    line-height: 1.4;
+  }
+
+  @media (max-width: 991.98px) {
+    .order-summary-card {
+      position: static;
+      margin-top: 1rem;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .checkout-card,
+    .order-summary-card {
+      padding: 1.25rem;
+    }
+    .plan-info-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="payment-checkout-page">
+  <div class="container payment-checkout-container">
+
+    <!-- Back to Mentors Link -->
+    <a class="checkout-back-link" href="{{ url_for('connections.learner_mentors') }}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+      </svg>
+      <span>Back to My Mentors</span>
+    </a>
+
+    <!-- Page Header -->
+    <header class="checkout-page-header">
+      <p class="checkout-eyebrow">PAYMENT</p>
+      <h1 class="checkout-title">Complete your learning plan payment</h1>
+      <p class="checkout-subtitle">Review your mentorship details, select your billing frequency, and complete your payment.</p>
+    </header>
+
+    {% include 'partials/flash.html' %}
+
+    <!-- Main Payment Form & Layout -->
+    <form method="post" id="paymentCheckoutForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="demo_outcome" value="{{ request.args.get('demo_outcome', 'success') }}">
+
+      <div class="row g-4">
+
+        <!-- LEFT COLUMN: Plan Details & Payment Method -->
+        <div class="col-lg-7">
+
+          <!-- 1. Learning Plan Details Card -->
+          <div class="checkout-card">
+            <div class="checkout-card-header">
+              <div class="checkout-icon-box" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M8.211 2.047a.5.5 0 0 0-.422 0l-7.5 3.5a.5.5 0 0 0 .025.917l7.5 3a.5.5 0 0 0 .372 0L14 7.14V13a1 1 0 0 0-1 1v2h3v-2a1 1 0 0 0-1-1V6.739l.686-.275a.5.5 0 0 0 .025-.917z"/>
+                  <path d="M4.179 9.879 1.5 11v3a.5.5 0 0 0 .5.5h12a.5.5 0 0 0 .5-.5v-3l-2.679-1.121L8 11.5z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="checkout-card-title">Learning Plan Details</h2>
+                <p class="checkout-card-desc">Selected mentorship plan and assigned mentor.</p>
+              </div>
+            </div>
+
+            <div class="plan-info-grid mb-3">
+              <div class="plan-info-item">
+                <span class="plan-info-label">Learning Plan</span>
+                <span class="plan-info-value">{{ plan.title }}</span>
+              </div>
+              <div class="plan-info-item">
+                <span class="plan-info-label">Skill</span>
+                <span class="plan-info-value">{{ relationship.skill.name }}</span>
+              </div>
+              <div class="plan-info-item">
+                <span class="plan-info-label">Mentor</span>
+                <span class="plan-info-value">{{ relationship.mentor.full_name }}</span>
+              </div>
+              <div class="plan-info-item">
+                <span class="plan-info-label">Expected Schedule</span>
+                <span class="plan-info-value">{{ plan.expected_completion_date.strftime('%d %B %Y') if plan.expected_completion_date else 'Flexible Schedule' }}</span>
+              </div>
+            </div>
+
+            {% if plan.description %}
+              <div class="p-3 bg-light rounded-3 mt-2">
+                <span class="d-block text-secondary small fw-bold text-uppercase mb-1">Plan Description</span>
+                <p class="small text-secondary mb-0">{{ plan.description }}</p>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- 2. Payment Method & Billing Selection Card -->
+          <div class="checkout-card">
+            <div class="checkout-card-header">
+              <div class="checkout-icon-box" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v1h14V4a1 1 0 0 0-1-1zm13 4H1v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1z"/>
+                  <path d="M2 10a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="checkout-card-title">Payment Options</h2>
+                <p class="checkout-card-desc">Choose your billing schedule and payment method.</p>
+              </div>
+            </div>
+
+            <!-- Billing Frequency Selection -->
+            <div class="mb-4">
+              <label class="checkout-label" for="payment_type">Billing Frequency</label>
+              <select class="checkout-select" id="payment_type" name="payment_type">
+                <option value="Daily" {% if plan.pricing_type == 'Daily' %}selected{% endif %}>Daily</option>
+                <option value="Weekly" {% if plan.pricing_type == 'Weekly' %}selected{% endif %}>Weekly</option>
+                <option value="Monthly" {% if plan.pricing_type == 'Monthly' %}selected{% endif %}>Monthly</option>
+                <option value="Course-based" {% if plan.pricing_type not in ['Daily', 'Weekly', 'Monthly'] %}selected{% endif %}>Course-based</option>
+              </select>
+            </div>
+
+            <!-- Payment Method Presentation -->
+            <label class="checkout-label">Payment Method</label>
+            <div class="payment-method-box">
+              <div class="payment-radio-indicator" aria-hidden="true"></div>
+              <div class="payment-method-body">
+                <div class="payment-method-header">
+                  <span class="payment-method-name">Card / Mobile Banking</span>
+                  <span class="payment-badge">Instant Confirmation</span>
+                </div>
+                <p class="payment-method-desc">
+                  Direct learning payment. Your payment will be verified and recorded immediately.
+                </p>
+              </div>
+            </div>
+
+            <!-- Security Assurance Note -->
+            <div class="checkout-security-note">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 0c-.69 0-1.843.265-2.928.56-1.11.3-2.229.655-2.887.87a1.54 1.54 0 0 0-1.044 1.262c-.596 4.477.787 7.795 2.465 9.99a11.78 11.78 0 0 0 2.517 2.453c.386.273.744.482 1.048.625.28.132.581.24.829.24s.548-.108.829-.24a7.16 7.16 0 0 0 1.048-.625 11.78 11.78 0 0 0 2.517-2.453c1.678-2.195 3.061-5.513 2.465-9.99a1.54 1.54 0 0 0-1.044-1.263 62.67 62.67 0 0 0-2.887-.87C9.843.266 8.69 0 8 0m0 5a1.5 1.5 0 0 1 .5 2.915l.385 1.99a.5.5 0 0 1-.491.6h-.788a.5.5 0 0 1-.49-.6l.384-1.99A1.5 1.5 0 0 1 8 5"/>
+              </svg>
+              <span>Encrypted &amp; secure transaction. Your learning payment is verified by SkillSwap.</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: Payment Summary & Action -->
+        <div class="col-lg-5">
+          <div class="order-summary-card">
+            <div class="summary-header">
+              <h2 class="summary-title">Payment Summary</h2>
+              <span class="summary-count-badge">Active Plan</span>
+            </div>
+
+            <div class="summary-details-list">
+              <div class="summary-detail-row">
+                <span class="summary-detail-label">Learning Plan</span>
+                <span class="summary-detail-val">{{ relationship.skill.name }}</span>
+              </div>
+              <div class="summary-detail-row">
+                <span class="summary-detail-label">Mentor</span>
+                <span class="summary-detail-val">{{ relationship.mentor.full_name }}</span>
+              </div>
+              <div class="summary-detail-row">
+                <span class="summary-detail-label">Billing</span>
+                <span class="summary-detail-val" id="summaryBillingVal">{{ plan.pricing_type }}</span>
+              </div>
+            </div>
+
+            <!-- Price Breakdown -->
+            <div class="summary-price-breakdown">
+              <div class="price-row">
+                <span>Subtotal</span>
+                <span class="fw-semibold text-dark">৳{{ '%.2f'|format(amount|float) }}</span>
+              </div>
+              <div class="price-row">
+                <span>Platform fee</span>
+                <span class="fw-semibold text-secondary">৳{{ '%.2f'|format(commission|float) }}</span>
+              </div>
+              <div class="price-row total-row">
+                <span>Total Due</span>
+                <span class="total-amount">৳{{ '%.2f'|format(amount|float) }}</span>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn-place-order" id="payBtn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425z"/>
+              </svg>
+              <span>Pay ৳{{ '%.2f'|format(amount|float) }}</span>
+            </button>
+
+            <p class="summary-guarantee-text">
+              By confirming payment, your mentorship agreement and learning progress will update automatically.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function() {
+    const selectEl = document.getElementById('payment_type');
+    const summaryVal = document.getElementById('summaryBillingVal');
+    if (selectEl && summaryVal) {
+      selectEl.addEventListener('change', function() {
+        summaryVal.textContent = this.value;
+      });
+    }
+  })();
+</script>
+{% endblock %}

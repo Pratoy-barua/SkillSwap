@@ -1,1 +1,109 @@
-{% extends 'base.html' %}{% block title %}Payment Result · SkillSwap{% endblock %}{% block content %}<section class="placeholder-page"><div class="container text-center"><div class="soft-card mx-auto p-4 p-md-5" style="max-width: 680px;"><p class="eyebrow">Demo Payment</p><h1 class="section-heading h2">{{ payment.status }}</h1><p class="section-copy mx-auto">Reference: <strong>{{ payment.reference_id }}</strong><br>Amount: {{ payment.amount }} · Commission: {{ payment.platform_commission }}</p><a class="btn btn-primary" href="{{ url_for('payments.history') }}">View payment history</a></div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{% if payment.status == 'Successful' %}Payment Successful{% else %}Payment Unsuccessful{% endif %} · SkillSwap{% endblock %}
+
+{% block content %}
+<section class="section py-5">
+  <div class="container">
+    <div class="soft-card mx-auto p-4 p-md-5" style="max-width: 680px;">
+
+      {% if payment.status == 'Successful' %}
+        <!-- Success State -->
+        <div class="text-center mb-4">
+          <div class="d-inline-flex align-items-center justify-content-center bg-success-subtle text-success rounded-circle mb-3" style="width: 68px; height: 68px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+            </svg>
+          </div>
+          <h1 class="section-heading h2 mb-1">Payment Successful</h1>
+          <p class="text-secondary mb-0">Your payment has been successfully recorded.</p>
+        </div>
+
+        <!-- Payment Details Summary Box -->
+        <div class="bg-light rounded-3 p-4 mb-4 border">
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <span class="text-secondary small d-block">Learning Plan</span>
+              <strong class="text-dark">
+                {{ payment.relationship.plan.title if payment.relationship and payment.relationship.plan else (payment.relationship.skill.name if payment.relationship else 'Skill Learning') }}
+              </strong>
+            </div>
+
+            <div class="col-sm-6">
+              <span class="text-secondary small d-block">Mentor</span>
+              <strong class="text-dark">{{ payment.mentor.full_name }}</strong>
+            </div>
+
+            <div class="col-sm-6">
+              <span class="text-secondary small d-block">Amount Paid</span>
+              <strong class="text-primary h5 mb-0">৳{{ '%.2f'|format(payment.amount|float) }}</strong>
+            </div>
+
+            <div class="col-sm-6">
+              <span class="text-secondary small d-block">Status</span>
+              <span class="badge text-bg-success px-2 py-1">Paid</span>
+            </div>
+
+            <div class="col-sm-6">
+              <span class="text-secondary small d-block">Payment ID</span>
+              <span class="text-dark fw-semibold">#{{ payment.id }}</span>
+            </div>
+
+            <div class="col-sm-6">
+              <span class="text-secondary small d-block">Date</span>
+              <span class="text-dark">{{ payment.created_at.strftime('%d %B %Y') }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
+          <a class="btn btn-primary px-4 py-2" href="{{ url_for('payments.invoice', payment_id=payment.id) }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="me-1" style="vertical-align: -2px;">
+              <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+            </svg>
+            <span>View Invoice</span>
+          </a>
+
+          {% if payment.relationship_id %}
+            <a class="btn btn-outline-primary px-4 py-2" href="{{ url_for('learning.progress', relationship_id=payment.relationship_id) }}">
+              <span>Back to Learning</span>
+            </a>
+          {% else %}
+            <a class="btn btn-outline-primary px-4 py-2" href="{{ url_for('connections.learner_mentors') }}">
+              <span>Back to My Mentors</span>
+            </a>
+          {% endif %}
+        </div>
+
+      {% else %}
+        <!-- Failure State -->
+        <div class="text-center mb-4">
+          <div class="d-inline-flex align-items-center justify-content-center bg-danger-subtle text-danger rounded-circle mb-3" style="width: 68px; height: 68px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293z"/>
+            </svg>
+          </div>
+          <h1 class="section-heading h2 mb-1">Payment Unsuccessful</h1>
+          <p class="text-secondary mb-0">Your payment could not be completed.</p>
+        </div>
+
+        <div class="alert alert-danger mb-4">
+          <p class="mb-0 small">The payment process could not be authorized. Please check your payment details or try again.</p>
+        </div>
+
+        <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
+          {% if payment.relationship_id %}
+            <a class="btn btn-primary px-4 py-2" href="{{ url_for('payments.checkout', relationship_id=payment.relationship_id) }}">
+              <span>Try Again</span>
+            </a>
+          {% endif %}
+          <a class="btn btn-outline-secondary px-4 py-2" href="{{ url_for('connections.learner_mentors') }}">
+            <span>Back to My Mentors</span>
+          </a>
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</section>
+{% endblock %}

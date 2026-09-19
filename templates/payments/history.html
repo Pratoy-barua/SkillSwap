@@ -1,1 +1,82 @@
-{% extends 'base.html' %}{% block title %}{% if mentor_mode %}My Earnings{% else %}My Payments{% endif %} · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><p class="eyebrow">Financial records</p><h1 class="section-heading h2">{% if mentor_mode %}My earnings{% else %}My payments{% endif %}</h1><div class="soft-card p-3 mt-4">{% for payment in payments %}<div class="d-flex flex-column flex-md-row justify-content-between gap-2 border-bottom py-3"><div><strong>{{ payment.relationship.skill.name if payment.relationship else 'Learning service' }}</strong><small class="d-block text-secondary">{% if mentor_mode %}{{ payment.learner.full_name }}{% else %}{{ payment.mentor.full_name }}{% endif %} · {{ payment.payment_type }}</small></div><div class="text-md-end"><strong>{% if mentor_mode %}Net {{ payment.mentor_earning }}{% else %}{{ payment.amount }}{% endif %}</strong><small class="d-block text-secondary">{{ payment.status }} · {{ payment.reference_id }}</small></div></div>{% else %}<div class="empty-state">No payment records yet.</div>{% endfor %}</div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{% if mentor_mode %}My Earnings{% else %}My Payments{% endif %} · SkillSwap{% endblock %}
+
+{% block content %}
+<section class="section py-4">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-2">
+      <div>
+        <p class="eyebrow">Financial records</p>
+        <h1 class="section-heading h2 mb-0">{% if mentor_mode %}My earnings{% else %}My payments{% endif %}</h1>
+      </div>
+      <div>
+        {% if mentor_mode %}
+          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('connections.mentor_learners') }}">My Learners</a>
+        {% else %}
+          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('connections.learner_mentors') }}">My Mentors</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="soft-card p-3 p-md-4">
+      {% for payment in payments %}
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 border-bottom py-3 {% if loop.last %}border-bottom-0{% endif %}">
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <strong class="h6 mb-0">
+                {{ payment.relationship.plan.title if payment.relationship and payment.relationship.plan else (payment.relationship.skill.name ~ ' Mentorship' if payment.relationship else 'Learning Service') }}
+              </strong>
+              {% if payment.status == 'Successful' %}
+                <span class="badge text-bg-success" style="font-size: 0.72rem;">Paid</span>
+              {% elif payment.status == 'Failed' %}
+                <span class="badge text-bg-danger" style="font-size: 0.72rem;">Failed</span>
+              {% else %}
+                <span class="badge text-bg-warning" style="font-size: 0.72rem;">{{ payment.status }}</span>
+              {% endif %}
+            </div>
+
+            <div class="small text-secondary mt-1">
+              {% if mentor_mode %}
+                <span>Learner: <strong>{{ payment.learner.full_name }}</strong></span>
+              {% else %}
+                <span>Mentor: <strong>{{ payment.mentor.full_name }}</strong></span>
+              {% endif %}
+              <span class="mx-1">&middot;</span>
+              <span>Billing: {{ payment.payment_type }}</span>
+              <span class="mx-1">&middot;</span>
+              <span>{{ payment.created_at.strftime('%d %b %Y') }}</span>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between justify-content-md-end gap-3 flex-wrap">
+            <div class="text-md-end">
+              {% if mentor_mode %}
+                <div class="h5 text-success fw-bold mb-0">৳{{ '%.2f'|format(payment.mentor_earning|float) }}</div>
+                <small class="text-secondary d-block" style="font-size: 0.76rem;">
+                  Gross: ৳{{ '%.2f'|format(payment.amount|float) }} &middot; Fee: ৳{{ '%.2f'|format(payment.platform_commission|float) }}
+                </small>
+              {% else %}
+                <div class="h5 text-primary fw-bold mb-0">৳{{ '%.2f'|format(payment.amount|float) }}</div>
+                <small class="text-secondary d-block" style="font-size: 0.76rem;">Ref: {{ payment.reference_id }}</small>
+              {% endif %}
+            </div>
+
+            {% if payment.status == 'Successful' %}
+              <a class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" href="{{ url_for('payments.invoice', payment_id=payment.id) }}" title="View official payment invoice">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                </svg>
+                <span>View Invoice</span>
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state py-5 text-center text-secondary">
+          No payment records found yet.
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
