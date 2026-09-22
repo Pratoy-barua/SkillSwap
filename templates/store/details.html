@@ -1,1 +1,343 @@
-{% extends 'base.html' %}{% block title %}{{ product.name }} · Store · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><div class="soft-card p-4 p-md-5"><div class="row g-4"><div class="col-md-5">{% if product.image %}<img class="store-detail-image" src="{{ url_for('static', filename='uploads/public/' + product.image) }}" alt="{{ product.name }}">{% else %}<div class="store-detail-image store-placeholder">✦</div>{% endif %}</div><div class="col-md-7"><p class="eyebrow">{{ product.category.name }}</p><h1 class="section-heading h2">{{ product.name }}</h1><p>{{ product.description }}</p><p class="h3">{{ product.price }}</p><p class="text-secondary">{% if product.owner %}Seller: {{ product.owner.full_name }} · {% endif %}{% if product.stock %}{{ product.stock }} available{% else %}Out of stock{% endif %}</p>{% if current_user and current_user.role.name in ['Learner','Mentor'] and product.stock %}<form method="post" action="{{ url_for('store.add_to_cart', product_id=product.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="input-group mb-3" style="max-width: 220px;"><input class="form-control" name="quantity" type="number" min="1" max="{{ product.stock }}" value="1"><button class="btn btn-primary">Add to cart</button></div></form>{% elif not current_user %}<a class="btn btn-primary" href="{{ url_for('public.login') }}">Log in to purchase</a>{% else %}<span class="text-danger">Currently unavailable.</span>{% endif %}{% if current_user and (current_user.role.name == 'Admin' or product.owner_id == current_user.id) %}<a class="btn btn-outline-primary ms-2" href="{{ url_for('store.edit_product', product_id=product.id) }}">Edit product</a>{% endif %}</div></div></div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} · Store · SkillSwap{% endblock %}
+
+{% block content %}
+<div class="store-detail-page">
+  <div class="container">
+    <!-- NAVIGATION & BREADCRUMB -->
+    <nav class="store-detail-nav" aria-label="breadcrumb">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <a href="{{ url_for('store.index') }}" class="store-back-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Back to Store</span>
+        </a>
+        <ol class="breadcrumb mb-0 small">
+          <li class="breadcrumb-item"><a href="{{ url_for('public.home') }}" class="text-decoration-none text-muted">Home</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('store.index') }}" class="text-decoration-none text-muted">Store</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('store.index', category_id=product.category_id) }}" class="text-decoration-none text-muted">{{ product.category.name }}</a></li>
+          <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">{{ product.name|truncate(35) }}</li>
+        </ol>
+      </div>
+    </nav>
+
+    <!-- PRODUCT HERO CARD (TWO COLUMNS) -->
+    <div class="store-detail-card mb-4 mb-lg-5">
+      <div class="row g-4 g-lg-5 align-items-start">
+        <!-- LEFT: Product Gallery Area (Large, Contained, Never Cropped) -->
+        <div class="col-lg-6">
+          <div class="store-detail-gallery">
+            <div class="store-detail-img-wrap">
+              {% if product.image %}
+                <img 
+                  class="store-detail-img" 
+                  src="{{ url_for('static', filename='uploads/public/' + product.image) }}" 
+                  alt="{{ product.name }}"
+                  loading="eager"
+                >
+              {% else %}
+                <div class="store-detail-placeholder">
+                  <span class="store-detail-placeholder-icon">✦</span>
+                  <span class="small fw-semibold text-uppercase letter-spacing-1">No image available</span>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Product Details & Purchase Panel -->
+        <div class="col-lg-6">
+          <div class="store-detail-body">
+            <!-- Category Badge -->
+            <div>
+              <span class="store-category-badge">{{ product.category.name }}</span>
+            </div>
+
+            <!-- Product Title -->
+            <h1 class="store-detail-title">{{ product.name }}</h1>
+
+            <!-- Price & Stock Status Row -->
+            <div class="store-detail-price-row">
+              <div class="store-detail-price">
+                <span class="store-currency">৳</span>{{ '%.2f'|format(product.price|float) }}
+              </div>
+              <div>
+                {% if product.stock and product.stock > 5 %}
+                  <span class="stock-badge in-stock">
+                    <span class="stock-dot in-stock" aria-hidden="true"></span>
+                    In stock ({{ product.stock }} available)
+                  </span>
+                {% elif product.stock and product.stock > 0 %}
+                  <span class="stock-badge low-stock">
+                    <span class="stock-dot low-stock" aria-hidden="true"></span>
+                    Low stock (Only {{ product.stock }} left)
+                  </span>
+                {% else %}
+                  <span class="stock-badge out-of-stock">
+                    <span class="stock-dot out-of-stock" aria-hidden="true"></span>
+                    Out of stock
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Lead Description -->
+            <p class="store-detail-lead">{{ product.description }}</p>
+
+            <!-- Seller / Community Attribution -->
+            {% if product.owner %}
+              <div class="store-seller-badge">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>Listed by <strong>{{ product.owner.full_name }}</strong></span>
+              </div>
+            {% endif %}
+
+            <!-- Purchase Panel -->
+            <div class="store-purchase-panel">
+              {% if current_user and current_user.role.name in ['Learner', 'Mentor'] and product.stock > 0 %}
+                <form class="store-purchase-form" method="post" action="{{ url_for('store.add_to_cart', product_id=product.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <div class="row g-3 align-items-end mb-2">
+                    <div class="col-sm-5 col-md-4">
+                      <label class="small text-muted fw-bold d-block mb-1" for="qtyInput">Quantity</label>
+                      <div class="input-group store-qty-group">
+                        <button class="btn store-qty-btn" type="button" id="btnQtyMinus" aria-label="Decrease quantity">−</button>
+                        <input class="form-control text-center store-qty-input fw-bold" id="qtyInput" name="quantity" type="number" min="1" max="{{ product.stock }}" value="1" readonly>
+                        <button class="btn store-qty-btn" type="button" id="btnQtyPlus" aria-label="Increase quantity">+</button>
+                      </div>
+                    </div>
+                    <div class="col-sm-7 col-md-8">
+                      <button class="btn btn-primary store-add-cart-btn w-100" type="submit">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" aria-hidden="true">
+                          <circle cx="9" cy="21" r="1"></circle>
+                          <circle cx="20" cy="21" r="1"></circle>
+                          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        <span>Add to Cart</span>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              {% elif not current_user %}
+                <div class="store-login-prompt p-3 text-center">
+                  <p class="small text-muted mb-2">Please log in to add items to your cart and checkout.</p>
+                  <a class="btn btn-primary w-100 fw-bold" href="{{ url_for('public.login') }}">
+                    Log in to purchase
+                  </a>
+                </div>
+              {% elif product.stock <= 0 %}
+                <div class="alert alert-warning py-2 mb-0 small text-center fw-semibold">
+                  This item is currently out of stock.
+                </div>
+              {% else %}
+                <div class="alert alert-info py-2 mb-0 small text-center">
+                  Shopping is available for Learner and Mentor accounts.
+                </div>
+              {% endif %}
+
+              {% if current_user and (current_user.role.name == 'Admin' or product.owner_id == current_user.id) %}
+                <div class="mt-3 pt-2 border-top text-end">
+                  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('store.edit_product', product_id=product.id) }}">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    Edit product
+                  </a>
+                </div>
+              {% endif %}
+
+              <!-- Trust Assurances -->
+              <div class="store-trust-row">
+                <span class="store-trust-item">
+                  <svg class="store-trust-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Verified Tool
+                </span>
+                <span class="store-trust-item">
+                  <svg class="store-trust-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Community Inventory
+                </span>
+                <span class="store-trust-item">
+                  <svg class="store-trust-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  Secure Checkout
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCT SPECIFICATIONS & DETAILS CARD -->
+    <div class="store-specs-card p-4 p-md-5 mb-5">
+      <div class="row g-4 g-lg-5">
+        <div class="col-lg-7">
+          <h2 class="store-specs-heading">About this product</h2>
+          <p class="text-secondary leading-relaxed mb-0" style="white-space: pre-line; line-height: 1.7;">{{ product.description }}</p>
+        </div>
+        <div class="col-lg-5">
+          <h2 class="store-specs-heading">Specifications</h2>
+          <div class="store-specs-table">
+            <div class="spec-row">
+              <span class="spec-label">Category</span>
+              <span class="spec-val">{{ product.category.name }}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Price</span>
+              <span class="spec-val">৳{{ '%.2f'|format(product.price|float) }}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Stock Status</span>
+              <span class="spec-val">
+                {% if product.stock > 0 %}{{ product.stock }} units available{% else %}Out of stock{% endif %}
+              </span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Item SKU</span>
+              <span class="spec-val">#SKU-{{ '%05d'|format(product.id) }}</span>
+            </div>
+            {% if product.owner %}
+              <div class="spec-row">
+                <span class="spec-label">Seller</span>
+                <span class="spec-val">{{ product.owner.full_name }}</span>
+              </div>
+            {% endif %}
+            {% if product.created_at %}
+              <div class="spec-row">
+                <span class="spec-label">Listed Date</span>
+                <span class="spec-val">{{ product.created_at.strftime('%B %d, %Y') }}</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RELATED PRODUCTS SECTION (ONLY IF REAL DATABASE RECORDS EXIST) -->
+    {% set related_items = [] %}
+    {% if product.category and product.category.products %}
+      {% for item in product.category.products %}
+        {% if item.id != product.id and item.is_active %}
+          {% if related_items.append(item) %}{% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
+    {% if related_items %}
+      <div class="store-related-section mt-5 pt-4 border-top">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <div>
+            <p class="eyebrow mb-1">More to explore</p>
+            <h2 class="h4 fw-bold text-dark mb-0">Related products in {{ product.category.name }}</h2>
+          </div>
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('store.index', category_id=product.category_id) }}">
+            View all
+          </a>
+        </div>
+
+        <div class="store-product-grid">
+          {% for rel in related_items[:4] %}
+            <article class="store-product-card">
+              <div class="store-product-img-wrap">
+                {% if rel.image %}
+                  <img 
+                    class="store-product-img" 
+                    src="{{ url_for('static', filename='uploads/public/' + rel.image) }}" 
+                    alt="{{ rel.name }}"
+                    loading="lazy"
+                  >
+                {% else %}
+                  <div class="store-placeholder-wrap">
+                    <span class="store-placeholder-icon">✦</span>
+                    <span class="store-placeholder-text">No image</span>
+                  </div>
+                {% endif %}
+              </div>
+              <div class="store-product-body">
+                <div class="mb-2">
+                  <span class="store-category-badge">{{ rel.category.name }}</span>
+                </div>
+                <h3 class="store-product-title">
+                  <a href="{{ url_for('store.details', product_id=rel.id) }}">{{ rel.name }}</a>
+                </h3>
+                <p class="store-product-desc">{{ rel.description|truncate(90) }}</p>
+                <div class="store-product-footer mt-auto pt-3">
+                  <div class="store-price-stock-row mb-3">
+                    <div class="store-price">
+                      <span class="store-currency">৳</span>{{ '%.2f'|format(rel.price|float) }}
+                    </div>
+                    <div class="store-stock">
+                      {% if rel.stock and rel.stock > 5 %}
+                        <span class="stock-badge in-stock">
+                          <span class="stock-dot in-stock" aria-hidden="true"></span>
+                          {{ rel.stock }} in stock
+                        </span>
+                      {% elif rel.stock and rel.stock > 0 %}
+                        <span class="stock-badge low-stock">
+                          <span class="stock-dot low-stock" aria-hidden="true"></span>
+                          {{ rel.stock }} left
+                        </span>
+                      {% else %}
+                        <span class="stock-badge out-of-stock">
+                          <span class="stock-dot out-of-stock" aria-hidden="true"></span>
+                          Out of stock
+                        </span>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <a class="btn btn-outline-primary store-view-btn w-100" href="{{ url_for('store.details', product_id=rel.id) }}">
+                    <span>View product</span>
+                    <svg class="store-btn-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function() {
+    var minusBtn = document.getElementById('btnQtyMinus');
+    var plusBtn = document.getElementById('btnQtyPlus');
+    var input = document.getElementById('qtyInput');
+    if (!minusBtn || !plusBtn || !input) return;
+
+    var min = parseInt(input.getAttribute('min') || '1', 10);
+    var max = parseInt(input.getAttribute('max') || '999', 10);
+
+    minusBtn.addEventListener('click', function() {
+      var current = parseInt(input.value, 10) || 1;
+      if (current > min) {
+        input.value = current - 1;
+      }
+    });
+
+    plusBtn.addEventListener('click', function() {
+      var current = parseInt(input.value, 10) || 1;
+      if (current < max) {
+        input.value = current + 1;
+      }
+    });
+  })();
+</script>
+{% endblock %}

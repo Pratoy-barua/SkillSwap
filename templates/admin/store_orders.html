@@ -1,1 +1,63 @@
-{% extends 'base.html' %}{% block title %}Store Orders · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><p class="eyebrow">Admin store</p><h1 class="section-heading h2">Orders</h1><div class="soft-card p-3 mt-4">{% for order in orders %}<div class="d-flex flex-column flex-md-row justify-content-between gap-2 border-bottom py-3"><span><strong>#{{ order.id }} · {{ order.buyer.full_name }}</strong><small class="d-block text-secondary">{{ order.total_amount }} · {{ order.payment_status }}</small></span><form method="post" action="{{ url_for('admin.update_store_order', order_id=order.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select class="form-select form-select-sm" name="status" onchange="this.form.submit()">{% for status in ['Pending','Confirmed','Processing','Shipped','Delivered','Cancelled'] %}<option {% if order.order_status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></form></div>{% else %}<div class="empty-state">No store orders yet.</div>{% endfor %}</div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Store Orders · SkillSwap Admin{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+      <div>
+        <p class="eyebrow mb-1">Admin store</p>
+        <h1 class="section-heading h2 mb-0">Orders</h1>
+      </div>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-primary" href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+        <a class="btn btn-primary" href="{{ url_for('admin.create_store_product') }}">+ Add product</a>
+      </div>
+    </div>
+
+    <!-- Store Section Navigation Tabs -->
+    <nav class="admin-store-tabs mb-4">
+      <a class="admin-store-tab" href="{{ url_for('admin.store_products') }}">
+        Products
+      </a>
+      <a class="admin-store-tab" href="{{ url_for('admin.store_categories') }}">
+        Categories
+      </a>
+      <a class="admin-store-tab active" href="{{ url_for('admin.store_orders') }}">
+        Orders
+        <span class="badge bg-primary-subtle text-primary ms-1">{{ orders|length }}</span>
+      </a>
+      <a class="admin-store-tab admin-store-tab-external ms-auto" href="{{ url_for('store.index') }}" target="_blank" rel="noopener">
+        View Public Store ↗
+      </a>
+    </nav>
+
+    {% include 'partials/flash.html' %}
+
+    <div class="soft-card p-3">
+      <h3 class="h6 fw-bold mb-3 px-2">Store Customer Orders ({{ orders|length }})</h3>
+      {% for order in orders %}
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 border-bottom py-3 px-2">
+          <span>
+            <strong class="text-dark">#{{ order.id }} · {{ order.buyer.full_name }}</strong>
+            <small class="d-block text-secondary">৳{{ '%.2f'|format(order.total_amount|float) }} · Payment: {{ order.payment_status }}</small>
+          </span>
+          <form method="post" action="{{ url_for('admin.update_store_order', order_id=order.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="d-flex align-items-center gap-2">
+              <span class="small text-muted">Status:</span>
+              <select class="form-select form-select-sm" name="status" onchange="this.form.submit()">
+                {% for status in ['Pending','Confirmed','Processing','Shipped','Delivered','Cancelled'] %}
+                  <option {% if order.order_status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </form>
+        </div>
+      {% else %}
+        <div class="empty-state py-4 text-center text-muted">No store orders recorded yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

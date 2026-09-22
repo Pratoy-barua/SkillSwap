@@ -1,1 +1,202 @@
-{% extends 'base.html' %}{% block title %}Store · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><div class="d-flex justify-content-between align-items-end mb-4"><div><p class="eyebrow">SkillSwap Store</p><h1 class="section-heading h2">Tools for your next skill.</h1><p class="section-copy">Products are loaded from the live catalogue.</p></div>{% if current_user and current_user.role.name in ['Learner','Mentor'] %}<a class="btn btn-outline-primary" href="{{ url_for('store.cart') }}">Cart</a>{% endif %}</div><form class="soft-card p-3 mb-4" method="get"><div class="row g-2"><div class="col-md-4"><input class="form-control" name="q" value="{{ filters.get('q','') }}" placeholder="Search products"></div><div class="col-md-3"><select class="form-select" name="category_id"><option value="">All categories</option>{% for category in categories %}<option value="{{ category.id }}" {% if filters.get('category_id') == category.id|string %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></div><div class="col-md-2"><input class="form-control" name="min_price" type="number" min="0" step=".01" placeholder="Min price"></div><div class="col-md-2"><select class="form-select" name="availability"><option value="">Any stock</option><option value="available">Available</option><option value="out">Out of stock</option></select></div><div class="col-md-1"><button class="btn btn-primary w-100">Go</button></div></div></form><div class="row g-4">{% for product in products %}<div class="col-md-6 col-lg-4"><article class="soft-card overflow-hidden h-100">{% if product.image %}<img class="store-image" src="{{ url_for('static', filename='uploads/public/' + product.image) }}" alt="{{ product.name }}">{% else %}<div class="store-image store-placeholder">✦</div>{% endif %}<div class="p-4"><small class="text-primary">{{ product.category.name }}</small><h2 class="h5 fw-bold mt-1">{{ product.name }}</h2><p class="small text-secondary">{{ product.description|truncate(120) }}</p><div class="d-flex justify-content-between align-items-center"><strong>{{ product.price }}</strong><span class="small {% if product.stock %}text-success{% else %}text-danger{% endif %}">{% if product.stock %}{{ product.stock }} in stock{% else %}Out of stock{% endif %}</span></div><a class="btn btn-outline-primary w-100 mt-3" href="{{ url_for('store.details', product_id=product.id) }}">View product</a></div></article></div>{% else %}<div class="col-12"><div class="empty-state">No products match your search.</div></div>{% endfor %}</div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Store · SkillSwap{% endblock %}
+
+{% block content %}
+<section class="store-page-section">
+  <div class="container">
+    <!-- STORE HERO -->
+    <div class="store-hero-row d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+      <div>
+        <p class="eyebrow mb-1">SKILLSWAP STORE</p>
+        <h1 class="store-main-heading mb-2">Tools for your next skill.</h1>
+        <p class="store-sub-text mb-0">Equip yourself with useful tools for learning, creating and practicing.</p>
+      </div>
+      {% if current_user and current_user.role.name in ['Learner', 'Mentor'] %}
+        <div class="store-hero-actions">
+          <a class="btn btn-outline-primary store-cart-btn" href="{{ url_for('store.cart') }}">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="9" cy="21" r="1"></circle>
+              <circle cx="20" cy="21" r="1"></circle>
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+            </svg>
+            <span>Cart</span>
+          </a>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- MODERN FILTER BAR -->
+    <form class="store-filter-bar" method="get" action="{{ url_for('store.index') }}">
+      <div class="row g-2 align-items-center">
+        <!-- Search Input -->
+        <div class="col-lg-4 col-md-6">
+          <div class="store-input-group">
+            <svg class="store-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input 
+              class="form-control store-filter-input" 
+              name="q" 
+              value="{{ filters.get('q', '') }}" 
+              placeholder="Search products..."
+              aria-label="Search products"
+            >
+          </div>
+        </div>
+
+        <!-- Category Dropdown -->
+        <div class="col-lg-3 col-md-6">
+          <select class="form-select store-filter-select" name="category_id" aria-label="Category">
+            <option value="">All categories</option>
+            {% for category in categories %}
+              <option value="{{ category.id }}" {% if filters.get('category_id') == category.id|string %}selected{% endif %}>
+                {{ category.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Min Price Input -->
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <div class="store-input-group">
+            <span class="store-input-prefix" aria-hidden="true">৳</span>
+            <input 
+              class="form-control store-filter-input with-prefix" 
+              name="min_price" 
+              type="number" 
+              min="0" 
+              step=".01" 
+              value="{{ filters.get('min_price', '') }}" 
+              placeholder="Min price" 
+              aria-label="Minimum price"
+            >
+          </div>
+        </div>
+
+        <!-- Stock Filter -->
+        <div class="col-lg-2 col-md-4 col-sm-6">
+          <select class="form-select store-filter-select" name="availability" aria-label="Stock availability">
+            <option value="">Any stock</option>
+            <option value="available" {% if filters.get('availability') == 'available' %}selected{% endif %}>Available</option>
+            <option value="out" {% if filters.get('availability') == 'out' %}selected{% endif %}>Out of stock</option>
+          </select>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="col-lg-1 col-md-4">
+          <button class="btn btn-primary store-search-btn w-100" type="submit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <span>Search</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Filters Indicator / Reset -->
+      {% if filters.get('q') or filters.get('category_id') or filters.get('min_price') or filters.get('availability') %}
+        <div class="d-flex align-items-center justify-content-between mt-3 pt-2 border-top">
+          <span class="small text-muted">Showing filtered products</span>
+          <a class="small text-primary fw-bold text-decoration-none" href="{{ url_for('store.index') }}">
+            ↻ Reset filters
+          </a>
+        </div>
+      {% endif %}
+    </form>
+
+    <!-- PRODUCT GRID (4 columns on desktop, 2 on tablet, 1 on mobile) -->
+    {% if products %}
+      <div class="store-product-grid">
+        {% for product in products %}
+          <article class="store-product-card">
+            <!-- Product Image Area (object-fit: contain, no cropping) -->
+            <div class="store-product-img-wrap">
+              {% if product.image %}
+                <img 
+                  class="store-product-img" 
+                  src="{{ url_for('static', filename='uploads/public/' + product.image) }}" 
+                  alt="{{ product.name }}"
+                  loading="lazy"
+                >
+              {% else %}
+                <div class="store-placeholder-wrap">
+                  <span class="store-placeholder-icon">✦</span>
+                  <span class="store-placeholder-text">No image available</span>
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Product Body -->
+            <div class="store-product-body">
+              <div class="mb-2">
+                <span class="store-category-badge">{{ product.category.name }}</span>
+              </div>
+
+              <h2 class="store-product-title">
+                <a href="{{ url_for('store.details', product_id=product.id) }}">
+                  {{ product.name }}
+                </a>
+              </h2>
+
+              <p class="store-product-desc">{{ product.description|truncate(95) }}</p>
+
+              <!-- Price & Stock Row + View Button -->
+              <div class="store-product-footer mt-auto pt-3">
+                <div class="store-price-stock-row mb-3">
+                  <div class="store-price">
+                    <span class="store-currency">৳</span>{{ '%.2f'|format(product.price|float) }}
+                  </div>
+                  <div class="store-stock">
+                    {% if product.stock and product.stock > 5 %}
+                      <span class="stock-badge in-stock">
+                        <span class="stock-dot in-stock" aria-hidden="true"></span>
+                        {{ product.stock }} in stock
+                      </span>
+                    {% elif product.stock and product.stock > 0 %}
+                      <span class="stock-badge low-stock">
+                        <span class="stock-dot low-stock" aria-hidden="true"></span>
+                        {{ product.stock }} left
+                      </span>
+                    {% else %}
+                      <span class="stock-badge out-of-stock">
+                        <span class="stock-dot out-of-stock" aria-hidden="true"></span>
+                        Out of stock
+                      </span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <a class="btn btn-outline-primary store-view-btn w-100" href="{{ url_for('store.details', product_id=product.id) }}">
+                  <span>View product</span>
+                  <svg class="store-btn-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <!-- EMPTY STATE -->
+      <div class="store-empty-card text-center">
+        <div class="store-empty-icon mb-3">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            <line x1="8" y1="11" x2="14" y2="11"></line>
+          </svg>
+        </div>
+        <h3 class="h5 fw-bold text-dark mb-1">No products found</h3>
+        <p class="text-muted mb-3">Try adjusting your search or filters.</p>
+        <a class="btn btn-outline-primary" href="{{ url_for('store.index') }}">
+          ↻ Reset filters
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

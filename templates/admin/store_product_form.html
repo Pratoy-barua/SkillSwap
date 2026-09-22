@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}{% if product %}Edit {{ product.name }}{% else %}New Product{% endif %} · SkillSwap Admin{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container" style="max-width: 860px;">
+    <!-- Breadcrumbs / Back Link -->
+    <div class="mb-3">
+      <a class="text-decoration-none text-muted small d-inline-flex align-items-center gap-1 hover-primary" href="{{ url_for('admin.store_products') }}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+        </svg>
+        Back to Store Products
+      </a>
+    </div>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <p class="eyebrow mb-1">Store inventory</p>
+        <h1 class="section-heading h2 mb-0">
+          {% if product %}Edit Product{% else %}Add New Product{% endif %}
+        </h1>
+      </div>
+      {% if product %}
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('store.details', product_id=product.id) }}" target="_blank" rel="noopener">
+          View on Store ↗
+        </a>
+      {% endif %}
+    </div>
+
+    {% include 'partials/flash.html' %}
+
+    <!-- Product Form Card -->
+    <div class="soft-card p-4 p-md-5">
+      <form method="post" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="row g-4">
+          <!-- Product Name -->
+          <div class="col-12">
+            <label class="form-label fw-bold small" for="productName">Product Name <span class="text-danger">*</span></label>
+            <input 
+              type="text" 
+              class="form-control" 
+              id="productName" 
+              name="name" 
+              value="{{ form_data.get('name', product.name if product else '') }}" 
+              placeholder="e.g. Modern Mechanical Pencil Set" 
+              required
+              maxlength="180"
+            >
+          </div>
+
+          <!-- Category -->
+          <div class="col-md-6">
+            <label class="form-label fw-bold small" for="productCategory">Category <span class="text-danger">*</span></label>
+            <select class="form-select" id="productCategory" name="category_id" required>
+              <option value="">Select a category</option>
+              {% for cat in categories %}
+                <option 
+                  value="{{ cat.id }}" 
+                  {% if form_data.get('category_id')|int == cat.id or (not form_data and product and product.category_id == cat.id) %}selected{% endif %}
+                >
+                  {{ cat.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Price -->
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="productPrice">Price (৳) <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text">৳</span>
+              <input 
+                type="number" 
+                class="form-control" 
+                id="productPrice" 
+                name="price" 
+                step="0.01" 
+                min="0.01" 
+                value="{{ form_data.get('price', '%.2f'|format(product.price|float) if product else '') }}" 
+                placeholder="0.00" 
+                required
+              >
+            </div>
+          </div>
+
+          <!-- Stock -->
+          <div class="col-md-3">
+            <label class="form-label fw-bold small" for="productStock">Initial Stock <span class="text-danger">*</span></label>
+            <input 
+              type="number" 
+              class="form-control" 
+              id="productStock" 
+              name="stock" 
+              min="0" 
+              value="{{ form_data.get('stock', product.stock if product else '0') }}" 
+              placeholder="0" 
+              required
+            >
+          </div>
+
+          <!-- Description -->
+          <div class="col-12">
+            <label class="form-label fw-bold small" for="productDescription">Product Description <span class="text-danger">*</span></label>
+            <textarea 
+              class="form-control" 
+              id="productDescription" 
+              name="description" 
+              rows="5" 
+              placeholder="Describe the product features, specs, and details..." 
+              required
+            >{{ form_data.get('description', product.description if product else '') }}</textarea>
+            <div class="form-text small">Provide clear, helpful details for learners and community buyers.</div>
+          </div>
+
+          <!-- Product Image Upload -->
+          <div class="col-12">
+            <label class="form-label fw-bold small">Product Image</label>
+            
+            {% if product and product.image %}
+              <div class="d-flex align-items-center gap-3 p-3 bg-light rounded-3 mb-3 border">
+                <div class="admin-product-thumb" style="width: 80px; height: 80px;">
+                  <img 
+                    src="{{ url_for('static', filename='uploads/public/' + product.image) }}" 
+                    alt="{{ product.name }}"
+                  >
+                </div>
+                <div>
+                  <span class="d-block small fw-bold text-dark mb-1">Current Image</span>
+                  <span class="d-block text-secondary small mb-1">{{ product.image }}</span>
+                  <small class="text-muted">Upload a new image below if you would like to replace it.</small>
+                </div>
+              </div>
+            {% endif %}
+
+            <input 
+              type="file" 
+              class="form-control" 
+              id="productImage" 
+              name="image" 
+              accept="image/png, image/jpeg, image/jpg, image/webp"
+            >
+            <div class="form-text small">
+              Supported image formats: PNG, JPG, JPEG, WEBP. Maximum file size: 10MB.
+            </div>
+          </div>
+
+          <!-- Active / Visibility Status -->
+          <div class="col-12">
+            <div class="form-check form-switch p-3 bg-light rounded-3 border">
+              <input 
+                class="form-check-input ms-0 me-3" 
+                type="checkbox" 
+                role="switch" 
+                id="productActive" 
+                name="is_active" 
+                value="true"
+                {% if product is none or (form_data and 'is_active' in form_data) or (product and product.is_active) %}checked{% endif %}
+              >
+              <label class="form-check-label fw-bold small" for="productActive">
+                Active and publicly listed in the Store
+                <span class="d-block fw-normal text-muted small">
+                  When unchecked, the product is hidden (unlisted) from the public catalog while preserving history.
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit actions -->
+        <div class="d-flex align-items-center justify-content-between pt-4 mt-4 border-top">
+          <a class="btn btn-outline-secondary" href="{{ url_for('admin.store_products') }}">
+            Cancel
+          </a>
+          <button type="submit" class="btn btn-primary px-4">
+            {% if product %}Save Changes{% else %}Create Product{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

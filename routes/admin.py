@@ -1,6 +1,7 @@
 """Admin verification and account-status management."""
 
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, send_file, url_for, request
@@ -11,9 +12,10 @@ from extensions import db
 from models.auth import Role, Skill, User, VerificationDocument
 from models.learning import LearningProgress, Payment, Subscription
 from models.connection import LearningRelationship
-from models.store import Order, ProductCategory
+from models.store import CartItem, Order, OrderItem, Product, ProductCategory
 from models.reviews import PremiumPlan, RevenueRecord, Review
 from services.notifications import notify
+from services.uploads import save_upload
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -129,6 +131,7 @@ def dashboard():
         "orders": Order.query.count(), "reviews": Review.query.count(),
         "revenue": sum((item.net_platform_revenue for item in RevenueRecord.query.filter_by(status="Successful").all()), 0),
         "premium_subscribers": Subscription.query.filter_by(status="Active").count(),
+        "products": Product.query.count(),
     }
     business_data = get_business_analytics(months_limit=6)
     return render_template("admin/dashboard.html", pending_learners=pending_learners, pending_mentors=pending_mentors, counts=counts, business_data=business_data)
@@ -362,3 +365,248 @@ def update_store_order(order_id):
     db.session.commit()
     flash("Order status updated.", "success")
     return redirect(url_for("admin.store_orders"))
+
+
+@admin_bp.get("/store/products")
+@role_required("Admin")
+def store_products():
+    q = request.args.get("q", "").strip()
+    category_id = request.args.get("category", type=int)
+    stock_filter = request.args.get("stock_status", "").strip()
+    status_filter = request.args.get("status", "").strip()
+
+    query = Product.query
+
+    if q:
+        search_pattern = f"%{q}%"
+        query = query.filter(or_(Product.name.ilike(search_pattern), Product.description.ilike(search_pattern)))
+    if category_id:
+        query = query.filter(Product.category_id == category_id)
+    if stock_filter == "in_stock":
+        query = query.filter(Product.stock > 5)
+    elif stock_filter == "low_stock":
+        query = query.filter(Product.stock > 0, Product.stock <= 5)
+    elif stock_filter == "out_of_stock":
+        query = query.filter(Product.stock == 0)
+
+    if status_filter == "active":
+        query = query.filter(Product.is_active.is_(True))
+    elif status_filter == "unlisted":
+        query = query.filter(Product.is_active.is_(False))
+
+    products = query.order_by(Product.created_at.desc()).all()
+    categories = ProductCategory.query.order_by(ProductCategory.name.asc()).all()
+
+    total_products = Product.query.count()
+    active_count = Product.query.filter_by(is_active=True).count()
+    out_of_stock_count = Product.query.filter_by(stock=0).count()
+
+    return render_template(
+        "admin/store_products.html",
+        products=products,
+        categories=categories,
+        filters=request.args,
+        total_products=total_products,
+        active_count=active_count,
+        out_of_stock_count=out_of_stock_count,
+    )
+
+
+@admin_bp.route("/store/products/new", methods=["GET", "POST"])
+@role_required("Admin")
+def create_store_product():
+    categories = ProductCategory.query.filter_by(is_active=True).order_by(ProductCategory.name.asc()).all()
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        category_id = request.form.get("category_id", type=int)
+        description = request.form.get("description", "").strip()
+        price_raw = request.form.get("price", "").strip()
+        stock_raw = request.form.get("stock", "").strip()
+        is_active = "is_active" in request.form
+
+        if not name:
+            flash("Product name is required.", "danger")
+            return render_template("admin/store_product_form.html", product=None, categories=categories, form_data=request.form)
+
+        if not category_id or not ProductCategory.query.get(category_id):
+            flash("Please select a valid active category.", "danger")
+            return render_template("admin/store_product_form.html", product=None, categories=categories, form_data=request.form)
+
+        if not description:
+            flash("Product description is required.", "danger")
+            return render_template("admin/store_product_form.html", product=None, categories=categories, form_data=request.form)
+
+        try:
+            price = Decimal(price_raw)
+            if price <= 0:
+                raise ValueError()
+        except (InvalidOperation, ValueError, TypeError):
+            flash("Please enter a valid positive price.", "danger")
+            return render_template("admin/store_product_form.html", product=None, categories=categories, form_data=request.form)
+
+        try:
+            stock = int(stock_raw)
+            if stock < 0:
+                raise ValueError()
+        except (ValueError, TypeError):
+            flash("Please enter a valid stock quantity (0 or greater).", "danger")
+            return render_template("admin/store_product_form.html", product=None, categories=categories, form_data=request.form)
+
+        image_name = None
+        image_file = request.files.get("image")
+        if image_file and image_file.filename:
+            try:
+                saved = save_upload(image_file, "product")
+                if saved:
+                    image_name = saved["stored_name"]
+            except ValueError as e:
+                flash(str(e), "danger")
+                return render_template("admin/store_product_form.html", product=None, categories=categories, form_data=request.form)
+
+        product = Product(
+            owner_id=g.user.id if hasattr(g, "user") and g.user else None,
+            category_id=category_id,
+            name=name,
+            description=description,
+            price=price,
+            stock=stock,
+            image=image_name,
+            is_active=is_active,
+        )
+        db.session.add(product)
+        db.session.commit()
+        flash(f"Product '{product.name}' created successfully.", "success")
+        return redirect(url_for("admin.store_products"))
+
+    return render_template("admin/store_product_form.html", product=None, categories=categories, form_data={})
+
+
+@admin_bp.route("/store/products/<int:product_id>/edit", methods=["GET", "POST"])
+@role_required("Admin")
+def edit_store_product(product_id):
+    product = Product.query.get_or_404(product_id)
+    categories = ProductCategory.query.order_by(ProductCategory.name.asc()).all()
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        category_id = request.form.get("category_id", type=int)
+        description = request.form.get("description", "").strip()
+        price_raw = request.form.get("price", "").strip()
+        stock_raw = request.form.get("stock", "").strip()
+        is_active = "is_active" in request.form
+
+        if not name:
+            flash("Product name is required.", "danger")
+            return render_template("admin/store_product_form.html", product=product, categories=categories, form_data=request.form)
+
+        if not category_id or not ProductCategory.query.get(category_id):
+            flash("Please select a valid category.", "danger")
+            return render_template("admin/store_product_form.html", product=product, categories=categories, form_data=request.form)
+
+        if not description:
+            flash("Product description is required.", "danger")
+            return render_template("admin/store_product_form.html", product=product, categories=categories, form_data=request.form)
+
+        try:
+            price = Decimal(price_raw)
+            if price <= 0:
+                raise ValueError()
+        except (InvalidOperation, ValueError, TypeError):
+            flash("Please enter a valid positive price.", "danger")
+            return render_template("admin/store_product_form.html", product=product, categories=categories, form_data=request.form)
+
+        try:
+            stock = int(stock_raw)
+            if stock < 0:
+                raise ValueError()
+        except (ValueError, TypeError):
+            flash("Please enter a valid stock quantity (0 or greater).", "danger")
+            return render_template("admin/store_product_form.html", product=product, categories=categories, form_data=request.form)
+
+        image_file = request.files.get("image")
+        if image_file and image_file.filename:
+            try:
+                saved = save_upload(image_file, "product")
+                if saved:
+                    product.image = saved["stored_name"]
+            except ValueError as e:
+                flash(str(e), "danger")
+                return render_template("admin/store_product_form.html", product=product, categories=categories, form_data=request.form)
+
+        product.name = name
+        product.category_id = category_id
+        product.description = description
+        product.price = price
+        product.stock = stock
+        product.is_active = is_active
+        product.updated_at = datetime.utcnow()
+
+        db.session.commit()
+        flash(f"Product '{product.name}' updated successfully.", "success")
+        return redirect(url_for("admin.store_products"))
+
+    return render_template("admin/store_product_form.html", product=product, categories=categories, form_data={})
+
+
+@admin_bp.post("/store/products/<int:product_id>/delete")
+@role_required("Admin")
+def delete_store_product(product_id):
+    product = Product.query.get_or_404(product_id)
+    product_name = product.name
+
+    has_orders = OrderItem.query.filter_by(product_id=product.id).first() is not None
+    if has_orders:
+        product.is_active = False
+        db.session.commit()
+        flash(
+            f"Product '{product_name}' has historical order records and cannot be permanently deleted. It has been deactivated and unlisted from the Store instead.",
+            "warning",
+        )
+        return redirect(url_for("admin.store_products"))
+
+    try:
+        CartItem.query.filter_by(product_id=product.id).delete()
+
+        if product.image:
+            try:
+                pub_base = Path(current_app.config["PUBLIC_UPLOAD_FOLDER"]).resolve()
+                img_path = (pub_base / product.image).resolve()
+                if img_path.is_file():
+                    img_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+        db.session.delete(product)
+        db.session.commit()
+        flash(f"Product '{product_name}' was permanently deleted.", "success")
+    except Exception:
+        db.session.rollback()
+        flash(f"Unable to delete '{product_name}' due to database constraints.", "danger")
+
+    return redirect(url_for("admin.store_products"))
+
+
+@admin_bp.post("/store/products/<int:product_id>/toggle")
+@role_required("Admin")
+def toggle_store_product(product_id):
+    product = Product.query.get_or_404(product_id)
+    product.is_active = not product.is_active
+    db.session.commit()
+    status_label = "active and listed in the Store" if product.is_active else "unlisted from the Store"
+    flash(f"Product '{product.name}' is now {status_label}.", "success")
+    return redirect(url_for("admin.store_products"))
+
+
+@admin_bp.post("/store/products/<int:product_id>/stock")
+@role_required("Admin")
+def update_store_product_stock(product_id):
+    product = Product.query.get_or_404(product_id)
+    stock_val = request.form.get("stock", type=int)
+    if stock_val is None or stock_val < 0:
+        flash("Stock quantity must be a non-negative number.", "danger")
+    else:
+        product.stock = stock_val
+        db.session.commit()
+        flash(f"Stock for '{product.name}' updated to {product.stock}.", "success")
+    return redirect(url_for("admin.store_products"))
+
