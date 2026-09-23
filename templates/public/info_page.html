@@ -5,6 +5,49 @@
 {% block content %}
 <section class="info-page">
   <div class="container">
+    {% if eyebrow == "Contact" %}
+    <div class="contact-page-shell">
+      <div class="contact-page-header">
+        <span class="contact-header-orb contact-header-orb-one" aria-hidden="true"></span>
+        <span class="contact-header-orb contact-header-orb-two" aria-hidden="true"></span>
+        <div class="contact-heading-content">
+          <p class="eyebrow contact-eyebrow mb-3">{{ eyebrow }}</p>
+          <h1 class="section-heading">{{ title }}</h1>
+          <p class="section-copy mb-0">{{ intro }}</p>
+        </div>
+        <div class="contact-help-note" aria-hidden="true">
+          <span class="contact-help-mark">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11Z"/><path d="M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>
+          </span>
+          <span>We’re here to help</span>
+        </div>
+      </div>
+      <div class="row g-3 g-lg-4 contact-card-grid">
+        {% for heading, copy in sections %}
+        <div class="col-md-6">
+          <article class="contact-info-card h-100">
+            <span class="contact-card-icon{% if heading == 'Email' %} contact-icon-orange{% elif heading == 'Address' %} contact-icon-sky{% elif heading == 'Open time' %} contact-icon-amber{% endif %}" aria-hidden="true">
+              {% if heading == 'Phone' %}
+              <svg viewBox="0 0 24 24" fill="none"><path d="M7.2 3.5h2.4l1.2 4.2-1.7 1.7a14.4 14.4 0 0 0 5.5 5.5l1.7-1.7 4.2 1.2v2.4a2 2 0 0 1-2.2 2A16.8 16.8 0 0 1 5.2 5.7a2 2 0 0 1 2-2.2Z"/></svg>
+              {% elif heading == 'Email' %}
+              <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="m4.5 7 7.5 6 7.5-6"/></svg>
+              {% elif heading == 'Address' %}
+              <svg viewBox="0 0 24 24" fill="none"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+              {% else %}
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>
+              {% endif %}
+            </span>
+            <div class="contact-card-copy">
+              <h2>{{ heading }}</h2>
+              <p>{{ copy }}</p>
+            </div>
+            <span class="contact-card-accent" aria-hidden="true"></span>
+          </article>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
     <div class="info-page-header">
       <p class="eyebrow mb-3">{{ eyebrow }}</p>
       <h1 class="section-heading">{{ title }}</h1>
@@ -20,6 +63,7 @@
       </div>
       {% endfor %}
     </div>
+    {% endif %}
   </div>
 </section>
 {% endblock %}
