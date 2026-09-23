@@ -168,17 +168,27 @@
     padding: 0.22rem 0.6rem;
     border-radius: 6px;
   }
-  .status-tag.status-confirmed,
+  .status-tag.status-processing,
+  .status-tag.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+  .status-tag.status-confirmed {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+  }
+  .status-tag.status-shipped {
+    background: #ede9fe;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+  }
   .status-tag.status-delivered,
   .status-tag.status-successful {
     background: #e8f7ef;
     color: #187148;
     border: 1px solid #c0ebd2;
-  }
-  .status-tag.status-pending {
-    background: #fef3c7;
-    color: #92400e;
-    border: 1px solid #fde68a;
   }
   .status-tag.status-cancelled {
     background: #fee2e2;

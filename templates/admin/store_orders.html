@@ -7,7 +7,7 @@
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
       <div>
         <p class="eyebrow mb-1">Admin store</p>
-        <h1 class="section-heading h2 mb-0">Orders</h1>
+        <h1 class="section-heading h2 mb-0">Customer orders</h1>
       </div>
       <div class="d-flex gap-2">
         <a class="btn btn-outline-primary" href="{{ url_for('admin.dashboard') }}">Dashboard</a>
@@ -34,29 +34,167 @@
 
     {% include 'partials/flash.html' %}
 
-    <div class="soft-card p-3">
-      <h3 class="h6 fw-bold mb-3 px-2">Store Customer Orders ({{ orders|length }})</h3>
-      {% for order in orders %}
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 border-bottom py-3 px-2">
-          <span>
-            <strong class="text-dark">#{{ order.id }} · {{ order.buyer.full_name }}</strong>
-            <small class="d-block text-secondary">৳{{ '%.2f'|format(order.total_amount|float) }} · Payment: {{ order.payment_status }}</small>
-          </span>
-          <form method="post" action="{{ url_for('admin.update_store_order', order_id=order.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <div class="d-flex align-items-center gap-2">
-              <span class="small text-muted">Status:</span>
-              <select class="form-select form-select-sm" name="status" onchange="this.form.submit()">
-                {% for status in ['Pending','Confirmed','Processing','Shipped','Delivered','Cancelled'] %}
-                  <option {% if order.order_status == status %}selected{% endif %}>{{ status }}</option>
-                {% endfor %}
-              </select>
-            </div>
-          </form>
-        </div>
-      {% else %}
-        <div class="empty-state py-4 text-center text-muted">No store orders recorded yet.</div>
-      {% endfor %}
+    <div class="soft-card p-3 table-responsive">
+      <div class="d-flex justify-content-between align-items-center mb-3 px-2">
+        <h3 class="h6 fw-bold mb-0">All Store Orders ({{ orders|length }})</h3>
+        <span class="small text-muted">Awaiting confirmation orders are highlighted</span>
+      </div>
+
+      <table class="table align-middle admin-orders-table mb-0">
+        <thead>
+          <tr>
+            <th style="width: 100px;">Order</th>
+            <th>Customer</th>
+            <th>Items</th>
+            <th>Total &amp; Payment</th>
+            <th>Order Status</th>
+            <th class="text-end" style="min-width: 200px;">Status Management</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+            <tr class="{% if order.order_status == 'Processing' %}table-warning-subtle{% endif %}">
+              <!-- Order ID & Date -->
+              <td>
+                <div class="d-flex flex-column">
+                  <a class="fw-bold text-decoration-none text-dark hover-primary" href="{{ url_for('store.order_details', order_id=order.id) }}" target="_blank" title="View official invoice">
+                    #{{ order.id }}
+                  </a>
+                  <small class="text-muted" style="font-size: 0.75rem;">
+                    {{ order.created_at.strftime('%d %b %Y') }}
+                  </small>
+                </div>
+              </td>
+
+              <!-- Customer -->
+              <td>
+                <div class="d-flex flex-column">
+                  <span class="fw-semibold text-dark">{{ order.buyer.full_name }}</span>
+                  <small class="text-muted" style="font-size: 0.8rem;">{{ order.buyer.email }}</small>
+                </div>
+              </td>
+
+              <!-- Items -->
+              <td>
+                <div>
+                  <span class="badge bg-light text-dark border">
+                    {{ order.items|length }} {% if order.items|length == 1 %}item{% else %}items{% endif %}
+                  </span>
+                  <small class="d-block text-secondary text-truncate mt-1" style="max-width: 220px;" title="{% for item in order.items %}{{ item.product_name }} (x{{ item.quantity }}){% if not loop.last %}, {% endif %}{% endfor %}">
+                    {% for item in order.items %}
+                      {{ item.product_name }} (x{{ item.quantity }}){% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                  </small>
+                </div>
+              </td>
+
+              <!-- Total & Payment -->
+              <td>
+                <div class="d-flex flex-column">
+                  <strong class="text-dark">৳{{ '%.2f'|format(order.total_amount|float) }}</strong>
+                  <span class="small">
+                    {% if order.payment_status == 'Successful' %}
+                      <span class="badge bg-success-subtle text-success p-1" style="font-size: 0.72rem;">Paid</span>
+                    {% else %}
+                      <span class="badge bg-danger-subtle text-danger p-1" style="font-size: 0.72rem;">{{ order.payment_status }}</span>
+                    {% endif %}
+                  </span>
+                </div>
+              </td>
+
+              <!-- Order Status Badge -->
+              <td>
+                {% if order.order_status == 'Processing' %}
+                  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning px-2 py-1 rounded-pill d-inline-flex align-items-center gap-1">
+                    <span style="font-size: 0.65rem;">●</span> Processing
+                  </span>
+                  <small class="d-block text-muted" style="font-size: 0.72rem; margin-top: 2px;">Awaiting confirmation</small>
+                {% elif order.order_status == 'Confirmed' %}
+                  <span class="badge bg-primary-subtle text-primary border border-primary px-2 py-1 rounded-pill d-inline-flex align-items-center gap-1">
+                    ✓ Confirmed
+                  </span>
+                {% elif order.order_status == 'Shipped' %}
+                  <span class="badge bg-info-subtle text-info-emphasis border border-info px-2 py-1 rounded-pill d-inline-flex align-items-center gap-1">
+                    ✈ Shipped
+                  </span>
+                {% elif order.order_status == 'Delivered' %}
+                  <span class="badge bg-success-subtle text-success border border-success px-2 py-1 rounded-pill d-inline-flex align-items-center gap-1">
+                    ✓ Delivered
+                  </span>
+                {% elif order.order_status == 'Cancelled' %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1 rounded-pill d-inline-flex align-items-center gap-1">
+                    ✕ Cancelled
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary px-2 py-1 rounded-pill">
+                    {{ order.order_status }}
+                  </span>
+                {% endif %}
+              </td>
+
+              <!-- Status Management Action -->
+              <td class="text-end">
+                <div class="d-inline-flex flex-column flex-sm-row align-items-end align-items-sm-center justify-content-end gap-2">
+                  <!-- Quick Confirm button for Processing orders -->
+                  {% if order.order_status == 'Processing' %}
+                    <form method="post" action="{{ url_for('admin.update_store_order', order_id=order.id) }}" class="d-inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <input type="hidden" name="status" value="Confirmed">
+                      <button type="submit" class="btn btn-sm btn-success fw-semibold text-nowrap" title="Confirm customer order">
+                        ✓ Confirm Order
+                      </button>
+                    </form>
+                  {% endif %}
+
+                  <!-- Status Dropdown for Full Control -->
+                  <form method="post" action="{{ url_for('admin.update_store_order', order_id=order.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <select class="form-select form-select-sm" name="status" onchange="this.form.submit()" style="width: auto; min-width: 125px;" aria-label="Change status for order #{{ order.id }}">
+                      {% if order.order_status == 'Processing' %}
+                        <option value="Processing" selected>Processing</option>
+                        <option value="Confirmed">Confirm Order</option>
+                        <option value="Shipped">Mark Shipped</option>
+                        <option value="Cancelled">Cancel Order</option>
+                      {% elif order.order_status == 'Confirmed' %}
+                        <option value="Confirmed" selected>Confirmed</option>
+                        <option value="Processing">Move to Processing</option>
+                        <option value="Shipped">Mark Shipped</option>
+                        <option value="Cancelled">Cancel Order</option>
+                      {% elif order.order_status == 'Shipped' %}
+                        <option value="Shipped" selected>Shipped</option>
+                        <option value="Delivered">Mark Delivered</option>
+                        <option value="Cancelled">Cancel Order</option>
+                      {% elif order.order_status == 'Delivered' %}
+                        <option value="Delivered" selected>Delivered (Complete)</option>
+                      {% elif order.order_status == 'Cancelled' %}
+                        <option value="Cancelled" selected>Cancelled</option>
+                      {% else %}
+                        {% for st in ['Processing', 'Confirmed', 'Shipped', 'Delivered', 'Cancelled'] %}
+                          <option value="{{ st }}" {% if order.order_status == st %}selected{% endif %}>{{ st }}</option>
+                        {% endfor %}
+                      {% endif %}
+                    </select>
+                  </form>
+
+                  <!-- Invoice link -->
+                  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('store.order_details', order_id=order.id) }}" target="_blank" title="Open invoice details in new tab">
+                    Invoice ↗
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center py-5">
+                <div class="empty-state">
+                  <p class="h6 text-muted mb-1">No store orders recorded yet</p>
+                  <p class="text-secondary small mb-0">Customer orders will appear here as purchases occur.</p>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
 </section>

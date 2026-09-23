@@ -205,7 +205,7 @@ def checkout():
         total, commission, seller_earning = split_amount(subtotal, db.session)
         outcome = request.form.get("demo_outcome", "success")
         result = DemoPaymentProvider().charge(total, outcome if outcome in {"success", "failure"} else "failure")
-        order = Order(buyer_id=g.current_user.id, total_amount=total, payment_reference=result["reference_id"], payment_status=result["status"], order_status="Confirmed" if result["status"] == "Successful" else "Cancelled", platform_commission=commission, seller_earning=seller_earning, delivery_address=request.form.get("delivery_address", "").strip()[:255], delivery_phone=request.form.get("delivery_phone", "").strip()[:40])
+        order = Order(buyer_id=g.current_user.id, total_amount=total, payment_reference=result["reference_id"], payment_status=result["status"], order_status="Processing" if result["status"] == "Successful" else "Cancelled", platform_commission=commission, seller_earning=seller_earning, delivery_address=request.form.get("delivery_address", "").strip()[:255], delivery_phone=request.form.get("delivery_phone", "").strip()[:40])
         if not order.delivery_address or not order.delivery_phone:
             flash("Delivery address and phone are required.", "danger")
             return render_template("store/checkout.html", cart=cart, subtotal=subtotal)
@@ -219,7 +219,9 @@ def checkout():
                 item.product.stock -= item.quantity
         if result["status"] == "Successful":
             cart.items.clear()
-        notify(g.current_user.id, "order_payment", "Store Order Confirmed", f"Your store order has been placed and payment is {result['status'].lower()}.", "order", order.id)
+            notify(g.current_user.id, "order_status", "Order Placed", f"Order #{order.id} is being processed.", "order", order.id)
+        else:
+            notify(g.current_user.id, "order_status", "Order Cancelled", f"Order #{order.id} could not be completed due to payment failure.", "order", order.id)
         db.session.commit()
         return redirect(url_for("store.order_details", order_id=order.id))
     subtotal = sum((item.product.price * item.quantity for item in items), Decimal("0"))

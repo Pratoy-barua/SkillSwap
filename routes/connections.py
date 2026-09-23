@@ -301,11 +301,11 @@ def open_notification(notification_id):
         return redirect(url_for("connections.learner_mentors"))
 
     # 8. Store order notifications
-    if item.notification_type == "order_payment" or item.related_type == "order":
+    if item.notification_type in {"order_payment", "order_status"} or item.related_type == "order":
         if item.related_id:
             from models.store import Order
             order = db.session.get(Order, item.related_id)
-            if order and order.buyer_id == g.current_user.id:
+            if order and (order.buyer_id == g.current_user.id or g.current_user.role.name == "Admin"):
                 return redirect(url_for("store.order_details", order_id=order.id))
         return redirect(url_for("store.orders"))
 

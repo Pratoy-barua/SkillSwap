@@ -1170,7 +1170,8 @@ a:hover { color: inherit; }
 .table-actions { align-items: center; display: flex; gap: .45rem; }
 .table-actions form { margin: 0; }
 .status-pill { border-radius: 999px; display: inline-flex; font-size: .7rem; font-weight: 800; padding: .28rem .55rem; }
-.status-pending { background: #fff5d9; color: #946200; }
+.status-pending, .status-processing { background: #fff5d9; color: #946200; }
+.status-shipped { background: #ede9fe; color: #6d28d9; }
 .status-accepted, .status-active, .status-approved, .status-completed, .status-confirmed, .status-delivered, .status-successful { background: #e8f7ef; color: #187148; }
 .status-rejected, .status-cancelled, .status-suspended { background: #fdecec; color: #a83b3b; }
 .notification-list { display: flex; flex-direction: column; }

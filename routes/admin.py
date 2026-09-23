@@ -358,12 +358,52 @@ def store_orders():
 @role_required("Admin")
 def update_store_order(order_id):
     order = Order.query.get_or_404(order_id)
-    status = request.form.get("status")
-    if status not in {"Pending", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"}:
-        abort(400)
-    order.order_status = status
+    new_status = request.form.get("status")
+    allowed_statuses = {"Processing", "Confirmed", "Shipped", "Delivered", "Cancelled"}
+    if new_status not in allowed_statuses:
+        abort(400, description="Invalid order status.")
+
+    if new_status == order.order_status:
+        flash(f"Order #{order.id} is already {new_status}.", "info")
+        return redirect(url_for("admin.store_orders"))
+
+    # Valid transitions logic
+    valid_transitions = {
+        "Pending": {"Processing", "Confirmed", "Cancelled"},
+        "Processing": {"Confirmed", "Shipped", "Cancelled"},
+        "Confirmed": {"Processing", "Shipped", "Cancelled"},
+        "Shipped": {"Delivered", "Cancelled"},
+        "Delivered": set(),
+        "Cancelled": set(),
+    }
+    allowed_targets = valid_transitions.get(order.order_status, set())
+    if new_status not in allowed_targets:
+        flash(f"Cannot transition order #{order.id} from {order.order_status} to {new_status}.", "warning")
+        return redirect(url_for("admin.store_orders"))
+
+    order.order_status = new_status
+
+    status_messages = {
+        "Confirmed": ("Order Confirmed", f"Order #{order.id} has been confirmed."),
+        "Processing": ("Order Processing", f"Order #{order.id} is being processed."),
+        "Shipped": ("Order Shipped", f"Order #{order.id} has been shipped."),
+        "Delivered": ("Order Delivered", f"Order #{order.id} has been delivered."),
+        "Cancelled": ("Order Cancelled", f"Order #{order.id} has been cancelled."),
+    }
+
+    if new_status in status_messages:
+        title, message = status_messages[new_status]
+        notify(
+            user_id=order.buyer_id,
+            notification_type="order_status",
+            title=title,
+            message=message,
+            related_type="order",
+            related_id=order.id,
+        )
+
     db.session.commit()
-    flash("Order status updated.", "success")
+    flash(f"Order #{order.id} status updated to {new_status}.", "success")
     return redirect(url_for("admin.store_orders"))
 
 

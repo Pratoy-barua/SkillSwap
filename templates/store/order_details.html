@@ -99,38 +99,250 @@
     color: var(--ss-ink);
   }
 
-  /* Order Confirmed Banner (Screen Only) */
-  .order-confirmed-banner {
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
+  /* Dynamic Order Status Banner (Screen Only) */
+  .order-status-banner {
     border-radius: 14px;
     padding: 1.25rem 1.5rem;
     display: flex;
     align-items: center;
     gap: 1.1rem;
-    margin-bottom: 1.75rem;
+    margin-bottom: 1.25rem;
   }
-  .order-confirmed-icon {
+  .order-status-banner.status-processing,
+  .order-status-banner.status-pending {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+  }
+  .order-status-banner.status-processing .order-status-icon,
+  .order-status-banner.status-pending .order-status-icon {
+    background: #fef3c7;
+    color: #b45309;
+  }
+  .order-status-banner.status-processing .order-status-title,
+  .order-status-banner.status-pending .order-status-title {
+    color: #78350f;
+  }
+  .order-status-banner.status-processing .order-status-desc,
+  .order-status-banner.status-pending .order-status-desc {
+    color: #92400e;
+  }
+
+  .order-status-banner.status-confirmed {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+  }
+  .order-status-banner.status-confirmed .order-status-icon {
+    background: #e0f2fe;
+    color: #0284c7;
+  }
+  .order-status-banner.status-confirmed .order-status-title {
+    color: #0369a1;
+  }
+  .order-status-banner.status-confirmed .order-status-desc {
+    color: #075985;
+  }
+
+  .order-status-banner.status-shipped {
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+  }
+  .order-status-banner.status-shipped .order-status-icon {
+    background: #ede9fe;
+    color: #7c3aed;
+  }
+  .order-status-banner.status-shipped .order-status-title {
+    color: #5b21b6;
+  }
+  .order-status-banner.status-shipped .order-status-desc {
+    color: #6d28d9;
+  }
+
+  .order-status-banner.status-delivered {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+  }
+  .order-status-banner.status-delivered .order-status-icon {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+  .order-status-banner.status-delivered .order-status-title {
+    color: #14532d;
+  }
+  .order-status-banner.status-delivered .order-status-desc {
+    color: #15803d;
+  }
+
+  .order-status-banner.status-cancelled {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+  }
+  .order-status-banner.status-cancelled .order-status-icon {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+  .order-status-banner.status-cancelled .order-status-title {
+    color: #991b1b;
+  }
+  .order-status-banner.status-cancelled .order-status-desc {
+    color: #b91c1c;
+  }
+
+  .order-status-icon {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: #dcfce7;
-    color: #16a34a;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
-  .order-confirmed-title {
+  .order-status-title {
     font-size: 1.15rem;
     font-weight: 800;
-    color: #14532d;
     margin: 0 0 0.15rem;
   }
-  .order-confirmed-desc {
+  .order-status-desc {
     font-size: 0.88rem;
-    color: #15803d;
     margin: 0;
+  }
+
+  /* ─── Order Progress Timeline (Screen Only) ─── */
+  .order-timeline-card {
+    background: #ffffff;
+    border: 1px solid var(--ss-border);
+    border-radius: 14px;
+    padding: 1.35rem 1.5rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 2px 10px rgba(23, 58, 105, 0.04);
+  }
+  .order-timeline-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .order-timeline-title {
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .timeline-track {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    position: relative;
+    gap: 0.5rem;
+  }
+  .timeline-track::before {
+    content: '';
+    position: absolute;
+    top: 17px;
+    left: 40px;
+    right: 40px;
+    height: 3px;
+    background: #e2e8f0;
+    z-index: 1;
+  }
+  .timeline-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    flex: 1;
+  }
+  .timeline-node {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+  }
+  .timeline-step.is-complete .timeline-node {
+    background: #10b981;
+    border-color: #10b981;
+    color: #ffffff;
+  }
+  .timeline-step.is-active .timeline-node {
+    background: #1667d9;
+    border-color: #1667d9;
+    color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(22, 103, 217, 0.18);
+  }
+  .timeline-step.is-pending .timeline-node {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #cbd5e1;
+  }
+  .timeline-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--ss-ink);
+    line-height: 1.25;
+  }
+  .timeline-step.is-pending .timeline-label {
+    color: #94a3b8;
+    font-weight: 500;
+  }
+  .timeline-status-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    margin-top: 0.25rem;
+    display: inline-block;
+  }
+  .timeline-step.is-complete .timeline-status-badge {
+    background: #dcfce7;
+    color: #15803d;
+  }
+  .timeline-step.is-active .timeline-status-badge {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+  .timeline-step.is-pending .timeline-status-badge {
+    background: #f1f5f9;
+    color: #94a3b8;
+  }
+  @media (max-width: 640px) {
+    .timeline-track {
+      flex-direction: column;
+      gap: 1.25rem;
+      padding-left: 0.75rem;
+    }
+    .timeline-track::before {
+      top: 18px;
+      bottom: 18px;
+      left: 25px;
+      right: auto;
+      width: 3px;
+      height: auto;
+    }
+    .timeline-step {
+      flex-direction: row;
+      gap: 0.85rem;
+      text-align: left;
+      align-items: center;
+    }
+    .timeline-node {
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
   }
 
   /* ─── Printable Invoice Document Sheet ─── */
@@ -216,16 +428,27 @@
     padding: 0.25rem 0.65rem;
     border-radius: 6px;
   }
-  .invoice-status-pill.status-confirmed,
-  .invoice-status-pill.status-successful {
-    background: #e8f7ef;
-    color: #187148;
-    border: 1px solid #c0ebd2;
-  }
+  .invoice-status-pill.status-processing,
   .invoice-status-pill.status-pending {
     background: #fef3c7;
     color: #92400e;
     border: 1px solid #fde68a;
+  }
+  .invoice-status-pill.status-confirmed {
+    background: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+  }
+  .invoice-status-pill.status-shipped {
+    background: #ede9fe;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+  }
+  .invoice-status-pill.status-delivered,
+  .invoice-status-pill.status-successful {
+    background: #e8f7ef;
+    color: #187148;
+    border: 1px solid #c0ebd2;
   }
   .invoice-status-pill.status-cancelled {
     background: #fee2e2;
@@ -478,19 +701,135 @@
       </div>
     </div>
 
-    <!-- Order Confirmed Success Banner (Screen Only) -->
-    <div class="order-confirmed-banner no-print" role="status">
-      <div class="order-confirmed-icon" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
-        </svg>
+    <!-- Dynamic Order Status Banner (Screen Only) -->
+    <div class="order-status-banner status-{{ order.order_status|lower }} no-print" role="status">
+      <div class="order-status-icon" aria-hidden="true">
+        {% if order.order_status in ['Processing', 'Pending'] %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+            <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+          </svg>
+        {% elif order.order_status == 'Confirmed' %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+          </svg>
+        {% elif order.order_status == 'Shipped' %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h9A1.5 1.5 0 0 1 12 3.5V5h1.02a1.5 1.5 0 0 1 1.17.563l1.481 1.85a1.5 1.5 0 0 1 .329.938V10.5a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 1 1-4 0H5a2 2 0 1 1-4 0 1 1 0 0 1-1-1zM2.5 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2m9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2"/>
+          </svg>
+        {% elif order.order_status == 'Delivered' %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M10.854 6.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 8.793l2.646-2.647a.5.5 0 0 1 .708 0"/>
+            <path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1"/>
+          </svg>
+        {% elif order.order_status == 'Cancelled' %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0M5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293z"/>
+          </svg>
+        {% else %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2"/>
+          </svg>
+        {% endif %}
       </div>
       <div>
-        <h2 class="order-confirmed-title">Order Confirmed!</h2>
-        <p class="order-confirmed-desc">
-          Thank you for your purchase. Your order <strong>#{{ order.id }}</strong> has been placed successfully and is ready for delivery.
-        </p>
+        {% if order.order_status in ['Processing', 'Pending'] %}
+          <h2 class="order-status-title">Order is being processed</h2>
+          <p class="order-status-desc">Your order has been received and is waiting for confirmation.</p>
+        {% elif order.order_status == 'Confirmed' %}
+          <h2 class="order-status-title">Order confirmed</h2>
+          <p class="order-status-desc">Your order has been confirmed by SkillSwap.</p>
+        {% elif order.order_status == 'Shipped' %}
+          <h2 class="order-status-title">Order shipped</h2>
+          <p class="order-status-desc">Your order is on the way.</p>
+        {% elif order.order_status == 'Delivered' %}
+          <h2 class="order-status-title">Order delivered</h2>
+          <p class="order-status-desc">Your order has been delivered.</p>
+        {% elif order.order_status == 'Cancelled' %}
+          <h2 class="order-status-title">Order cancelled</h2>
+          <p class="order-status-desc">Your order has been cancelled.</p>
+        {% else %}
+          <h2 class="order-status-title">Order Status: {{ order.order_status }}</h2>
+          <p class="order-status-desc">Thank you for your purchase. Your order <strong>#{{ order.id }}</strong> has been placed.</p>
+        {% endif %}
       </div>
+    </div>
+
+    <!-- Order Tracking Timeline (Screen Only) -->
+    <div class="order-timeline-card no-print">
+      <div class="order-timeline-header">
+        <h3 class="order-timeline-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-primary" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M2 2.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5V3a.5.5 0 0 0-.5-.5zM3 3H2v1h1z"/>
+            <path d="M5 4.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 0 1h-8a.5.5 0 0 1-.5-.5m0 4a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 0 1h-8a.5.5 0 0 1-.5-.5m0 4a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 0 1h-8a.5.5 0 0 1-.5-.5"/>
+          </svg>
+          Order Progress Timeline
+        </h3>
+        <span class="small text-muted">Order #{{ order.id }}</span>
+      </div>
+
+      {% if order.order_status == 'Cancelled' %}
+        <div class="d-flex align-items-center gap-3 p-3 rounded-3" style="background: #fef2f2; border: 1px dashed #fca5a5;">
+          <div style="width: 36px; height: 36px; border-radius: 50%; background: #ef4444; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0;">✕</div>
+          <div>
+            <strong class="d-block text-danger">Order Cancelled</strong>
+            <small class="text-muted">This order was cancelled and is no longer being processed or fulfilled.</small>
+          </div>
+        </div>
+      {% else %}
+        <div class="timeline-track">
+          <!-- 1. Order Placed -->
+          <div class="timeline-step is-complete">
+            <div class="timeline-node">✓</div>
+            <span class="timeline-label">Order Placed</span>
+            <span class="timeline-status-badge">Placed</span>
+          </div>
+
+          <!-- 2. Processing -->
+          <div class="timeline-step {% if order.order_status == 'Processing' or order.order_status == 'Pending' %}is-active{% else %}is-complete{% endif %}">
+            <div class="timeline-node">
+              {% if order.order_status == 'Processing' or order.order_status == 'Pending' %}●{% else %}✓{% endif %}
+            </div>
+            <span class="timeline-label">Processing</span>
+            <span class="timeline-status-badge">
+              {% if order.order_status == 'Processing' or order.order_status == 'Pending' %}In Review{% else %}Completed{% endif %}
+            </span>
+          </div>
+
+          <!-- 3. Confirmed -->
+          <div class="timeline-step {% if order.order_status == 'Confirmed' %}is-active{% elif order.order_status in ['Shipped', 'Delivered'] %}is-complete{% else %}is-pending{% endif %}">
+            <div class="timeline-node">
+              {% if order.order_status == 'Confirmed' %}●{% elif order.order_status in ['Shipped', 'Delivered'] %}✓{% else %}○{% endif %}
+            </div>
+            <span class="timeline-label">Confirmed</span>
+            <span class="timeline-status-badge">
+              {% if order.order_status == 'Confirmed' %}Confirmed{% elif order.order_status in ['Shipped', 'Delivered'] %}Done{% else %}Pending{% endif %}
+            </span>
+          </div>
+
+          <!-- 4. Shipped -->
+          <div class="timeline-step {% if order.order_status == 'Shipped' %}is-active{% elif order.order_status == 'Delivered' %}is-complete{% else %}is-pending{% endif %}">
+            <div class="timeline-node">
+              {% if order.order_status == 'Shipped' %}●{% elif order.order_status == 'Delivered' %}✓{% else %}○{% endif %}
+            </div>
+            <span class="timeline-label">Shipped</span>
+            <span class="timeline-status-badge">
+              {% if order.order_status == 'Shipped' %}In Transit{% elif order.order_status == 'Delivered' %}Dispatched{% else %}Upcoming{% endif %}
+            </span>
+          </div>
+
+          <!-- 5. Delivered -->
+          <div class="timeline-step {% if order.order_status == 'Delivered' %}is-complete{% else %}is-pending{% endif %}">
+            <div class="timeline-node">
+              {% if order.order_status == 'Delivered' %}✓{% else %}○{% endif %}
+            </div>
+            <span class="timeline-label">Delivered</span>
+            <span class="timeline-status-badge">
+              {% if order.order_status == 'Delivered' %}Delivered{% else %}Upcoming{% endif %}
+            </span>
+          </div>
+        </div>
+      {% endif %}
     </div>
 
     <!-- ─── OFFICIAL INVOICE SHEET ─── -->
