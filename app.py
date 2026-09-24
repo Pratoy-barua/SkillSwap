@@ -32,15 +32,29 @@ def create_app(config_name=None):
         from flask import g
 
         user = getattr(g, "current_user", None)
-        unread_notifications = []
+        notification_unread_count = 0
+        navbar_notifications = []
         if user:
             try:
                 from models.connection import Notification
 
-                unread_notifications = Notification.query.filter_by(user_id=user.id, is_read=False).order_by(Notification.created_at.desc()).limit(5).all()
+                notification_unread_count = Notification.query.filter_by(user_id=user.id, is_read=False).count()
+                navbar_notifications = (
+                    Notification.query.filter_by(user_id=user.id)
+                    .order_by(Notification.is_read.asc(), Notification.created_at.desc())
+                    .limit(7)
+                    .all()
+                )
             except Exception:
-                unread_notifications = []
-        return {"csrf_token": issue_csrf_token(session), "current_user": user, "unread_notifications": unread_notifications}
+                notification_unread_count = 0
+                navbar_notifications = []
+        return {
+            "csrf_token": issue_csrf_token(session),
+            "current_user": user,
+            "notification_unread_count": notification_unread_count,
+            "unread_notifications": navbar_notifications,
+            "navbar_notifications": navbar_notifications,
+        }
 
     from routes.public import public_bp
     from routes.auth import auth_bp

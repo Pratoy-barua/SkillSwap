@@ -19,7 +19,7 @@
       <a class="dashboard-stat-card" href="{{ url_for('connections.learner_mentors') }}"><span>Active learning</span><strong>{{ relationships }}</strong><small>Current mentor connections</small></a>
       <a class="dashboard-stat-card" href="{{ url_for('connections.learner_requests') }}"><span>Pending requests</span><strong>{{ pending_requests }}</strong><small>Waiting for a response</small></a>
       <a class="dashboard-stat-card" href="{{ url_for('connections.learner_mentors') }}"><span>Completed learning</span><strong>{{ completed_learning }}</strong><small>Finished learning journeys</small></a>
-      <a class="dashboard-stat-card" href="{{ url_for('connections.notifications') }}"><span>Unread notifications</span><strong>{{ unread_notifications|length }}</strong><small>Recent platform updates</small></a>
+      <a class="dashboard-stat-card" href="{{ url_for('connections.notifications') }}"><span>Unread notifications</span><strong id="dashboardUnreadCount">{{ notification_unread_count }}</strong><small>Recent platform updates</small></a>
     </div>
 
     <div class="row g-4">
@@ -28,10 +28,100 @@
           <div class="dashboard-panel-heading"><div><h2>Active learning</h2><p>Stay on track with your current learning plans.</p></div><a href="{{ url_for('connections.learner_mentors') }}">View all</a></div>
           {% for relationship in active_relationships %}
             {% set progress = relationship.progress.percentage if relationship.progress else 0 %}
-            <article class="learning-row">
-              <div class="person-avatar">{{ relationship.mentor.full_name[0]|upper }}</div>
-              <div class="learning-row-main"><strong>{{ relationship.mentor.full_name }}</strong><span>{{ relationship.skill.name }} · {% if relationship.progress %}{{ relationship.progress.completion_status }}{% else %}Plan not added yet{% endif %}</span><div class="dashboard-progress"><i style="width: {{ progress }}%"></i></div><small>{{ progress }}% complete</small></div>
-              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('learning.progress', relationship_id=relationship.id) }}">View details</a>
+            <article class="active-learning-card">
+              <!-- Large circular progress indicator on the LEFT -->
+              <div class="alc-circle-wrapper">
+                <svg class="alc-circle-chart" width="160" height="160" viewBox="0 0 160 160">
+                  <circle class="alc-circle-bg" cx="80" cy="80" r="62" fill="none" stroke="#e6edf6" stroke-width="12" />
+                  <circle 
+                    class="alc-circle-bar" 
+                    cx="80" 
+                    cy="80" 
+                    r="62" 
+                    fill="none" 
+                    stroke="url(#alc-grad-{{ relationship.id }})" 
+                    stroke-width="12" 
+                    stroke-dasharray="389.56" 
+                    stroke-dashoffset="{{ '%.2f'|format(389.56 * (1 - (progress / 100))) }}" 
+                    stroke-linecap="round" 
+                    transform="rotate(-90 80 80)" 
+                  />
+                  <defs>
+                    <linearGradient id="alc-grad-{{ relationship.id }}" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#1667d9" />
+                      <stop offset="100%" stop-color="#38bdf8" />
+                    </linearGradient>
+                  </defs>
+                  <text x="80" y="74" text-anchor="middle" class="alc-circle-pct">{{ progress }}%</text>
+                  <text x="80" y="96" text-anchor="middle" class="alc-circle-lbl">COMPLETED</text>
+                </svg>
+              </div>
+
+              <!-- Clean divider between circular progress and details -->
+              <div class="alc-divider"></div>
+
+              <!-- Mentor information, progress and details on the right -->
+              <div class="alc-content">
+                <!-- Top: Mentor Info & View Details Button -->
+                <div class="alc-header-row">
+                  <div class="alc-mentor-group">
+                    {% if relationship.mentor.profile_photo %}
+                      <img class="alc-avatar" src="{{ url_for('static', filename='uploads/public/' + relationship.mentor.profile_photo) }}" alt="{{ relationship.mentor.full_name }}">
+                    {% else %}
+                      <div class="alc-avatar-fallback">{{ relationship.mentor.full_name[0]|upper }}</div>
+                    {% endif %}
+                    <div class="alc-mentor-info">
+                      <h3 class="alc-mentor-name">{{ relationship.mentor.full_name }}</h3>
+                      <div class="alc-mentor-meta">
+                        {{ relationship.skill.name }} · 
+                        {% if relationship.progress %}
+                          {{ relationship.progress.completion_status }}
+                        {% else %}
+                          {{ relationship.status or 'In Progress' }}
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                  <a class="btn btn-sm btn-outline-primary alc-btn-details" href="{{ url_for('learning.progress', relationship_id=relationship.id) }}">
+                    View details
+                  </a>
+                </div>
+
+                <!-- Middle: Current Milestone Progress -->
+                <div class="alc-milestone-section">
+                  <div class="alc-milestone-header">
+                    <span class="alc-milestone-label">CURRENT MILESTONE PROGRESS</span>
+                    <span class="alc-milestone-count">{{ progress }} of 100%</span>
+                  </div>
+                  <div class="alc-progress-track">
+                    <div class="alc-progress-fill" style="width: {{ progress }}%;"></div>
+                  </div>
+                </div>
+
+                <!-- Bottom: Status & Expected Finish -->
+                <div class="alc-meta-grid">
+                  <div class="alc-meta-item">
+                    <span class="alc-meta-label">Status</span>
+                    <strong class="alc-meta-value">
+                      {% if relationship.progress %}
+                        {{ relationship.progress.completion_status }}
+                      {% else %}
+                        {{ relationship.status or 'In Progress' }}
+                      {% endif %}
+                    </strong>
+                  </div>
+                  <div class="alc-meta-item">
+                    <span class="alc-meta-label">Expected Finish</span>
+                    <strong class="alc-meta-value">
+                      {% if relationship.plan and relationship.plan.expected_completion_date %}
+                        {{ relationship.plan.expected_completion_date.strftime('%b %d, %Y') }}
+                      {% else %}
+                        Not set
+                      {% endif %}
+                    </strong>
+                  </div>
+                </div>
+              </div>
             </article>
           {% else %}
             <div class="dashboard-empty"><strong>No active learning yet.</strong><span>Find a mentor to start a learning connection.</span><a class="btn btn-sm btn-primary" href="{{ url_for('discovery.mentor_search') }}">Find a mentor</a></div>

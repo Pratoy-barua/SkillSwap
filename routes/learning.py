@@ -77,7 +77,8 @@ def mentor_progress(relationship_id):
             db.session.commit()
             flash("Learning progress updated.", "success")
             return redirect(url_for("learning.mentor_progress", relationship_id=relationship.id))
-    return render_template("learning/progress.html", relationship=relationship, progress=progress, mentor_mode=True)
+    recent_activities = Notification.query.filter_by(related_type="relationship", related_id=relationship.id).order_by(Notification.created_at.desc()).limit(6).all()
+    return render_template("learning/progress.html", relationship=relationship, progress=progress, mentor_mode=True, recent_activities=recent_activities)
 
 
 @learning_bp.get("/learning/<int:relationship_id>/progress")
@@ -86,4 +87,5 @@ def progress(relationship_id):
     relationship = LearningRelationship.query.filter(LearningRelationship.id == relationship_id, LearningRelationship.status.in_(["Active", "Completed"])).first_or_404()
     if g.current_user.id not in {relationship.learner_id, relationship.mentor_id}:
         abort(403)
-    return render_template("learning/progress.html", relationship=relationship, progress=relationship.progress, mentor_mode=False)
+    recent_activities = Notification.query.filter_by(related_type="relationship", related_id=relationship.id).order_by(Notification.created_at.desc()).limit(6).all()
+    return render_template("learning/progress.html", relationship=relationship, progress=relationship.progress, mentor_mode=False, recent_activities=recent_activities)

@@ -1,1 +1,761 @@
-{% extends 'base.html' %}{% block title %}Learning Progress · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><div class="d-flex justify-content-between align-items-end mb-4"><div><p class="eyebrow">{{ relationship.skill.name }}</p><h1 class="section-heading h2">Learning progress</h1><p class="section-copy">{{ relationship.learner.full_name }} and {{ relationship.mentor.full_name }}</p></div>{% if mentor_mode %}<a class="btn btn-outline-primary" href="{{ url_for('learning.plan', relationship_id=relationship.id) }}">Edit plan</a>{% endif %}</div><div class="soft-card p-4 mb-4">{% if relationship.plan %}<h2 class="h5 fw-bold">{{ relationship.plan.title }}</h2><p class="text-secondary">{{ relationship.plan.description }}</p><p class="small">{{ relationship.plan.pricing }} · {{ relationship.plan.pricing_type }} · Expected {{ relationship.plan.expected_completion_date or 'Not set' }}</p>{% else %}<p class="text-secondary mb-0">No learning plan has been published yet.</p>{% endif %}</div><div class="soft-card p-4">{% if mentor_mode %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><div class="mb-3"><label class="form-label">Progress</label><select class="form-select" name="percentage"><option value="0" {% if progress and progress.percentage == 0 %}selected{% endif %}>0%</option><option value="25" {% if progress and progress.percentage == 25 %}selected{% endif %}>25%</option><option value="50" {% if progress and progress.percentage == 50 %}selected{% endif %}>50%</option><option value="75" {% if progress and progress.percentage == 75 %}selected{% endif %}>75%</option><option value="100" {% if progress and progress.percentage == 100 %}selected{% endif %}>100%</option></select></div><div class="row g-3"><div class="col-md-6"><label class="form-label">Completed topics</label><textarea class="form-control" name="completed_topics">{{ progress.completed_topics if progress else '' }}</textarea></div><div class="col-md-6"><label class="form-label">Remaining topics</label><textarea class="form-control" name="remaining_topics">{{ progress.remaining_topics if progress else '' }}</textarea></div><div class="col-md-6"><label class="form-label">Current topic</label><input class="form-control" name="current_topic" value="{{ progress.current_topic if progress else '' }}"></div><div class="col-md-6"><label class="form-label">Mentor notes</label><textarea class="form-control" name="mentor_notes">{{ progress.mentor_notes if progress else '' }}</textarea></div></div><button class="btn btn-primary mt-4">Update progress</button></form>{% elif progress %}<div class="progress mb-3" style="height: 24px;"><div class="progress-bar bg-primary" style="width: {{ progress.percentage }}%">{{ progress.percentage }}%</div></div><div class="row g-3"><div class="col-md-6"><span class="text-secondary d-block small">Current topic</span><strong>{{ progress.current_topic or 'Not set' }}</strong></div><div class="col-md-6"><span class="text-secondary d-block small">Status</span><strong>{{ progress.completion_status }}</strong></div><div class="col-md-6"><span class="text-secondary d-block small">Completed topics</span><p>{{ progress.completed_topics or 'Not set' }}</p></div><div class="col-md-6"><span class="text-secondary d-block small">Mentor notes</span><p>{{ progress.mentor_notes or 'No notes yet.' }}</p></div></div>{% else %}<p class="text-secondary mb-0">Your mentor has not entered progress yet.</p>{% endif %}</div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Learning Progress · {{ relationship.skill.name }} · SkillSwap{% endblock %}
+
+{% block content %}
+<section class="section lp-page">
+  <div class="container">
+    <!-- NAVIGATION BREADCRUMB -->
+    <div class="mb-3">
+      {% if current_user.id == relationship.mentor_id %}
+        <a href="{{ url_for('mentor.dashboard') }}" class="lp-nav-back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Back to Mentor Dashboard</span>
+        </a>
+      {% else %}
+        <a href="{{ url_for('learner.dashboard') }}" class="lp-nav-back">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Back to Learner Dashboard</span>
+        </a>
+      {% endif %}
+    </div>
+
+    <!-- FLASH MESSAGES -->
+    {% include 'partials/flash.html' %}
+
+    <!-- HERO HEADER CARD -->
+    <div class="lp-header-card">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+            <span class="lp-skill-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="m4.93 4.93 4.24 4.24"></path>
+                <path d="m14.83 9.17 4.24-4.24"></path>
+                <path d="m14.83 14.83 4.24 4.24"></path>
+                <path d="m9.17 14.83-4.24 4.24"></path>
+              </svg>
+              {{ relationship.skill.name }}
+            </span>
+            <span class="lp-status-pill {% if relationship.status == 'Completed' %}lp-status-completed{% else %}lp-status-active{% endif %}">
+              ● {{ relationship.status }}
+            </span>
+            {% if mentor_mode %}
+              <span class="badge bg-primary text-white px-2 py-1" style="font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase;">
+                Mentor Editing Mode
+              </span>
+            {% endif %}
+          </div>
+          <h1 class="lp-header-title">Learning Progress</h1>
+          <p class="lp-header-sub">
+            Mentorship journey between <strong>{{ relationship.learner.full_name }}</strong> (Learner) and <strong>{{ relationship.mentor.full_name }}</strong> (Mentor)
+          </p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          {% if mentor_mode %}
+            <a href="{{ url_for('learning.progress', relationship_id=relationship.id) }}" class="btn btn-outline-primary btn-sm">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              Learner View
+            </a>
+            <a href="{{ url_for('learning.plan', relationship_id=relationship.id) }}" class="btn btn-outline-secondary btn-sm">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+              Edit Plan
+            </a>
+          {% else %}
+            {% if current_user.id == relationship.mentor_id %}
+              <a href="{{ url_for('learning.mentor_progress', relationship_id=relationship.id) }}" class="btn btn-primary btn-sm">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Update Progress
+              </a>
+            {% endif %}
+            {% if relationship.conversation %}
+              <a href="{{ url_for('connections.chat', conversation_id=relationship.conversation.id) }}" class="btn btn-outline-primary btn-sm">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Chat
+              </a>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 QUICK-STAT METRIC CARDS -->
+    {% set current_pct = progress.percentage if progress else 0 %}
+    <div class="lp-metrics-grid">
+      <!-- Metric 1: Progress Percentage -->
+      <div class="lp-metric-card">
+        <div class="lp-metric-icon lp-icon-blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+        </div>
+        <div class="lp-metric-lbl">Overall Progress</div>
+        <div class="lp-metric-val">{{ current_pct }}%</div>
+        <p class="lp-metric-sub">
+          Status: <strong>{{ progress.completion_status if progress else 'Not Started' }}</strong>
+        </p>
+      </div>
+
+      <!-- Metric 2: Current Topic -->
+      <div class="lp-metric-card">
+        <div class="lp-metric-icon lp-icon-green">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="12 6 12 12 16 14"></polygon>
+          </svg>
+        </div>
+        <div class="lp-metric-lbl">Current Focus</div>
+        <div class="lp-metric-val" style="font-size: 1.15rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ progress.current_topic if progress and progress.current_topic else 'Not assigned' }}">
+          {{ progress.current_topic if progress and progress.current_topic else 'Not assigned' }}
+        </div>
+        <p class="lp-metric-sub">Active learning module</p>
+      </div>
+
+      <!-- Metric 3: Target Completion -->
+      <div class="lp-metric-card">
+        <div class="lp-metric-icon lp-icon-orange">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+        </div>
+        <div class="lp-metric-lbl">Target Date</div>
+        <div class="lp-metric-val" style="font-size: 1.15rem; font-weight: 700;">
+          {{ relationship.plan.expected_completion_date.strftime('%b %d, %Y') if relationship.plan and relationship.plan.expected_completion_date else 'Flexible' }}
+        </div>
+        <p class="lp-metric-sub">
+          Started: {{ relationship.started_at.strftime('%b %d, %Y') if relationship.started_at else 'Active' }}
+        </p>
+      </div>
+
+      <!-- Metric 4: Plan & Cadence -->
+      <div class="lp-metric-card">
+        <div class="lp-metric-icon lp-icon-purple">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+        </div>
+        <div class="lp-metric-lbl">Plan Cadence</div>
+        <div class="lp-metric-val" style="font-size: 1.15rem; font-weight: 700;">
+          ৳{{ '%.2f'|format(relationship.plan.pricing) if relationship.plan else '0.00' }}
+        </div>
+        <p class="lp-metric-sub">
+          {{ relationship.plan.pricing_type if relationship.plan else 'Course-based' }}
+        </p>
+      </div>
+    </div>
+
+    <!-- MAIN TWO-COLUMN LAYOUT -->
+    <div class="row g-4">
+      <!-- LEFT / MAIN COLUMN (8 COLS) -->
+      <div class="col-lg-8">
+
+        <!-- MENTOR EDIT FORM (ONLY VISIBLE IN MENTOR MODE) -->
+        {% if mentor_mode %}
+          <div class="lp-form-card p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-3">
+              <h2 class="h5 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Update Learning Progress
+              </h2>
+              <span class="badge bg-primary text-white">Mentor Control</span>
+            </div>
+
+            <form method="post" id="progressForm">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+              <!-- Percentage Selector with Buttons + Hidden Select -->
+              <div class="mb-4">
+                <label class="form-label fw-bold text-dark mb-1">Progress Percentage</label>
+                <p class="small text-muted mb-2">Select the milestone reached in this learning relationship.</p>
+                <select class="form-select form-select-lg mb-2" name="percentage" id="percentageSelect">
+                  <option value="0" {% if progress and progress.percentage == 0 %}selected{% endif %}>0% - Just Started</option>
+                  <option value="25" {% if progress and progress.percentage == 25 %}selected{% endif %}>25% - Foundations & Basics</option>
+                  <option value="50" {% if progress and progress.percentage == 50 %}selected{% endif %}>50% - Halfway Milestone</option>
+                  <option value="75" {% if progress and progress.percentage == 75 %}selected{% endif %}>75% - Advanced Application</option>
+                  <option value="100" {% if progress and progress.percentage == 100 %}selected{% endif %}>100% - Course Completed</option>
+                </select>
+
+                <div class="lp-percentage-group">
+                  {% for pct in [0, 25, 50, 75, 100] %}
+                    <button type="button" class="lp-pct-btn {% if progress and progress.percentage == pct %}active{% elif not progress and pct == 0 %}active{% endif %}" onclick="selectPercentage({{ pct }})">
+                      {{ pct }}%
+                    </button>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Current Topic Input -->
+              <div class="mb-3">
+                <label class="form-label fw-bold text-dark">Current Topic / Module Focus</label>
+                <input class="form-control" name="current_topic" value="{{ progress.current_topic if progress else '' }}" placeholder="e.g. Core theory, balance techniques, road practice...">
+                <div class="form-text">The specific topic or concept you and the learner are currently working on.</div>
+              </div>
+
+              <!-- 2-Column: Completed Topics & Remaining Topics -->
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold text-dark">Completed Topics</label>
+                  <textarea class="form-control" name="completed_topics" rows="4" placeholder="Enter completed topics (one per line or separated by commas)">{{ progress.completed_topics if progress else '' }}</textarea>
+                  <div class="form-text">Topics successfully mastered and tested.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold text-dark">Remaining Topics</label>
+                  <textarea class="form-control" name="remaining_topics" rows="4" placeholder="Enter upcoming topics (one per line or separated by commas)">{{ progress.remaining_topics if progress else '' }}</textarea>
+                  <div class="form-text">Topics planned for future sessions.</div>
+                </div>
+              </div>
+
+              <!-- Mentor Notes -->
+              <div class="mb-4">
+                <label class="form-label fw-bold text-dark">Mentor Notes & Feedback</label>
+                <textarea class="form-control" name="mentor_notes" rows="4" placeholder="Provide feedback, encouragement, homework, or instructions for the learner...">{{ progress.mentor_notes if progress else '' }}</textarea>
+                <div class="form-text">Visible directly to the learner on their progress dashboard.</div>
+              </div>
+
+              <div class="d-flex align-items-center gap-2">
+                <button type="submit" class="btn btn-primary px-4 py-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                  Save Learning Progress
+                </button>
+                <a href="{{ url_for('learning.progress', relationship_id=relationship.id) }}" class="btn btn-outline-secondary">Cancel</a>
+              </div>
+            </form>
+          </div>
+        {% endif %}
+
+        <!-- LEARNING PLAN & VISUAL PROGRESS OVERVIEW CARD -->
+        <div class="lp-card">
+          <div class="lp-card-header">
+            <h2 class="lp-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                <path d="M2 12h20"></path>
+              </svg>
+              Learning Plan & Overall Completion
+            </h2>
+            {% if relationship.plan %}
+              <span class="badge bg-light text-primary border border-primary-subtle px-3 py-1">
+                {{ relationship.plan.title }}
+              </span>
+            {% endif %}
+          </div>
+
+          <div class="lp-card-body">
+            {% if relationship.plan %}
+              {% if relationship.plan.description %}
+                <p class="text-secondary mb-4" style="line-height: 1.6;">
+                  {{ relationship.plan.description }}
+                </p>
+              {% endif %}
+
+              <!-- CIRCULAR PROGRESS RING & SUMMARY -->
+              {% set pct = progress.percentage if progress else 0 %}
+              {% set stroke_dashoffset = 339.292 * (1 - (pct / 100)) %}
+              <div class="lp-progress-overview">
+                <!-- SVG Progress Meter -->
+                <div class="lp-circle-wrapper">
+                  <svg class="lp-circle-chart" width="136" height="136" viewBox="0 0 136 136">
+                    <circle class="lp-circle-bg" cx="68" cy="68" r="54" fill="none" stroke="#e6edf6" stroke-width="10" />
+                    <circle 
+                      class="lp-circle-meter" 
+                      cx="68" 
+                      cy="68" 
+                      r="54" 
+                      fill="none" 
+                      stroke="url(#lp-gradient-ring)" 
+                      stroke-width="10" 
+                      stroke-dasharray="339.292" 
+                      stroke-dashoffset="{{ '%.2f'|format(stroke_dashoffset) }}" 
+                      stroke-linecap="round" 
+                      transform="rotate(-90 68 68)" 
+                      style="transition: stroke-dashoffset 0.8s ease;"
+                    />
+                    <defs>
+                      <linearGradient id="lp-gradient-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#1667d9" />
+                        <stop offset="100%" stop-color="#38bdf8" />
+                      </linearGradient>
+                    </defs>
+                    <text x="68" y="62" text-anchor="middle" class="lp-circle-text-pct">{{ pct }}%</text>
+                    <text x="68" y="80" text-anchor="middle" class="lp-circle-text-lbl">Completed</text>
+                  </svg>
+                </div>
+
+                <!-- Progress Details -->
+                <div class="lp-progress-detail">
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="text-muted small fw-bold text-uppercase letter-spacing-1">Current Milestone Progress</span>
+                    <span class="fw-bold text-primary">{{ pct }} of 100%</span>
+                  </div>
+
+                  <!-- Bootstrap Progress Bar with striped styling -->
+                  <div class="progress mb-3" style="height: 14px; border-radius: 999px; background-color: #eaf0f8;">
+                    <div 
+                      class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                      role="progressbar" 
+                      style="width: {{ pct }}%; border-radius: 999px;" 
+                      aria-valuenow="{{ pct }}" 
+                      aria-valuemin="0" 
+                      aria-valuemax="100"
+                    ></div>
+                  </div>
+
+                  <div class="row g-2 small text-secondary">
+                    <div class="col-6">
+                      <span class="d-block text-muted">Status</span>
+                      <strong class="text-dark">{{ progress.completion_status if progress else 'Not Started' }}</strong>
+                    </div>
+                    <div class="col-6">
+                      <span class="d-block text-muted">Expected Finish</span>
+                      <strong class="text-dark">{{ relationship.plan.expected_completion_date.strftime('%B %d, %Y') if relationship.plan.expected_completion_date else 'Flexible schedule' }}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5-STEP ROADMAP MILESTONES (0, 25, 50, 75, 100) -->
+              <div class="lp-milestone-track">
+                <div class="lp-milestone-progress-fill" style="width: calc({{ pct }}% * 0.88);"></div>
+
+                <!-- Step 0% -->
+                <div class="lp-milestone-node {% if pct >= 0 %}completed{% endif %}">
+                  <div class="lp-milestone-dot">
+                    {% if pct > 0 %}✓{% else %}0{% endif %}
+                  </div>
+                  <span class="lp-milestone-label">0%<br>Start</span>
+                </div>
+
+                <!-- Step 25% -->
+                <div class="lp-milestone-node {% if pct > 25 %}completed{% elif pct == 25 %}active{% endif %}">
+                  <div class="lp-milestone-dot">
+                    {% if pct > 25 %}✓{% elif pct == 25 %}●{% else %}25{% endif %}
+                  </div>
+                  <span class="lp-milestone-label">25%<br>Basics</span>
+                </div>
+
+                <!-- Step 50% -->
+                <div class="lp-milestone-node {% if pct > 50 %}completed{% elif pct == 50 %}active{% endif %}">
+                  <div class="lp-milestone-dot">
+                    {% if pct > 50 %}✓{% elif pct == 50 %}●{% else %}50{% endif %}
+                  </div>
+                  <span class="lp-milestone-label">50%<br>Midway</span>
+                </div>
+
+                <!-- Step 75% -->
+                <div class="lp-milestone-node {% if pct > 75 %}completed{% elif pct == 75 %}active{% endif %}">
+                  <div class="lp-milestone-dot">
+                    {% if pct > 75 %}✓{% elif pct == 75 %}●{% else %}75{% endif %}
+                  </div>
+                  <span class="lp-milestone-label">75%<br>Advanced</span>
+                </div>
+
+                <!-- Step 100% -->
+                <div class="lp-milestone-node {% if pct == 100 %}completed{% endif %}">
+                  <div class="lp-milestone-dot">
+                    {% if pct == 100 %}✓{% else %}100{% endif %}
+                  </div>
+                  <span class="lp-milestone-label">100%<br>Mastery</span>
+                </div>
+              </div>
+
+            {% else %}
+              <div class="text-center py-4">
+                <div class="mb-3 text-muted">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                  </svg>
+                </div>
+                <h3 class="h5 fw-bold text-dark">No Learning Plan Published Yet</h3>
+                <p class="text-secondary small mb-3">Your mentor will formulate a personalized curriculum and timeline for this skill.</p>
+                {% if mentor_mode %}
+                  <a href="{{ url_for('learning.plan', relationship_id=relationship.id) }}" class="btn btn-primary btn-sm">
+                    Create Learning Plan Now
+                  </a>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- TOPICS & CURRICULUM ROADMAP CARD -->
+        <div class="lp-card">
+          <div class="lp-card-header">
+            <h2 class="lp-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              Curriculum Topics Breakdown
+            </h2>
+          </div>
+
+          <div class="lp-card-body">
+            <div class="lp-topics-container">
+
+              <!-- CURRENT ACTIVE TOPIC -->
+              <div>
+                <span class="text-muted small fw-bold text-uppercase d-block mb-2 letter-spacing-1">Current Active Topic</span>
+                {% if progress and progress.current_topic %}
+                  <div class="lp-topic-active-box">
+                    <div class="lp-pulse-dot" title="Active topic"></div>
+                    <div class="flex-grow-1">
+                      <div class="fw-bold text-dark fs-6">{{ progress.current_topic }}</div>
+                      <div class="small text-primary">In progress right now with mentor</div>
+                    </div>
+                  </div>
+                {% else %}
+                  <div class="p-3 bg-light rounded text-secondary small">
+                    No active topic is currently designated.
+                  </div>
+                {% endif %}
+              </div>
+
+              <!-- COMPLETED TOPICS -->
+              <div>
+                <span class="text-muted small fw-bold text-uppercase d-block mb-2 letter-spacing-1">Completed Topics</span>
+                {% if progress and progress.completed_topics %}
+                  <div class="lp-topic-list">
+                    {% for line in progress.completed_topics.splitlines() %}
+                      {% if line.strip() %}
+                        <div class="lp-topic-item completed">
+                          <span class="lp-topic-check">✓</span>
+                          <span class="lp-topic-text">{{ line.strip().lstrip('-*• ') }}</span>
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <div class="p-3 bg-light rounded text-secondary small">
+                    No completed topics recorded yet.
+                  </div>
+                {% endif %}
+              </div>
+
+              <!-- REMAINING / UPCOMING TOPICS -->
+              <div>
+                <span class="text-muted small fw-bold text-uppercase d-block mb-2 letter-spacing-1">Remaining & Upcoming Topics</span>
+                {% if progress and progress.remaining_topics %}
+                  <div class="lp-topic-list">
+                    {% for line in progress.remaining_topics.splitlines() %}
+                      {% if line.strip() %}
+                        <div class="lp-topic-item pending">
+                          <span class="lp-topic-bullet">○</span>
+                          <span class="lp-topic-text">{{ line.strip().lstrip('-*• ') }}</span>
+                        </div>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <div class="p-3 bg-light rounded text-secondary small">
+                    No remaining topics listed.
+                  </div>
+                {% endif %}
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- MENTOR NOTES & FEEDBACK CARD -->
+        <div class="lp-card">
+          <div class="lp-card-header">
+            <h2 class="lp-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              </svg>
+              Mentor Notes & Session Feedback
+            </h2>
+            {% if progress and progress.updated_at %}
+              <span class="text-muted small">Updated {{ progress.updated_at.strftime('%b %d, %Y') }}</span>
+            {% endif %}
+          </div>
+
+          <div class="lp-card-body">
+            {% if progress and progress.mentor_notes %}
+              <div class="lp-notes-box">
+                <div class="lp-notes-quote-icon">“</div>
+                <div class="lp-notes-text">{{ progress.mentor_notes }}</div>
+                <div class="lp-notes-author">
+                  {% if relationship.mentor.profile_photo %}
+                    <img src="{{ url_for('static', filename='uploads/public/' + relationship.mentor.profile_photo) }}" alt="{{ relationship.mentor.full_name }}" class="rounded-circle" style="width: 24px; height: 24px; object-fit: cover;">
+                  {% else %}
+                    <span class="badge bg-primary rounded-circle" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem;">{{ relationship.mentor.full_name[0] }}</span>
+                  {% endif %}
+                  <span>Feedback from <strong>{{ relationship.mentor.full_name }}</strong></span>
+                  {% if progress.updated_at %}
+                    <span class="text-muted ms-auto">Recorded {{ progress.updated_at.strftime('%b %d, %Y · %I:%M %p') }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% else %}
+              <div class="p-3 bg-light rounded text-secondary small">
+                No mentor feedback notes have been recorded for this phase yet.
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- RECENT ACTIVITY & MILESTONES TIMELINE -->
+        <div class="lp-card">
+          <div class="lp-card-header">
+            <h2 class="lp-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 14 14"></polyline>
+              </svg>
+              Recent Activity & Updates
+            </h2>
+          </div>
+
+          <div class="lp-card-body">
+            {% if recent_activities and recent_activities|length > 0 %}
+              <div class="lp-timeline">
+                {% for item in recent_activities %}
+                  <div class="lp-timeline-item">
+                    <div class="lp-timeline-node"></div>
+                    <div class="lp-timeline-title">{{ item.title }}</div>
+                    <div class="lp-timeline-desc">{{ item.message }}</div>
+                    <div class="lp-timeline-time">{{ item.created_at.strftime('%B %d, %Y · %I:%M %p') }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="lp-timeline">
+                <div class="lp-timeline-item">
+                  <div class="lp-timeline-node"></div>
+                  <div class="lp-timeline-title">Learning Relationship Active</div>
+                  <div class="lp-timeline-desc">Mentor {{ relationship.mentor.full_name }} and learner {{ relationship.learner.full_name }} started learning {{ relationship.skill.name }}.</div>
+                  <div class="lp-timeline-time">{{ relationship.started_at.strftime('%B %d, %Y') }}</div>
+                </div>
+                {% if relationship.plan %}
+                  <div class="lp-timeline-item">
+                    <div class="lp-timeline-node"></div>
+                    <div class="lp-timeline-title">Learning Plan Established</div>
+                    <div class="lp-timeline-desc">Plan "{{ relationship.plan.title }}" created with target date {{ relationship.plan.expected_completion_date or 'Flexible' }}.</div>
+                    <div class="lp-timeline-time">{{ relationship.plan.updated_at.strftime('%B %d, %Y') }}</div>
+                  </div>
+                {% endif %}
+                {% if progress %}
+                  <div class="lp-timeline-item">
+                    <div class="lp-timeline-node"></div>
+                    <div class="lp-timeline-title">Progress Updated to {{ progress.percentage }}%</div>
+                    <div class="lp-timeline-desc">Status: {{ progress.completion_status }}. Current topic: {{ progress.current_topic or 'General' }}.</div>
+                    <div class="lp-timeline-time">{{ progress.updated_at.strftime('%B %d, %Y') }}</div>
+                  </div>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT / SIDEBAR COLUMN (4 COLS) -->
+      <div class="col-lg-4">
+
+        <!-- MENTOR PROFILE CARD -->
+        <div class="lp-card">
+          <div class="lp-user-card">
+            {% if relationship.mentor.profile_photo %}
+              <img class="lp-avatar-lg" src="{{ url_for('static', filename='uploads/public/' + relationship.mentor.profile_photo) }}" alt="{{ relationship.mentor.full_name }}">
+            {% else %}
+              <div class="lp-avatar-fallback-lg">{{ relationship.mentor.full_name[0] }}</div>
+            {% endif %}
+
+            <h3 class="lp-user-name">{{ relationship.mentor.full_name }}</h3>
+            <div class="lp-user-role">
+              {{ relationship.mentor.mentor_profile.occupation if relationship.mentor.mentor_profile and relationship.mentor.mentor_profile.occupation else 'Verified Mentor' }}
+            </div>
+
+            <div class="lp-user-meta">
+              {% if relationship.mentor.mentor_profile and relationship.mentor.mentor_profile.rating %}
+                <span class="badge bg-warning-subtle text-dark border border-warning-subtle">
+                  ★ {{ '%.1f'|format(relationship.mentor.mentor_profile.rating|float) }}
+                </span>
+              {% endif %}
+              <span class="badge bg-light text-secondary border">
+                {{ relationship.skill.name }}
+              </span>
+              {% if relationship.mentor.mentor_profile and relationship.mentor.mentor_profile.experience %}
+                <span class="badge bg-light text-secondary border">
+                  {{ relationship.mentor.mentor_profile.experience }}
+                </span>
+              {% endif %}
+            </div>
+
+            {% if relationship.conversation %}
+              <a href="{{ url_for('connections.chat', conversation_id=relationship.conversation.id) }}" class="btn btn-primary w-100 mb-2">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Message Mentor
+              </a>
+            {% endif %}
+            <a href="{{ url_for('discovery.mentor_profile', user_id=relationship.mentor.id) }}" class="btn btn-outline-secondary w-100 btn-sm">
+              View Full Profile
+            </a>
+          </div>
+        </div>
+
+        <!-- LEARNER CARD -->
+        <div class="lp-card">
+          <div class="lp-card-header">
+            <h3 class="lp-card-title fs-6">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Learner Details
+            </h3>
+          </div>
+          <div class="lp-card-body p-3">
+            <div class="d-flex align-items-center gap-3">
+              {% if relationship.learner.profile_photo %}
+                <img src="{{ url_for('static', filename='uploads/public/' + relationship.learner.profile_photo) }}" alt="{{ relationship.learner.full_name }}" class="rounded-circle object-fit-cover" style="width: 48px; height: 48px;">
+              {% else %}
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 48px; height: 48px; font-size: 1.2rem;">
+                  {{ relationship.learner.full_name[0] }}
+                </div>
+              {% endif %}
+              <div>
+                <div class="fw-bold text-dark">{{ relationship.learner.full_name }}</div>
+                <div class="small text-muted">
+                  {{ relationship.learner.location.city if relationship.learner.location else 'Community Learner' }}
+                </div>
+              </div>
+            </div>
+
+            {% if current_user.id == relationship.mentor_id and relationship.conversation %}
+              <a href="{{ url_for('connections.chat', conversation_id=relationship.conversation.id) }}" class="btn btn-outline-primary btn-sm w-100 mt-3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Message Learner
+              </a>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- LEARNING SPECIFICATIONS CARD -->
+        <div class="lp-card">
+          <div class="lp-card-header">
+            <h3 class="lp-card-title fs-6">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              Learning Relationship Specs
+            </h3>
+          </div>
+          <div class="lp-card-body p-3">
+            <div class="lp-spec-list">
+              <div class="lp-spec-item">
+                <span class="lp-spec-label">Skill</span>
+                <span class="lp-spec-val text-primary">{{ relationship.skill.name }}</span>
+              </div>
+              <div class="lp-spec-item">
+                <span class="lp-spec-label">Status</span>
+                <span class="badge {% if relationship.status == 'Completed' %}bg-primary-subtle text-primary{% else %}bg-success-subtle text-success{% endif %}">
+                  {{ relationship.status }}
+                </span>
+              </div>
+              <div class="lp-spec-item">
+                <span class="lp-spec-label">Tuition / Rate</span>
+                <span class="lp-spec-val">৳{{ '%.2f'|format(relationship.plan.pricing) if relationship.plan else '0.00' }}</span>
+              </div>
+              <div class="lp-spec-item">
+                <span class="lp-spec-label">Billing Model</span>
+                <span class="lp-spec-val">{{ relationship.plan.pricing_type if relationship.plan else 'Course-based' }}</span>
+              </div>
+              <div class="lp-spec-item">
+                <span class="lp-spec-label">Started On</span>
+                <span class="lp-spec-val">{{ relationship.started_at.strftime('%b %d, %Y') if relationship.started_at else 'Active' }}</span>
+              </div>
+              <div class="lp-spec-item">
+                <span class="lp-spec-label">Target Completion</span>
+                <span class="lp-spec-val">{{ relationship.plan.expected_completion_date.strftime('%b %d, %Y') if relationship.plan and relationship.plan.expected_completion_date else 'Flexible' }}</span>
+              </div>
+              <div class="lp-spec-item">
+                <span class="lp-spec-label">Last Updated</span>
+                <span class="lp-spec-val">{{ (progress.updated_at if progress else relationship.updated_at).strftime('%b %d, %Y') }}</span>
+              </div>
+            </div>
+
+            {% if mentor_mode and relationship.plan %}
+              <a href="{{ url_for('learning.plan', relationship_id=relationship.id) }}" class="btn btn-outline-primary btn-sm w-100 mt-3">
+                Edit Learning Plan
+              </a>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selectPercentage(val) {
+  const sel = document.getElementById('percentageSelect');
+  if (sel) {
+    sel.value = String(val);
+  }
+  document.querySelectorAll('.lp-pct-btn').forEach(btn => {
+    if (btn.innerText.trim() === val + '%') {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const sel = document.getElementById('percentageSelect');
+  if (sel) {
+    sel.addEventListener('change', function() {
+      selectPercentage(this.value);
+    });
+  }
+});
+</script>
+{% endblock %}

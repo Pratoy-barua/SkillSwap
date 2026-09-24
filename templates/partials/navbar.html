@@ -24,20 +24,71 @@
         <li class="nav-item"><a class="nav-link" href="{{ url_for('public.contact') }}">Contact <span class="visually-hidden">(coming soon)</span></a></li>
       </ul>
       <div class="d-flex align-items-lg-center gap-2 nav-actions">
-        {% if current_user and current_user.role.name in ['Learner', 'Mentor'] %}
+        {% if current_user and current_user.role.name in ['Learner', 'Mentor', 'Admin'] %}
           <div class="dropdown">
-            <button class="notification-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+            <button class="notification-trigger" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications" id="notificationBellBtn">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-              {% if unread_notifications %}<span class="notification-count">{{ unread_notifications|length }}</span>{% endif %}
+              {% if notification_unread_count and notification_unread_count > 0 %}
+                <span class="notification-count" id="navNotificationCount">{{ notification_unread_count }}</span>
+              {% endif %}
             </button>
-            <ul class="dropdown-menu dropdown-menu-end p-2 notification-dropdown">
-              {% for item in unread_notifications %}
-                <li><a class="dropdown-item rounded" href="{{ url_for('connections.open_notification', notification_id=item.id) }}"><strong class="d-block">{{ item.title }}</strong><small>{{ item.message|truncate(80) }}</small></a></li>
-              {% else %}
-                <li><span class="dropdown-item-text text-secondary">No unread notifications.</span></li>
-              {% endfor %}
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-primary" href="{{ url_for('connections.notifications') }}">View all notifications</a></li>
+            <ul class="dropdown-menu dropdown-menu-end p-0 notification-dropdown" style="min-width: 320px; max-width: 380px;">
+              <li class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light rounded-top">
+                <span class="fw-bold small text-dark">Notifications</span>
+                <span class="badge rounded-pill bg-primary {% if not notification_unread_count or notification_unread_count == 0 %}d-none{% endif %}" id="dropdownUnreadBadge" style="font-size: 0.68rem;">
+                  {{ notification_unread_count }} unread
+                </span>
+              </li>
+
+              <div class="notification-list-container" style="max-height: 380px; overflow-y: auto;">
+                {% for item in navbar_notifications %}
+                  <li class="notification-item-row {% if not item.is_read %}unread{% else %}read{% endif %} px-3 py-2 border-bottom" data-notification-id="{{ item.id }}">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                      <a class="text-decoration-none flex-grow-1 overflow-hidden" href="{{ url_for('connections.open_notification', notification_id=item.id) }}">
+                        <div class="d-flex align-items-center gap-1 mb-1">
+                          {% if not item.is_read %}
+                            <span class="notification-dot bg-primary"></span>
+                            <strong class="notification-title text-dark small text-truncate d-inline-block" style="max-width: 200px;">{{ item.title }}</strong>
+                          {% else %}
+                            <span class="notification-title text-secondary fw-semibold small text-truncate d-inline-block" style="max-width: 200px;">{{ item.title }}</span>
+                          {% endif %}
+                        </div>
+                        <small class="notification-msg text-secondary d-block text-truncate mb-1" style="max-width: 220px;">{{ item.message }}</small>
+                        <small class="text-muted notification-time" style="font-size: 0.72rem;">{{ item.created_at.strftime('%b %d, %I:%M %p') }}</small>
+                      </a>
+                      {% if not item.is_read %}
+                        <form method="post" action="{{ url_for('connections.mark_notification_read', notification_id=item.id) }}" class="mark-single-read-form m-0" data-id="{{ item.id }}">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                          <input type="hidden" name="next" value="{{ request.full_path or request.path }}">
+                          <button type="submit" class="btn btn-link text-primary text-decoration-none p-0 mark-read-btn" style="font-size: 0.74rem; font-weight: 600; white-space: nowrap;">
+                            Mark as read
+                          </button>
+                        </form>
+                      {% endif %}
+                    </div>
+                  </li>
+                {% else %}
+                  <li class="px-3 py-4 text-center text-muted small" id="noNotificationsMsg">
+                    No notifications yet.
+                  </li>
+                {% endfor %}
+              </div>
+
+              <li class="p-2 d-flex align-items-center justify-content-between gap-2 border-top bg-light rounded-bottom">
+                <form method="post" action="{{ url_for('connections.mark_all_notifications_read') }}" class="mark-all-read-form m-0 {% if not notification_unread_count or notification_unread_count == 0 %}d-none{% endif %}" id="markAllReadForm">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="next" value="{{ request.full_path or request.path }}">
+                  <button type="submit" class="btn btn-link text-decoration-none text-muted p-0 small fw-bold" id="markAllReadBtn" style="font-size: 0.78rem;">
+                    Mark all as read
+                  </button>
+                </form>
+                <span class="small text-muted {% if notification_unread_count and notification_unread_count > 0 %}d-none{% endif %}" id="allReadStatusText" style="font-size: 0.78rem;">
+                  All caught up
+                </span>
+                <a class="text-primary text-decoration-none small fw-bold ms-auto" href="{{ url_for('connections.notifications') }}" style="font-size: 0.78rem;">
+                  View all notifications →
+                </a>
+              </li>
             </ul>
           </div>
         {% endif %}

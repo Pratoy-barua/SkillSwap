@@ -221,6 +221,14 @@ def mark_notification_read(notification_id):
     item = Notification.query.filter_by(id=notification_id, user_id=g.current_user.id).first_or_404()
     item.is_read = True
     db.session.commit()
+
+    unread_count = Notification.query.filter_by(user_id=g.current_user.id, is_read=False).count()
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+        return jsonify({"success": True, "notification_id": notification_id, "unread_count": unread_count})
+
+    next_url = request.form.get("next") or request.referrer
+    if next_url:
+        return redirect(next_url)
     return redirect(url_for("connections.notifications"))
 
 
@@ -229,6 +237,13 @@ def mark_notification_read(notification_id):
 def mark_all_notifications_read():
     Notification.query.filter_by(user_id=g.current_user.id, is_read=False).update({"is_read": True})
     db.session.commit()
+
+    if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+        return jsonify({"success": True, "unread_count": 0})
+
+    next_url = request.form.get("next") or request.referrer
+    if next_url:
+        return redirect(next_url)
     return redirect(url_for("connections.notifications"))
 
 

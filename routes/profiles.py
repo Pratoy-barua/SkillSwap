@@ -47,7 +47,6 @@ def dashboard():
         pending_requests=LearningRequest.query.filter_by(learner_id=user_id, status="Pending").count(),
         relationships=LearningRelationship.query.filter_by(learner_id=user_id, status="Active").count(),
         completed_learning=LearningRelationship.query.filter_by(learner_id=user_id, status="Completed").count(),
-        unread_notifications=Notification.query.filter_by(user_id=user_id, is_read=False).all(),
     )
 
 
@@ -299,7 +298,6 @@ def dashboard():
         relationships=LearningRelationship.query.filter_by(mentor_id=user_id, status="Active").count(),
         completed_learning=LearningRelationship.query.filter_by(mentor_id=user_id, status="Completed").count(),
         total_earnings=sum((item.mentor_earning for item in successful_payments), 0),
-        unread_notifications=Notification.query.filter_by(user_id=user_id, is_read=False).all(),
     )
 
 
