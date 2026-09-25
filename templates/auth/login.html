@@ -5,7 +5,11 @@
   <p class="eyebrow mb-2">Welcome back</p><h1 class="section-heading h2 mb-2">Log in to SkillSwap</h1>
   <p class="section-copy mb-4">Learners and mentors can access their account after admin approval.</p>
   {% include 'partials/flash.html' %}
-  <form method="post" action="{{ url_for('auth.login') }}" novalidate><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <form method="post" action="{{ url_for('auth.login', next=request.args.get('next')) if request.args.get('next') else url_for('auth.login') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if request.args.get('next') %}
+      <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+    {% endif %}
     <div class="mb-3"><label class="form-label" for="email">Email</label><input class="form-control" id="email" name="email" type="email" required autocomplete="email"></div>
     <div class="mb-4"><label class="form-label" for="password">Password</label><input class="form-control" id="password" name="password" type="password" required autocomplete="current-password"></div>
     <button class="btn btn-primary w-100" type="submit">Log in</button>

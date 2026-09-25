@@ -7,13 +7,23 @@
   <div class="container">
     <div class="chat-shell">
       <div class="chat-back-nav">
-        <a class="chat-back-link" href="{{ url_for('connections.chat_list') }}">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-          <span>All conversations</span>
-        </a>
+        {% if current_user.role.name == 'Admin' %}
+          <a class="chat-back-link" href="{{ url_for('admin.relationship_detail', relationship_id=conversation.relationship_id) }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Back to Relationship Details</span>
+          </a>
+        {% else %}
+          <a class="chat-back-link" href="{{ url_for('connections.chat_list') }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>All conversations</span>
+          </a>
+        {% endif %}
       </div>
 
       <div class="chat-card">
@@ -52,24 +62,72 @@
 
         <!-- Message History -->
         <div class="chat-history" id="chatHistory" role="log" aria-live="polite">
+          {% set is_admin = (current_user.role.name == 'Admin' or (current_user.id != conversation.relationship.mentor_id and current_user.id != conversation.relationship.learner_id)) %}
+          {% set rel_learner = conversation.relationship.learner %}
+          {% set rel_mentor = conversation.relationship.mentor %}
           {% for message in conversation.messages %}
-            {% set is_mine = (message.sender_id == current_user.id) %}
-            <div class="chat-msg-row {% if is_mine %}mine{% else %}incoming{% endif %}" data-msg-id="{{ message.id }}">
+            {% if is_admin %}
+              {% set is_mine = (message.sender_id == rel_learner.id) %}
+            {% else %}
+              {% set is_mine = (message.sender_id == current_user.id) %}
+            {% endif %}
+
+            {% set prev_msg = conversation.messages[loop.index0 - 1] if loop.index0 > 0 else None %}
+            {% set is_first_in_group = (not prev_msg or prev_msg.sender_id != message.sender_id) %}
+            {% set next_msg = conversation.messages[loop.index0 + 1] if loop.index0 + 1 < conversation.messages|length else None %}
+            {% set is_last_in_group = (not next_msg or next_msg.sender_id != message.sender_id) %}
+
+            {% set sender = message.sender %}
+            {% set sender_role = sender.role.name if sender and sender.role else ('Learner' if message.sender_id == rel_learner.id else 'Mentor') %}
+            {% set role_class = 'mentor-role' if sender_role == 'Mentor' else 'learner-role' %}
+
+            {% if is_first_in_group %}
+              <div class="chat-group-header {% if is_mine %}mine{% else %}incoming{% endif %}">
+                {% if is_mine %}
+                  <span class="chat-sender-name">{{ sender.full_name }}</span>
+                  <span class="chat-sender-role-pill {{ role_class }}">{{ sender_role }}</span>
+                {% else %}
+                  <span class="chat-sender-role-pill {{ role_class }}">{{ sender_role }}</span>
+                  <span class="chat-sender-name">{{ sender.full_name }}</span>
+                {% endif %}
+              </div>
+            {% endif %}
+
+            <div class="chat-msg-row {% if is_mine %}mine{% else %}incoming{% endif %} {% if is_last_in_group %}group-last{% else %}grouped-next{% endif %}" data-msg-id="{{ message.id }}">
               {% if not is_mine %}
                 <div class="chat-msg-avatar-col">
-                  {% if other_user.profile_photo %}
-                    <img class="chat-avatar-sm" src="{{ url_for('static', filename='uploads/public/' + other_user.profile_photo) }}" alt="{{ other_user.full_name }}">
+                  {% if is_first_in_group %}
+                    {% if sender.profile_photo %}
+                      <img class="chat-avatar-sm" src="{{ url_for('static', filename='uploads/public/' + sender.profile_photo) }}" alt="{{ sender.full_name }}">
+                    {% else %}
+                      <div class="chat-avatar-sm avatar-fallback">{{ (sender.full_name[0] if sender else 'U')|upper }}</div>
+                    {% endif %}
                   {% else %}
-                    <div class="chat-avatar-sm avatar-fallback">{{ other_user.full_name[0] }}</div>
+                    <div class="chat-avatar-spacer"></div>
                   {% endif %}
                 </div>
               {% endif %}
+
               <div class="chat-msg-bubble-col">
                 <div class="chat-bubble {% if is_mine %}mine{% else %}incoming{% endif %}">
                   <div class="chat-bubble-text">{{ message.body }}</div>
                   <time class="chat-bubble-time">{{ message.created_at.strftime('%b %d, %I:%M %p') }}</time>
                 </div>
               </div>
+
+              {% if is_mine %}
+                <div class="chat-msg-avatar-col">
+                  {% if is_first_in_group %}
+                    {% if sender.profile_photo %}
+                      <img class="chat-avatar-sm" src="{{ url_for('static', filename='uploads/public/' + sender.profile_photo) }}" alt="{{ sender.full_name }}">
+                    {% else %}
+                      <div class="chat-avatar-sm avatar-fallback">{{ (sender.full_name[0] if sender else 'U')|upper }}</div>
+                    {% endif %}
+                  {% else %}
+                    <div class="chat-avatar-spacer"></div>
+                  {% endif %}
+                </div>
+              {% endif %}
             </div>
           {% else %}
             <div class="chat-empty-state" id="chatEmptyState">
@@ -85,29 +143,36 @@
         </div>
 
         <!-- Composer -->
-        <div class="chat-composer-wrap">
-          <form method="post" id="chatForm" class="chat-composer-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <div class="chat-input-box">
-              <input type="text"
-                     class="chat-input-field"
-                     id="messageBodyInput"
-                     name="body"
-                     maxlength="4000"
-                     required
-                     placeholder="Write a message..."
-                     autocomplete="off"
-                     autofocus>
-              <button type="submit" class="chat-submit-btn" id="sendBtn" title="Send message" aria-label="Send message">
-                <span class="d-none d-sm-inline">Send</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-              </button>
-            </div>
-          </form>
-        </div>
+        {% if current_user.role.name == 'Admin' %}
+          <div class="chat-composer-wrap p-3 text-center text-muted small bg-light border-top">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            Admin read-only monitoring mode. Messages cannot be sent from an administrator account.
+          </div>
+        {% else %}
+          <div class="chat-composer-wrap">
+            <form method="post" id="chatForm" class="chat-composer-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <div class="chat-input-box">
+                <input type="text"
+                       class="chat-input-field"
+                       id="messageBodyInput"
+                       name="body"
+                       maxlength="4000"
+                       required
+                       placeholder="Write a message..."
+                       autocomplete="off"
+                       autofocus>
+                <button type="submit" class="chat-submit-btn" id="sendBtn" title="Send message" aria-label="Send message">
+                  <span class="d-none d-sm-inline">Send</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                </button>
+              </div>
+            </form>
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -117,11 +182,23 @@
 {% block scripts %}
 <script>
   (function() {
+    {% set is_admin = (current_user.role.name == 'Admin' or (current_user.id != conversation.relationship.mentor_id and current_user.id != conversation.relationship.learner_id)) %}
+    {% set rel_learner = conversation.relationship.learner %}
+    {% set rel_mentor = conversation.relationship.mentor %}
     {% set other_user = conversation.relationship.mentor if conversation.relationship.learner_id == current_user.id else conversation.relationship.learner %}
+
     const historyEl = document.getElementById('chatHistory');
-    const otherUserAvatarHtml = `{% if other_user.profile_photo %}<img class="chat-avatar-sm" src="{{ url_for('static', filename='uploads/public/' + other_user.profile_photo) }}" alt="{{ other_user.full_name|e }}">{% else %}<div class="chat-avatar-sm avatar-fallback">{{ other_user.full_name[0]|e }}</div>{% endif %}`;
+    const uploadBase = {{ url_for('static', filename='uploads/public/')|tojson }};
     const otherUserName = {{ other_user.full_name|tojson }};
-    
+    const currentUserId = {{ current_user.id }};
+    const isAdmin = {{ is_admin|tojson }};
+    const learnerId = {{ rel_learner.id }};
+    const mentorId = {{ rel_mentor.id }};
+    const learnerName = {{ rel_learner.full_name|tojson }};
+    const mentorName = {{ rel_mentor.full_name|tojson }};
+    const learnerPhoto = {{ (rel_learner.profile_photo or '')|tojson }};
+    const mentorPhoto = {{ (rel_mentor.profile_photo or '')|tojson }};
+
     let lastRenderedCount = {{ conversation.messages|length }};
     let lastMessageId = {% if conversation.messages %}{{ conversation.messages[-1].id }}{% else %}null{% endif %};
 
@@ -138,9 +215,93 @@
     }
 
     function escapeHtml(text) {
+      if (!text) return '';
       const d = document.createElement('div');
       d.textContent = text;
       return d.innerHTML;
+    }
+
+    function renderAvatarHtml(photo, name) {
+      const safeName = escapeHtml(name || 'User');
+      if (photo) {
+        return `<img class="chat-avatar-sm" src="${uploadBase}${encodeURIComponent(photo)}" alt="${safeName}">`;
+      }
+      const initial = escapeHtml((name || 'U').charAt(0).toUpperCase());
+      return `<div class="chat-avatar-sm avatar-fallback">${initial}</div>`;
+    }
+
+    function renderMessageRow(m, index, allMsgs) {
+      const isMine = isAdmin ? (m.sender_id === learnerId) : (m.sender_id === currentUserId);
+      const prevMsg = index > 0 ? allMsgs[index - 1] : null;
+      const isFirstInGroup = !prevMsg || prevMsg.sender_id !== m.sender_id;
+      const nextMsg = index < allMsgs.length - 1 ? allMsgs[index + 1] : null;
+      const isLastInGroup = !nextMsg || nextMsg.sender_id !== m.sender_id;
+
+      const isLearner = (m.sender_id === learnerId);
+      const senderRole = m.sender_role || (isLearner ? 'Learner' : 'Mentor');
+      const roleClass = senderRole === 'Mentor' ? 'mentor-role' : 'learner-role';
+      const senderName = m.sender || (isLearner ? learnerName : mentorName);
+      const senderPhoto = m.sender_photo || (isLearner ? learnerPhoto : mentorPhoto);
+
+      const time = formatTime(m.created_at);
+      const safeBody = escapeHtml(m.body);
+      const safeName = escapeHtml(senderName);
+      const safeRole = escapeHtml(senderRole);
+
+      const avatarHtml = isFirstInGroup ? renderAvatarHtml(senderPhoto, senderName) : '<div class="chat-avatar-spacer"></div>';
+
+      let headerHtml = '';
+      if (isFirstInGroup) {
+        if (isMine) {
+          headerHtml = `
+            <div class="chat-group-header mine">
+              <span class="chat-sender-name">${safeName}</span>
+              <span class="chat-sender-role-pill ${roleClass}">${safeRole}</span>
+            </div>
+          `;
+        } else {
+          headerHtml = `
+            <div class="chat-group-header incoming">
+              <span class="chat-sender-role-pill ${roleClass}">${safeRole}</span>
+              <span class="chat-sender-name">${safeName}</span>
+            </div>
+          `;
+        }
+      }
+
+      const rowClass = `chat-msg-row ${isMine ? 'mine' : 'incoming'} ${isLastInGroup ? 'group-last' : 'grouped-next'}`;
+
+      if (isMine) {
+        return `
+          ${headerHtml}
+          <div class="${rowClass}" data-msg-id="${m.id}">
+            <div class="chat-msg-bubble-col">
+              <div class="chat-bubble mine">
+                <div class="chat-bubble-text">${safeBody}</div>
+                <time class="chat-bubble-time">${time}</time>
+              </div>
+            </div>
+            <div class="chat-msg-avatar-col">
+              ${avatarHtml}
+            </div>
+          </div>
+        `;
+      } else {
+        return `
+          ${headerHtml}
+          <div class="${rowClass}" data-msg-id="${m.id}">
+            <div class="chat-msg-avatar-col">
+              ${avatarHtml}
+            </div>
+            <div class="chat-msg-bubble-col">
+              <div class="chat-bubble incoming">
+                <div class="chat-bubble-text">${safeBody}</div>
+                <time class="chat-bubble-time">${time}</time>
+              </div>
+            </div>
+          </div>
+        `;
+      }
     }
 
     function scrollToBottom() {
@@ -177,36 +338,7 @@
               </div>
             `;
           } else {
-            historyEl.innerHTML = msgs.map(m => {
-              const time = formatTime(m.created_at);
-              const safeBody = escapeHtml(m.body);
-              if (m.mine) {
-                return `
-                  <div class="chat-msg-row mine" data-msg-id="${m.id}">
-                    <div class="chat-msg-bubble-col">
-                      <div class="chat-bubble mine">
-                        <div class="chat-bubble-text">${safeBody}</div>
-                        <time class="chat-bubble-time">${time}</time>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              } else {
-                return `
-                  <div class="chat-msg-row incoming" data-msg-id="${m.id}">
-                    <div class="chat-msg-avatar-col">
-                      ${otherUserAvatarHtml}
-                    </div>
-                    <div class="chat-msg-bubble-col">
-                      <div class="chat-bubble incoming">
-                        <div class="chat-bubble-text">${safeBody}</div>
-                        <time class="chat-bubble-time">${time}</time>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }
-            }).join('');
+            historyEl.innerHTML = msgs.map((m, idx) => renderMessageRow(m, idx, msgs)).join('');
           }
 
           lastRenderedCount = newCount;

@@ -127,8 +127,9 @@ def mentor_learners():
 def authorized_conversation(conversation_id):
     conversation = Conversation.query.get_or_404(conversation_id)
     relationship = conversation.relationship
-    if relationship.status != "Active" or g.current_user.id not in {relationship.learner_id, relationship.mentor_id}:
-        abort(403)
+    if g.current_user.role.name != "Admin":
+        if relationship.status != "Active" or g.current_user.id not in {relationship.learner_id, relationship.mentor_id}:
+            abort(403)
     return conversation
 
 
@@ -140,10 +141,12 @@ def chat_list():
 
 
 @connection_bp.route("/chat/<int:conversation_id>", methods=["GET", "POST"])
-@role_required("Learner", "Mentor")
+@role_required("Learner", "Mentor", "Admin")
 def chat(conversation_id):
     conversation = authorized_conversation(conversation_id)
     if request.method == "POST":
+        if g.current_user.role.name == "Admin":
+            abort(403)
         body = request.form.get("body", "").strip()[:4000]
         if not body:
             flash("Message cannot be empty.", "danger")
@@ -161,14 +164,28 @@ def chat(conversation_id):
 
 
 @connection_bp.get("/chat/<int:conversation_id>/messages")
-@role_required("Learner", "Mentor")
+@role_required("Learner", "Mentor", "Admin")
 def chat_messages(conversation_id):
     conversation = authorized_conversation(conversation_id)
     for message in conversation.messages:
         if message.sender_id != g.current_user.id:
             message.is_read = True
     db.session.commit()
-    return jsonify({"messages": [{"id": item.id, "body": item.body, "sender": item.sender.full_name, "mine": item.sender_id == g.current_user.id, "created_at": item.created_at.isoformat()} for item in conversation.messages]})
+    return jsonify({
+        "messages": [
+            {
+                "id": item.id,
+                "body": item.body,
+                "sender": item.sender.full_name,
+                "sender_id": item.sender_id,
+                "sender_role": item.sender.role.name if item.sender and item.sender.role else ("Learner" if item.sender_id == conversation.relationship.learner_id else "Mentor"),
+                "sender_photo": item.sender.profile_photo if item.sender else None,
+                "mine": item.sender_id == g.current_user.id,
+                "created_at": item.created_at.isoformat()
+            }
+            for item in conversation.messages
+        ]
+    })
 
 
 @connection_bp.get("/chat/with/<int:user_id>")

@@ -7,10 +7,11 @@ from flask import Blueprint, abort, flash, g, redirect, render_template, request
 
 from decorators.auth import role_required
 from extensions import db
+from models.auth import Role, User
 from models.connection import LearningRelationship
-from models.learning import LearningPlan, Payment, PlatformSetting, Subscription
+from models.learning import LearningPlan, MentorProfileAccess, Payment, PlatformSetting, Subscription
 from services.notifications import notify
-from services.payments import DemoPaymentProvider, split_amount
+from services.payments import DemoPaymentProvider, get_mentor_unlock_fee, split_amount
 from services.revenue import record_revenue
 
 
@@ -109,3 +110,91 @@ def subscription():
         flash(f"Demo subscription is {status.lower()}.", "success" if status == "Successful" else "warning")
         return redirect(url_for("payments.subscription"))
     return render_template("payments/subscription.html", subscription=current)
+
+
+@payment_bp.route("/payments/mentor/<int:mentor_id>/unlock-details", methods=["GET", "POST"])
+@payment_bp.route("/mentor/<int:mentor_id>/unlock-details", methods=["GET", "POST"])
+@role_required("Learner")
+def unlock_mentor_details(mentor_id):
+    mentor = (
+        User.query.join(User.role)
+        .filter(User.id == mentor_id, Role.name == "Mentor", User.account_status == "Approved")
+        .first_or_404()
+    )
+
+    # Reject unlock attempt if mentor has no professional contact details
+    raw_profile = mentor.mentor_profile
+    has_any_contact = bool(
+        raw_profile and (
+            (raw_profile.linkedin_url and raw_profile.linkedin_url.strip())
+            or (raw_profile.github_url and raw_profile.github_url.strip())
+            or (raw_profile.website_url and raw_profile.website_url.strip())
+        )
+    )
+    if not has_any_contact:
+        flash(f"{mentor.full_name} does not have any professional contact details to unlock.", "warning")
+        return redirect(url_for("discovery.mentor_profile", user_id=mentor.id))
+
+    # Check if already unlocked
+    existing = MentorProfileAccess.query.filter_by(
+        learner_id=g.current_user.id, mentor_id=mentor.id
+    ).first()
+    if existing:
+        flash(f"You have already unlocked {mentor.full_name}'s contact details.", "info")
+        return redirect(url_for("discovery.mentor_profile", user_id=mentor.id))
+
+    fee = get_mentor_unlock_fee(db.session)
+
+    if request.method == "POST":
+        outcome = request.form.get("demo_outcome", "success")
+        result = DemoPaymentProvider().charge(fee, outcome if outcome in {"success", "failure"} else "failure")
+
+        payment = Payment(
+            learner_id=g.current_user.id,
+            mentor_id=mentor.id,
+            relationship_id=None,
+            amount=fee,
+            payment_type="Profile Unlock",
+            reference_id=result["reference_id"],
+            status=result["status"],
+            payment_date=date.today() if result["status"] == "Successful" else None,
+            platform_commission=fee,
+            mentor_earning=0,
+        )
+        db.session.add(payment)
+        db.session.flush()
+
+        if result["status"] == "Successful":
+            access = MentorProfileAccess(
+                learner_id=g.current_user.id,
+                mentor_id=mentor.id,
+                payment_id=payment.id,
+            )
+            db.session.add(access)
+            record_revenue("Profile Unlock", payment.id, payment.amount, payment.platform_commission, 0)
+            notify(
+                g.current_user.id,
+                "profile_unlocked",
+                "Profile Details Unlocked",
+                f"You have unlocked {mentor.full_name}'s professional contact details.",
+                "payment",
+                payment.id,
+            )
+            db.session.commit()
+            flash(f"Successfully unlocked {mentor.full_name}'s contact details!", "success")
+            return redirect(url_for("discovery.mentor_profile", user_id=mentor.id))
+        else:
+            notify(
+                g.current_user.id,
+                "payment_failed",
+                "Payment Failed",
+                f"Your payment of ৳{payment.amount} to unlock {mentor.full_name}'s details was unsuccessful.",
+                "payment",
+                payment.id,
+            )
+            db.session.commit()
+            flash("Demo payment was marked as failed. Please try again.", "danger")
+            return render_template("payments/unlock_checkout.html", mentor=mentor, fee=fee)
+
+    return render_template("payments/unlock_checkout.html", mentor=mentor, fee=fee)
+

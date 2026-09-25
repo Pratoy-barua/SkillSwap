@@ -19,7 +19,7 @@ class Review(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     learner = db.relationship("User", foreign_keys=[learner_id])
     mentor = db.relationship("User", foreign_keys=[mentor_id])
-    relationship = db.relationship("LearningRelationship")
+    relationship = db.relationship("LearningRelationship", backref=db.backref("review", uselist=False, cascade="all, delete-orphan"))
     skill = db.relationship("Skill")
 
 

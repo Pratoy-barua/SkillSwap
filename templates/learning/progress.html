@@ -532,6 +532,202 @@
           </div>
         </div>
 
+        <!-- LEARNER → MENTOR REVIEW & RATING CARD -->
+        <div class="lp-card" id="lp-review-section">
+          <div class="lp-card-header">
+            <h2 class="lp-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-warning">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              {% if current_user.id == relationship.learner_id %}
+                Rate & Review this Mentor
+              {% else %}
+                Learner Review & Rating
+              {% endif %}
+            </h2>
+            {% if review %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">
+                ✓ Review Published
+              </span>
+            {% elif current_user.id == relationship.learner_id %}
+              <span class="badge bg-light text-primary border border-primary-subtle px-3 py-1">
+                Feedback
+              </span>
+            {% endif %}
+          </div>
+
+          <div class="lp-card-body">
+            {% if current_user.id == relationship.learner_id %}
+              {# === LEARNER VIEW === #}
+              {% if review %}
+                {# Display existing review #}
+                <div id="reviewDisplayBox">
+                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="text-warning d-flex align-items-center" style="font-size: 1.25rem;">
+                        {% for i in range(1, 6) %}
+                          {% if i <= review.rating %}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                          {% else %}
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                      <span class="fw-bold text-dark fs-5">{{ review.rating }}.0</span>
+                      <span class="text-muted small">/ 5.0</span>
+                    </div>
+                    <span class="text-muted small">
+                      Submitted {{ review.created_at.strftime('%B %d, %Y') }}
+                      {% if review.updated_at and review.updated_at != review.created_at %}
+                        <em class="text-secondary">(edited)</em>
+                      {% endif %}
+                    </span>
+                  </div>
+
+                  <div class="p-3 bg-light rounded-3 mb-3" style="border-left: 3px solid #f59e0b;">
+                    <p class="text-dark mb-0" style="white-space: pre-line; line-height: 1.55;">
+                      {{ review.review_text or 'No written feedback provided.' }}
+                    </p>
+                  </div>
+
+                  <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" onclick="toggleReviewEdit(true)">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 20h9"></path>
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                      </svg>
+                      Edit Review
+                    </button>
+
+                    <form method="post" action="{{ url_for('reviews.delete_review', relationship_id=relationship.id) }}" onsubmit="return confirm('Are you sure you want to delete your review? This will remove your rating and feedback.');" class="d-inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <button type="submit" class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        Delete Review
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+                {# Edit Review Form (hidden by default) #}
+                <div id="reviewEditBox" style="display: none;">
+                  <form method="post" action="{{ url_for('reviews.learner_review', relationship_id=relationship.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="rating" id="reviewRatingInputEdit" value="{{ review.rating }}">
+
+                    <div class="mb-3">
+                      <label class="form-label fw-bold text-dark mb-1">Update Rating</label>
+                      <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div class="star-rating-widget d-flex gap-1" id="starWidgetEdit">
+                          {% for s in range(1, 6) %}
+                            <button type="button" class="lp-star-btn" data-star="{{ s }}" onclick="setReviewRating({{ s }}, 'Edit')">
+                              <svg width="26" height="26" viewBox="0 0 24 24" fill="{% if s <= review.rating %}#f59e0b{% else %}none{% endif %}" stroke="{% if s <= review.rating %}#f59e0b{% else %}#cbd5e1{% endif %}" stroke-width="1.8">
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                              </svg>
+                            </button>
+                          {% endfor %}
+                        </div>
+                        <span class="fw-bold text-warning fs-6" id="ratingTextEdit">
+                          {% if review.rating == 5 %}5 Stars - Excellent
+                          {% elif review.rating == 4 %}4 Stars - Very Good
+                          {% elif review.rating == 3 %}3 Stars - Good
+                          {% elif review.rating == 2 %}2 Stars - Fair
+                          {% elif review.rating == 1 %}1 Star - Poor
+                          {% else %}{{ review.rating }} Stars{% endif %}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label fw-bold text-dark">Update Review Feedback</label>
+                      <textarea class="form-control" name="review_text" rows="3" maxlength="4000" placeholder="Share your experience learning with this mentor...">{{ review.review_text or '' }}</textarea>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                      <button type="submit" class="btn btn-primary btn-sm px-3">Update Review</button>
+                      <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleReviewEdit(false)">Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              {% else %}
+                {# No review yet - New Review Form #}
+                <form method="post" action="{{ url_for('reviews.learner_review', relationship_id=relationship.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="rating" id="reviewRatingInputNew" value="5" required>
+
+                  <p class="text-secondary small mb-3">
+                    How was your experience learning <strong>{{ relationship.skill.name }}</strong> with <strong>{{ relationship.mentor.full_name }}</strong>? Your review helps other learners discover great mentors.
+                  </p>
+
+                  <div class="mb-3">
+                    <label class="form-label fw-bold text-dark mb-1">Your Rating</label>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                      <div class="star-rating-widget d-flex gap-1" id="starWidgetNew">
+                        {% for s in range(1, 6) %}
+                          <button type="button" class="lp-star-btn" data-star="{{ s }}" onclick="setReviewRating({{ s }}, 'New')">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.8">
+                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                            </svg>
+                          </button>
+                        {% endfor %}
+                      </div>
+                      <span class="fw-bold text-warning fs-6" id="ratingTextNew">5 Stars - Excellent</span>
+                    </div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label fw-bold text-dark">Your Review</label>
+                    <textarea class="form-control" name="review_text" rows="3" maxlength="4000" placeholder="Share your experience learning with this mentor..."></textarea>
+                    <div class="form-text">Share what you liked, mentor guidance, communication, and key learnings.</div>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary px-4 py-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Submit Review
+                  </button>
+                </form>
+              {% endif %}
+
+            {% else %}
+              {# === MENTOR VIEW === #}
+              {% if review %}
+                <div class="p-3 bg-light rounded-3" style="border-left: 3px solid #22c55e;">
+                  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="text-warning d-flex align-items-center">
+                        {% for i in range(1, 6) %}
+                          {% if i <= review.rating %}
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                          {% else %}
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                      <strong class="text-dark">{{ review.rating }}/5 Rating</strong>
+                    </div>
+                    <span class="text-muted small">Submitted {{ review.created_at.strftime('%B %d, %Y') }}</span>
+                  </div>
+                  <p class="text-dark mb-2" style="white-space: pre-line; line-height: 1.55;">
+                    {{ review.review_text or 'No written feedback provided.' }}
+                  </p>
+                  <div class="small text-secondary">
+                    Review by learner <strong>{{ relationship.learner.full_name }}</strong>
+                  </div>
+                </div>
+              {% else %}
+                <div class="p-3 bg-light rounded text-secondary small">
+                  No review submitted by the learner yet. Once {{ relationship.learner.full_name }} submits a review, their feedback and rating will appear here.
+                </div>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+
         <!-- RECENT ACTIVITY & MILESTONES TIMELINE -->
         <div class="lp-card">
           <div class="lp-card-header">
@@ -734,6 +930,29 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+.lp-star-btn {
+  background: none;
+  border: none;
+  padding: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+  line-height: 1;
+}
+.lp-star-btn:hover {
+  transform: scale(1.22);
+}
+.lp-star-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  border-radius: 4px;
+}
+.lp-star-btn svg {
+  pointer-events: none;
+}
+</style>
 <script>
 function selectPercentage(val) {
   const sel = document.getElementById('percentageSelect');
@@ -747,6 +966,53 @@ function selectPercentage(val) {
       btn.classList.remove('active');
     }
   });
+}
+
+function setReviewRating(rating, mode) {
+  const input = document.getElementById('reviewRatingInput' + mode);
+  const textLabel = document.getElementById('ratingText' + mode);
+  const widget = document.getElementById('starWidget' + mode);
+  if (input) input.value = rating;
+
+  const labels = {
+    1: '1 Star - Poor',
+    2: '2 Stars - Fair',
+    3: '3 Stars - Good',
+    4: '4 Stars - Very Good',
+    5: '5 Stars - Excellent'
+  };
+  if (textLabel) textLabel.textContent = labels[rating] || (rating + ' Stars');
+
+  if (widget) {
+    const buttons = widget.querySelectorAll('.lp-star-btn');
+    buttons.forEach((btn, idx) => {
+      const starIndex = idx + 1;
+      const svg = btn.querySelector('svg');
+      if (svg) {
+        if (starIndex <= rating) {
+          svg.setAttribute('fill', '#f59e0b');
+          svg.setAttribute('stroke', '#f59e0b');
+        } else {
+          svg.setAttribute('fill', 'none');
+          svg.setAttribute('stroke', '#cbd5e1');
+        }
+      }
+    });
+  }
+}
+
+function toggleReviewEdit(show) {
+  const displayBox = document.getElementById('reviewDisplayBox');
+  const editBox = document.getElementById('reviewEditBox');
+  if (displayBox && editBox) {
+    if (show) {
+      displayBox.style.display = 'none';
+      editBox.style.display = 'block';
+    } else {
+      displayBox.style.display = 'block';
+      editBox.style.display = 'none';
+    }
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function() {

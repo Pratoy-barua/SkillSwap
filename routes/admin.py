@@ -1,7 +1,7 @@
 """Admin verification and account-status management."""
 
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 
 from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, send_file, url_for, request
@@ -10,11 +10,12 @@ from sqlalchemy import func, or_
 from decorators.auth import role_required
 from extensions import db
 from models.auth import Role, Skill, User, VerificationDocument
-from models.learning import LearningProgress, Payment, Subscription
+from models.learning import LearningProgress, Payment, PlatformSetting, Subscription
 from models.connection import LearningRelationship
 from models.store import CartItem, Order, OrderItem, Product, ProductCategory
 from models.reviews import PremiumPlan, RevenueRecord, Review
 from services.notifications import notify
+from services.payments import get_mentor_unlock_fee
 from services.uploads import save_upload
 
 
@@ -134,8 +135,124 @@ def dashboard():
         "products": Product.query.count(),
     }
     business_data = get_business_analytics(months_limit=6)
-    return render_template("admin/dashboard.html", pending_learners=pending_learners, pending_mentors=pending_mentors, counts=counts, business_data=business_data)
+    unlock_fee = get_mentor_unlock_fee(db.session)
+    active_relationships = (
+        LearningRelationship.query.options(
+            db.joinedload(LearningRelationship.mentor),
+            db.joinedload(LearningRelationship.learner),
+            db.joinedload(LearningRelationship.skill),
+            db.joinedload(LearningRelationship.progress),
+            db.joinedload(LearningRelationship.plan),
+        )
+        .filter(LearningRelationship.status == "Active")
+        .order_by(LearningRelationship.updated_at.desc())
+        .limit(6)
+        .all()
+    )
+    return render_template(
+        "admin/dashboard.html",
+        pending_learners=pending_learners,
+        pending_mentors=pending_mentors,
+        counts=counts,
+        business_data=business_data,
+        unlock_fee=unlock_fee,
+        active_relationships=active_relationships,
+    )
 
+
+@admin_bp.get("/relationships")
+@role_required("Admin")
+def relationships():
+    search = request.args.get("search", "").strip()
+    skill_filter = request.args.get("skill", "").strip()
+    status_filter = request.args.get("status", "Active").strip()
+
+    query = LearningRelationship.query.options(
+        db.joinedload(LearningRelationship.mentor),
+        db.joinedload(LearningRelationship.learner),
+        db.joinedload(LearningRelationship.skill),
+        db.joinedload(LearningRelationship.progress),
+        db.joinedload(LearningRelationship.plan),
+    )
+
+    if status_filter and status_filter.lower() != "all":
+        query = query.filter(LearningRelationship.status == status_filter)
+
+    if skill_filter:
+        query = query.join(LearningRelationship.skill).filter(Skill.name.ilike(f"%{skill_filter}%"))
+
+    if search:
+        mentor_user = db.aliased(User)
+        learner_user = db.aliased(User)
+        query = query.join(mentor_user, LearningRelationship.mentor_id == mentor_user.id)\
+                     .join(learner_user, LearningRelationship.learner_id == learner_user.id)\
+                     .filter(
+                         or_(
+                             mentor_user.full_name.ilike(f"%{search}%"),
+                             learner_user.full_name.ilike(f"%{search}%"),
+                             mentor_user.email.ilike(f"%{search}%"),
+                             learner_user.email.ilike(f"%{search}%"),
+                         )
+                     )
+
+    all_relationships = query.order_by(LearningRelationship.updated_at.desc()).all()
+    skills = Skill.query.filter_by(is_active=True).order_by(Skill.name.asc()).all()
+
+    return render_template(
+        "admin/relationships.html",
+        relationships=all_relationships,
+        skills=skills,
+        search=search,
+        selected_skill=skill_filter,
+        selected_status=status_filter,
+    )
+
+
+@admin_bp.get("/relationships/<int:relationship_id>")
+@role_required("Admin")
+def relationship_detail(relationship_id):
+    relationship = (
+        LearningRelationship.query.options(
+            db.joinedload(LearningRelationship.mentor),
+            db.joinedload(LearningRelationship.learner),
+            db.joinedload(LearningRelationship.skill),
+            db.joinedload(LearningRelationship.progress),
+            db.joinedload(LearningRelationship.plan),
+            db.joinedload(LearningRelationship.conversation),
+        )
+        .filter(LearningRelationship.id == relationship_id)
+        .first_or_404()
+    )
+    return render_template(
+        "admin/relationship_detail.html",
+        relationship=relationship,
+        progress=relationship.progress,
+        plan=relationship.plan,
+    )
+
+
+@admin_bp.post("/settings/mentor-unlock-fee")
+@role_required("Admin")
+def update_mentor_unlock_fee():
+    fee_str = request.form.get("unlock_fee", "").strip()
+    try:
+        fee_dec = Decimal(fee_str)
+        if fee_dec < 0:
+            raise ValueError()
+        fee_dec = fee_dec.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError, TypeError):
+        flash("Mentor profile unlock fee must be a valid non-negative number.", "danger")
+        return redirect(url_for("admin.dashboard"))
+
+    setting = PlatformSetting.query.filter_by(key="mentor_profile_unlock_fee").first()
+    if not setting:
+        setting = PlatformSetting(key="mentor_profile_unlock_fee", value=str(fee_dec))
+        db.session.add(setting)
+    else:
+        setting.value = str(fee_dec)
+    db.session.commit()
+    flash(f"Mentor profile unlock fee updated to ৳{fee_dec}.", "success")
+    return redirect(url_for("admin.dashboard"))
 
 
 @admin_bp.get("/users")

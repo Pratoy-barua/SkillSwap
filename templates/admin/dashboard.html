@@ -14,7 +14,7 @@
           <div class="metric-section-heading"><h2>Learning</h2><p>Connections, skills and learner feedback.</p></div>
           <div class="mini-metric-grid">
             <a href="{{ url_for('admin.skills') }}"><span>Active skills</span><strong>{{ counts.active_skills }}</strong></a>
-            <a href="{{ url_for('admin.users') }}"><span>Active relationships</span><strong>{{ counts.relationships }}</strong></a>
+            <a href="{{ url_for('admin.relationships') }}"><span>Active relationships</span><strong>{{ counts.relationships }}</strong></a>
             <a href="{{ url_for('reviews.admin_reviews') }}"><span>Reviews</span><strong>{{ counts.reviews }}</strong></a>
             <a href="{{ url_for('admin.users', status='Suspended') }}"><span>Suspended users</span><strong>{{ counts.suspended_users }}</strong></a>
           </div>
@@ -33,7 +33,139 @@
       </div>
     </div>
 
-    <div class="row g-4"><div class="col-lg-7"><section class="dashboard-panel h-100"><div class="dashboard-panel-heading"><div><h2>Pending applications</h2><p>Review accounts before granting access.</p></div><a href="{{ url_for('admin.users', status='Pending') }}">View all</a></div><div class="table-responsive"><table class="dashboard-table"><thead><tr><th>Applicant</th><th>Role</th><th>Submitted</th><th></th></tr></thead><tbody>{% for user in pending_learners + pending_mentors %}<tr><td><strong>{{ user.full_name }}</strong><small>{{ user.email }}</small></td><td><span class="status-pill status-pending">{{ user.role.name }}</span></td><td>{{ user.created_at.strftime('%d %b %Y') }}</td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.user_detail', user_id=user.id) }}">Review</a></td></tr>{% else %}<tr><td colspan="4" class="dashboard-table-empty">No pending applications.</td></tr>{% endfor %}</tbody></table></div></section></div><div class="col-lg-5"><section class="dashboard-panel h-100"><div class="dashboard-panel-heading"><div><h2>Admin quick actions</h2><p>Jump to key management areas.</p></div></div><div class="quick-action-list"><a href="{{ url_for('admin.users') }}"><span>Manage users</span><b>→</b></a><a href="{{ url_for('admin.store_products') }}"><span>Store products</span><b>→</b></a><a href="{{ url_for('admin.store_orders') }}"><span>Store orders</span><b>→</b></a><a href="{{ url_for('admin.payments') }}"><span>Payments</span><b>→</b></a><a href="{{ url_for('admin.revenue') }}"><span>Revenue</span><b>→</b></a><a href="{{ url_for('reviews.admin_reviews') }}"><span>Reviews</span><b>→</b></a><a href="{{ url_for('premium.admin_plans') }}"><span>Premium plans</span><b>→</b></a></div></section></div></div>
+    <!-- ACTIVE LEARNING RELATIONSHIPS SECTION -->
+    <div class="row g-4 mb-4">
+      <div class="col-12">
+        <section class="dashboard-panel">
+          <div class="dashboard-panel-heading">
+            <div>
+              <h2>Active Learning Relationships</h2>
+              <p>Monitor ongoing mentor-learner learning connections.</p>
+            </div>
+            <a href="{{ url_for('admin.relationships') }}">View all →</a>
+          </div>
+
+          <div class="table-responsive">
+            <table class="dashboard-table" style="min-width: 820px;">
+              <thead>
+                <tr>
+                  <th style="padding-right: 1rem;">Mentor</th>
+                  <th style="padding-right: 1rem;">Learner</th>
+                  <th style="padding-right: 1rem;">Skill</th>
+                  <th style="min-width: 190px; padding-right: 1.5rem;">Progress</th>
+                  <th style="min-width: 140px; padding-right: 1.5rem;">Status</th>
+                  <th style="min-width: 130px; text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for rel in active_relationships %}
+                  {% set pct = rel.progress.percentage if rel.progress else 0 %}
+                  <tr>
+                    <td style="padding-right: 1rem; vertical-align: middle;">
+                      <div class="d-flex align-items-center gap-2">
+                        {% if rel.mentor.profile_photo %}
+                          <img src="{{ url_for('static', filename='uploads/public/' + rel.mentor.profile_photo) }}" alt="{{ rel.mentor.full_name }}" class="rounded-circle object-fit-cover" style="width: 32px; height: 32px;">
+                        {% else %}
+                          <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.78rem;">
+                            {{ rel.mentor.full_name[0] }}
+                          </div>
+                        {% endif %}
+                        <div>
+                          <strong>{{ rel.mentor.full_name }}</strong>
+                          <small class="d-block text-muted">Mentor</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td style="padding-right: 1rem; vertical-align: middle;">
+                      <div class="d-flex align-items-center gap-2">
+                        {% if rel.learner.profile_photo %}
+                          <img src="{{ url_for('static', filename='uploads/public/' + rel.learner.profile_photo) }}" alt="{{ rel.learner.full_name }}" class="rounded-circle object-fit-cover" style="width: 32px; height: 32px;">
+                        {% else %}
+                          <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.78rem;">
+                            {{ rel.learner.full_name[0] }}
+                          </div>
+                        {% endif %}
+                        <div>
+                          <strong>{{ rel.learner.full_name }}</strong>
+                          <small class="d-block text-muted">Learner</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td style="padding-right: 1rem; vertical-align: middle;">
+                      <span class="badge bg-light text-primary border">{{ rel.skill.name }}</span>
+                    </td>
+                    <td style="min-width: 190px; padding-right: 1.5rem; vertical-align: middle;">
+                      <div class="mb-1">
+                        <small class="fw-bold text-dark">{{ pct }}%</small>
+                      </div>
+                      <div class="progress mb-1" style="height: 6px; border-radius: 999px; background-color: #e2e8f0;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ pct }}%; border-radius: 999px;"></div>
+                      </div>
+                      {% if rel.plan and rel.plan.expected_completion_date %}
+                        <div>
+                          <small class="text-muted" style="font-size: 0.75rem; white-space: nowrap;">Target: {{ rel.plan.expected_completion_date.strftime('%b %d') }}</small>
+                        </div>
+                      {% endif %}
+                    </td>
+                    <td style="min-width: 140px; padding-right: 1.5rem; vertical-align: middle; white-space: nowrap;">
+                      {% set status_val = rel.progress.completion_status if rel.progress else rel.status %}
+                      <span class="badge px-2.5 py-1.5 {% if status_val == 'Completed' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %}" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap;">
+                        ● {{ status_val }}
+                      </span>
+                    </td>
+                    <td style="min-width: 130px; text-align: right; vertical-align: middle; white-space: nowrap;">
+                      <a class="btn btn-sm btn-outline-primary text-nowrap" href="{{ url_for('admin.relationship_detail', relationship_id=rel.id) }}">
+                        View details →
+                      </a>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr>
+                    <td colspan="6" class="dashboard-table-empty text-center py-4">
+                      <div class="fw-bold text-dark mb-1">No active learning relationships.</div>
+                      <small class="text-secondary">Active mentor-learner connections will appear here.</small>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="row g-4"><div class="col-lg-7"><section class="dashboard-panel h-100"><div class="dashboard-panel-heading"><div><h2>Pending applications</h2><p>Review accounts before granting access.</p></div><a href="{{ url_for('admin.users', status='Pending') }}">View all</a></div><div class="table-responsive"><table class="dashboard-table"><thead><tr><th>Applicant</th><th>Role</th><th>Submitted</th><th></th></tr></thead><tbody>{% for user in pending_learners + pending_mentors %}<tr><td><strong>{{ user.full_name }}</strong><small>{{ user.email }}</small></td><td><span class="status-pill status-pending">{{ user.role.name }}</span></td><td>{{ user.created_at.strftime('%d %b %Y') }}</td><td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.user_detail', user_id=user.id) }}">Review</a></td></tr>{% else %}<tr><td colspan="4" class="dashboard-table-empty">No pending applications.</td></tr>{% endfor %}</tbody></table></div></section></div><div class="col-lg-5"><section class="dashboard-panel h-100"><div class="dashboard-panel-heading"><div><h2>Admin quick actions</h2><p>Jump to key management areas.</p></div></div><div class="quick-action-list"><a href="{{ url_for('admin.users') }}"><span>Manage users</span><b>→</b></a><a href="{{ url_for('admin.relationships') }}"><span>Active relationships</span><b>→</b></a><a href="{{ url_for('admin.store_products') }}"><span>Store products</span><b>→</b></a><a href="{{ url_for('admin.store_orders') }}"><span>Store orders</span><b>→</b></a><a href="{{ url_for('admin.payments') }}"><span>Payments</span><b>→</b></a><a href="{{ url_for('admin.revenue') }}"><span>Revenue</span><b>→</b></a><a href="{{ url_for('reviews.admin_reviews') }}"><span>Reviews</span><b>→</b></a><a href="{{ url_for('premium.admin_plans') }}"><span>Premium plans</span><b>→</b></a></div></section></div></div>
+
+    <div class="row g-4 mt-1">
+      <div class="col-12">
+        <section class="dashboard-panel">
+          <div class="dashboard-panel-heading">
+            <div>
+              <h2>Mentor profile access settings</h2>
+              <p>Control the global fee charged to learners for unlocking mentor contact details (LinkedIn, GitHub, Website).</p>
+            </div>
+          </div>
+          <form method="post" action="{{ url_for('admin.update_mentor_unlock_fee') }}" class="p-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div class="row g-3 align-items-center">
+              <div class="col-auto">
+                <label for="unlock_fee" class="col-form-label fw-semibold">Global unlock fee:</label>
+              </div>
+              <div class="col-auto">
+                <div class="input-group">
+                  <span class="input-group-text">৳</span>
+                  <input type="number" step="0.01" min="0" class="form-control" id="unlock_fee" name="unlock_fee" value="{{ '%.2f'|format(unlock_fee|float) }}" style="max-width: 140px;" required>
+                </div>
+              </div>
+              <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Update fee</button>
+              </div>
+            </div>
+            <small class="text-secondary d-block mt-2">100% of this fee is platform revenue. Changes take effect immediately for all subsequent profile unlocks.</small>
+          </form>
+        </section>
+      </div>
+    </div>
   </div>
 </section>
 {% endblock %}

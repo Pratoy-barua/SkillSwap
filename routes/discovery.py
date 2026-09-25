@@ -4,10 +4,13 @@ from sqlalchemy import and_, func, or_
 from flask import Blueprint, flash, g, jsonify, render_template, request, url_for
 from extensions import db
 
+from decorators.auth import login_required
 from models.auth import Location, MentorProfile, MentorSkill, Role, Skill, User
 from models.connection import Conversation, LearningRelationship
+from models.learning import MentorProfileAccess
 from models.reviews import Review
 from services.ai_recommendation import get_ai_recommendations
+from services.payments import get_mentor_unlock_fee
 from services.premium import has_premium
 
 
@@ -80,6 +83,28 @@ def mentor_search():
     return render_template("skills/search.html", matches=matches, skills=active_skills(), locations=locations, filters=request.args, selected_skill_id=skill_id)
 
 
+class MaskedMentorProfile:
+    """Wrapper that prevents URL leaks when details are locked while keeping relationships functional."""
+    def __init__(self, real_profile, can_view):
+        self._real = real_profile
+        self._can_view = can_view
+
+    @property
+    def linkedin_url(self):
+        return self._real.linkedin_url if self._can_view else None
+
+    @property
+    def github_url(self):
+        return self._real.github_url if self._can_view else None
+
+    @property
+    def website_url(self):
+        return self._real.website_url if self._can_view else None
+
+    def __getattr__(self, item):
+        return getattr(self._real, item)
+
+
 @discovery_bp.get("/mentor/<int:user_id>")
 def mentor_profile(user_id):
     mentor = (
@@ -93,13 +118,59 @@ def mentor_profile(user_id):
         if active_relationship and not active_relationship.conversation:
             active_relationship.conversation = Conversation(relationship=active_relationship)
             db.session.commit()
-    rating = db.session.query(func.avg(Review.rating)).filter_by(mentor_id=mentor.id, status="Published").scalar() or 0
+    rating = float(db.session.query(func.avg(Review.rating)).filter_by(mentor_id=mentor.id, status="Published").scalar() or 0)
     review_count = Review.query.filter_by(mentor_id=mentor.id, status="Published").count()
-    recent_reviews = Review.query.filter_by(mentor_id=mentor.id, status="Published").order_by(Review.created_at.desc()).limit(5).all()
-    return render_template("mentor/public_profile.html", mentor=mentor, active_relationship=active_relationship, rating=rating, review_count=review_count, recent_reviews=recent_reviews)
+    recent_reviews = Review.query.filter_by(mentor_id=mentor.id, status="Published").order_by(Review.created_at.desc()).limit(10).all()
+
+    # Permission check for paid contact details
+    current_user = getattr(g, "current_user", None)
+    can_view_details = False
+    is_owner = False
+    is_admin = False
+
+    if current_user:
+        if current_user.id == mentor.id:
+            can_view_details = True
+            is_owner = True
+        elif current_user.role.name == "Admin":
+            can_view_details = True
+            is_admin = True
+        elif current_user.role.name == "Learner":
+            access = MentorProfileAccess.query.filter_by(learner_id=current_user.id, mentor_id=mentor.id).first()
+            if access:
+                can_view_details = True
+
+    unlock_fee = get_mentor_unlock_fee(db.session)
+
+    raw_profile = mentor.mentor_profile
+    has_linkedin = bool(raw_profile and raw_profile.linkedin_url and raw_profile.linkedin_url.strip())
+    has_github = bool(raw_profile and raw_profile.github_url and raw_profile.github_url.strip())
+    has_website = bool(raw_profile and raw_profile.website_url and raw_profile.website_url.strip())
+    has_any_contact = has_linkedin or has_github or has_website
+
+    if raw_profile:
+        mentor.mentor_profile = MaskedMentorProfile(raw_profile, can_view_details)
+
+    return render_template(
+        "mentor/public_profile.html",
+        mentor=mentor,
+        active_relationship=active_relationship,
+        rating=rating,
+        review_count=review_count,
+        recent_reviews=recent_reviews,
+        can_view_details=can_view_details,
+        is_owner=is_owner,
+        is_admin=is_admin,
+        unlock_fee=unlock_fee,
+        has_linkedin=has_linkedin,
+        has_github=has_github,
+        has_website=has_website,
+        has_any_contact=has_any_contact,
+    )
 
 
 @discovery_bp.route("/api/ai-recommend", methods=["GET", "POST"])
+@login_required
 def api_ai_recommend():
     if request.method == "POST":
         data = request.get_json(silent=True) or request.form.to_dict()

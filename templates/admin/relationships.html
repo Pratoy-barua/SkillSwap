@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Active Learning Relationships · SkillSwap Admin{% endblock %}
+
+{% block content %}
+<section class="section py-4">
+  <div class="container">
+    <!-- NAVIGATION & HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div>
+        <p class="eyebrow mb-1">Admin monitoring</p>
+        <h1 class="section-heading h2 mb-0">Active Learning Relationships</h1>
+        <p class="text-secondary small mt-1 mb-0">Monitor ongoing mentor-learner learning connections across the platform.</p>
+      </div>
+      <div>
+        <a class="btn btn-outline-primary" href="{{ url_for('admin.dashboard') }}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Dashboard
+        </a>
+      </div>
+    </div>
+
+    {% include 'partials/flash.html' %}
+
+    <!-- SEARCH & FILTER BAR -->
+    <div class="soft-card p-3 mb-4">
+      <form method="get" action="{{ url_for('admin.relationships') }}" class="row g-2 align-items-center">
+        <div class="col-md-4">
+          <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Search mentor or learner name/email...">
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" name="skill">
+            <option value="">All skills</option>
+            {% for sk in skills %}
+              <option value="{{ sk.name }}" {% if selected_skill == sk.name %}selected{% endif %}>{{ sk.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <select class="form-select" name="status">
+            <option value="Active" {% if selected_status == 'Active' %}selected{% endif %}>Active only</option>
+            <option value="Completed" {% if selected_status == 'Completed' %}selected{% endif %}>Completed</option>
+            <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All statuses</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-grow-1">Filter</button>
+          {% if search or selected_skill or selected_status != 'Active' %}
+            <a href="{{ url_for('admin.relationships') }}" class="btn btn-outline-secondary">Reset</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+
+    <!-- RELATIONSHIPS TABLE -->
+    <div class="soft-card p-3">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead>
+            <tr class="text-secondary small">
+              <th>Mentor</th>
+              <th>Learner</th>
+              <th>Skill</th>
+              <th>Plan & Tuition</th>
+              <th style="min-width: 180px;">Progress</th>
+              <th style="min-width: 140px;">Status</th>
+              <th class="text-end" style="min-width: 130px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rel in relationships %}
+              {% set pct = rel.progress.percentage if rel.progress else 0 %}
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    {% if rel.mentor.profile_photo %}
+                      <img src="{{ url_for('static', filename='uploads/public/' + rel.mentor.profile_photo) }}" alt="{{ rel.mentor.full_name }}" class="rounded-circle object-fit-cover" style="width: 36px; height: 36px;">
+                    {% else %}
+                      <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; font-size: 0.82rem;">
+                        {{ rel.mentor.full_name[0] }}
+                      </div>
+                    {% endif %}
+                    <div>
+                      <strong class="d-block text-dark">{{ rel.mentor.full_name }}</strong>
+                      <small class="text-muted">{{ rel.mentor.email }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    {% if rel.learner.profile_photo %}
+                      <img src="{{ url_for('static', filename='uploads/public/' + rel.learner.profile_photo) }}" alt="{{ rel.learner.full_name }}" class="rounded-circle object-fit-cover" style="width: 36px; height: 36px;">
+                    {% else %}
+                      <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 36px; height: 36px; font-size: 0.82rem;">
+                        {{ rel.learner.full_name[0] }}
+                      </div>
+                    {% endif %}
+                    <div>
+                      <strong class="d-block text-dark">{{ rel.learner.full_name }}</strong>
+                      <small class="text-muted">{{ rel.learner.email }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge bg-light text-primary border">{{ rel.skill.name }}</span>
+                </td>
+                <td>
+                  {% if rel.plan %}
+                    <strong class="d-block text-dark" style="font-size: 0.88rem;">৳{{ '%.2f'|format(rel.plan.pricing) }}</strong>
+                    <small class="text-muted">{{ rel.plan.pricing_type }}</small>
+                  {% else %}
+                    <span class="text-muted small">No plan created</span>
+                  {% endif %}
+                </td>
+                <td style="min-width: 180px; vertical-align: middle;">
+                  <div class="mb-1">
+                    <strong class="text-dark small">{{ pct }}%</strong>
+                  </div>
+                  <div class="progress mb-1" style="height: 7px; border-radius: 999px; background-color: #e2e8f0;">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ pct }}%; border-radius: 999px;"></div>
+                  </div>
+                  {% if rel.plan and rel.plan.expected_completion_date %}
+                    <div>
+                      <small class="text-muted" style="font-size: 0.75rem; white-space: nowrap;">Target: {{ rel.plan.expected_completion_date.strftime('%b %d, %Y') }}</small>
+                    </div>
+                  {% endif %}
+                </td>
+                <td style="min-width: 140px; vertical-align: middle; white-space: nowrap;">
+                  {% set status_val = rel.progress.completion_status if rel.progress else rel.status %}
+                  <span class="badge px-2.5 py-1.5 {% if status_val == 'Completed' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %}" style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap;">
+                    ● {{ status_val }}
+                  </span>
+                </td>
+                <td class="text-end" style="min-width: 130px; vertical-align: middle; white-space: nowrap;">
+                  <a class="btn btn-sm btn-outline-primary text-nowrap" href="{{ url_for('admin.relationship_detail', relationship_id=rel.id) }}">
+                    View details →
+                  </a>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="7" class="text-center py-5 text-secondary">
+                  <div class="mb-2">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-muted">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                  </div>
+                  <h3 class="h5 fw-bold text-dark mb-1">No active learning relationships found</h3>
+                  <p class="text-secondary small mb-0">Active mentor-learner connections will appear here.</p>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

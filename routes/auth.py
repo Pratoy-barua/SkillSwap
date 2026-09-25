@@ -106,6 +106,11 @@ def login():
             issue_csrf_token(session)
             if user.account_status != "Approved":
                 return redirect(url_for("auth.account_status", status=user.account_status))
+            next_url = request.args.get("next") or request.form.get("next")
+            if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+                if "/api/" in next_url:
+                    next_url = url_for("discovery.mentor_search")
+                return redirect(next_url)
             return redirect(url_for("learner.dashboard" if user.role.name == "Learner" else "mentor.dashboard"))
     return render_template("auth/login.html")
 

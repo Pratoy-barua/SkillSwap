@@ -80,3 +80,21 @@ class PlatformSetting(db.Model):
     key = db.Column(db.String(80), unique=True, nullable=False)
     value = db.Column(db.String(255), nullable=False)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MentorProfileAccess(db.Model):
+    __tablename__ = "mentor_profile_accesses"
+    id = db.Column(db.Integer, primary_key=True)
+    learner_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    mentor_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    payment_id = db.Column(db.Integer, db.ForeignKey("payments.id", ondelete="SET NULL"), nullable=True)
+    unlocked_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("learner_id", "mentor_id", name="uq_learner_mentor_profile_access"),
+    )
+
+    learner = db.relationship("User", foreign_keys=[learner_id])
+    mentor = db.relationship("User", foreign_keys=[mentor_id])
+    payment = db.relationship("Payment")
+

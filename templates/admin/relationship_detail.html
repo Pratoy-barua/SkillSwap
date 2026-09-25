@@ -1,0 +1,366 @@
+{% extends 'base.html' %}
+{% block title %}Learning Relationship · {{ relationship.mentor.full_name }} & {{ relationship.learner.full_name }} · SkillSwap Admin{% endblock %}
+
+{% block content %}
+<section class="section py-4">
+  <div class="container" style="max-width: 1100px;">
+    <!-- BREADCRUMB NAVIGATION -->
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <a href="{{ url_for('admin.relationships') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          All Relationships
+        </a>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-outline-secondary">Dashboard</a>
+      </div>
+      <span class="badge bg-secondary-subtle text-secondary border px-3 py-1">
+        Admin Read-Only Monitoring
+      </span>
+    </div>
+
+    {% include 'partials/flash.html' %}
+
+    <!-- HERO HEADER CARD -->
+    <div class="soft-card p-4 mb-4">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+            <span class="badge bg-primary text-white px-2 py-1" style="font-size: 0.8rem;">
+              {{ relationship.skill.name }}
+            </span>
+            <span class="badge {% if relationship.status == 'Completed' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %}">
+              ● {{ relationship.status }}
+            </span>
+            {% if progress and progress.completion_status %}
+              <span class="badge bg-light text-dark border">
+                Status: {{ progress.completion_status }}
+              </span>
+            {% endif %}
+          </div>
+          <h1 class="h3 fw-bold text-dark mb-1">Learning Relationship Details</h1>
+          <p class="text-secondary small mb-0">
+            Mentorship connection between <strong>{{ relationship.mentor.full_name }}</strong> (Mentor) and <strong>{{ relationship.learner.full_name }}</strong> (Learner).
+          </p>
+        </div>
+
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          {% if relationship.conversation %}
+            <a href="{{ url_for('connections.chat', conversation_id=relationship.conversation.id) }}" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Open Conversation
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- 2-COLUMN: MENTOR & LEARNER PROFILES -->
+    <div class="row g-4 mb-4">
+      <!-- Mentor Box -->
+      <div class="col-md-6">
+        <div class="soft-card p-4 h-100 d-flex flex-column justify-content-between">
+          <div>
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+              <span class="eyebrow mb-0 text-primary">Mentor Details</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle">Verified Mentor</span>
+            </div>
+
+            <div class="d-flex align-items-center gap-3 mb-3">
+              {% if relationship.mentor.profile_photo %}
+                <img src="{{ url_for('static', filename='uploads/public/' + relationship.mentor.profile_photo) }}" alt="{{ relationship.mentor.full_name }}" class="rounded-circle object-fit-cover" style="width: 54px; height: 54px;">
+              {% else %}
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 54px; height: 54px; font-size: 1.25rem;">
+                  {{ relationship.mentor.full_name[0] }}
+                </div>
+              {% endif %}
+              <div>
+                <h2 class="h5 fw-bold text-dark mb-0">{{ relationship.mentor.full_name }}</h2>
+                <div class="text-secondary small">{{ relationship.mentor.email }}</div>
+                {% if relationship.mentor.location %}
+                  <div class="text-muted small">⌖ {{ relationship.mentor.location.city }}{% if relationship.mentor.location.area %}, {{ relationship.mentor.location.area }}{% endif %}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="small text-secondary mb-3">
+              {% if relationship.mentor.mentor_profile %}
+                <div><strong>Occupation:</strong> {{ relationship.mentor.mentor_profile.occupation or 'Professional Mentor' }}</div>
+                <div><strong>Experience:</strong> {{ relationship.mentor.mentor_profile.experience }}</div>
+                <div><strong>Teaching Mode:</strong> {{ relationship.mentor.mentor_profile.teaching_type }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center gap-2 pt-2 border-top">
+            <a href="{{ url_for('discovery.mentor_profile', user_id=relationship.mentor_id) }}" class="btn btn-outline-primary btn-sm flex-grow-1">
+              View Mentor Profile
+            </a>
+            <a href="{{ url_for('admin.user_detail', user_id=relationship.mentor_id) }}" class="btn btn-outline-secondary btn-sm">
+              Admin Record
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Learner Box -->
+      <div class="col-md-6">
+        <div class="soft-card p-4 h-100 d-flex flex-column justify-content-between">
+          <div>
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+              <span class="eyebrow mb-0 text-primary">Learner Details</span>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Learner</span>
+            </div>
+
+            <div class="d-flex align-items-center gap-3 mb-3">
+              {% if relationship.learner.profile_photo %}
+                <img src="{{ url_for('static', filename='uploads/public/' + relationship.learner.profile_photo) }}" alt="{{ relationship.learner.full_name }}" class="rounded-circle object-fit-cover" style="width: 54px; height: 54px;">
+              {% else %}
+                <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 54px; height: 54px; font-size: 1.25rem;">
+                  {{ relationship.learner.full_name[0] }}
+                </div>
+              {% endif %}
+              <div>
+                <h2 class="h5 fw-bold text-dark mb-0">{{ relationship.learner.full_name }}</h2>
+                <div class="text-secondary small">{{ relationship.learner.email }}</div>
+                {% if relationship.learner.location %}
+                  <div class="text-muted small">⌖ {{ relationship.learner.location.city }}{% if relationship.learner.location.area %}, {{ relationship.learner.location.area }}{% endif %}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="small text-secondary mb-3">
+              {% if relationship.learner.learner_profile %}
+                <div><strong>Occupation:</strong> {{ relationship.learner.learner_profile.occupation or 'Community Learner' }}</div>
+                {% if relationship.learner.learner_profile.interests %}
+                  <div><strong>Interests:</strong> {{ relationship.learner.learner_profile.interests }}</div>
+                {% endif %}
+              {% endif %}
+              <div><strong>Learning Skill:</strong> {{ relationship.skill.name }}</div>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center gap-2 pt-2 border-top">
+            <a href="{{ url_for('learner.view_profile', user_id=relationship.learner_id) }}" class="btn btn-outline-primary btn-sm flex-grow-1">
+              View Learner Profile
+            </a>
+            <a href="{{ url_for('admin.user_detail', user_id=relationship.learner_id) }}" class="btn btn-outline-secondary btn-sm">
+              Admin Record
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 QUICK-STAT METRIC CARDS -->
+    {% set pct = progress.percentage if progress else 0 %}
+    <div class="row g-3 mb-4">
+      <div class="col-sm-6 col-lg-3">
+        <div class="soft-card p-3">
+          <span class="text-muted small text-uppercase fw-bold d-block mb-1">Overall Progress</span>
+          <div class="fs-3 fw-bold text-primary mb-1">{{ pct }}%</div>
+          <small class="text-secondary">{{ progress.completion_status if progress else 'Not Started' }}</small>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="soft-card p-3">
+          <span class="text-muted small text-uppercase fw-bold d-block mb-1">Tuition / Rate</span>
+          <div class="fs-3 fw-bold text-dark mb-1">
+            ৳{{ '%.2f'|format(plan.pricing) if plan else '0.00' }}
+          </div>
+          <small class="text-secondary">{{ plan.pricing_type if plan else 'Course-based' }}</small>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="soft-card p-3">
+          <span class="text-muted small text-uppercase fw-bold d-block mb-1">Started Date</span>
+          <div class="fs-5 fw-bold text-dark mb-1">
+            {{ relationship.started_at.strftime('%b %d, %Y') if relationship.started_at else 'Active' }}
+          </div>
+          <small class="text-muted">Initiated</small>
+        </div>
+      </div>
+      <div class="col-sm-6 col-lg-3">
+        <div class="soft-card p-3">
+          <span class="text-muted small text-uppercase fw-bold d-block mb-1">Expected Finish</span>
+          <div class="fs-5 fw-bold text-dark mb-1">
+            {{ plan.expected_completion_date.strftime('%b %d, %Y') if plan and plan.expected_completion_date else 'Flexible schedule' }}
+          </div>
+          <small class="text-muted">Target milestone</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROGRESS & TOPICS SECTION -->
+    <div class="soft-card p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+        <h2 class="h5 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          Current Progress Breakdown
+        </h2>
+        <span class="badge bg-primary text-white">{{ pct }}% Milestone</span>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="mb-4">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+          <span>Completion Journey</span>
+          <span class="fw-bold text-primary">{{ pct }} of 100%</span>
+        </div>
+        <div class="progress" style="height: 12px; border-radius: 999px; background-color: #e2e8f0;">
+          <div class="progress-bar progress-bar-striped bg-primary" role="progressbar" style="width: {{ pct }}%; border-radius: 999px;" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+      </div>
+
+      <!-- Current Focus -->
+      <div class="p-3 bg-light rounded-3 border mb-3">
+        <span class="text-muted small fw-bold text-uppercase d-block mb-1">Active Topic / Focus</span>
+        <div class="fs-6 fw-bold text-dark">{{ progress.current_topic if progress and progress.current_topic else 'No active topic designated' }}</div>
+      </div>
+
+      <!-- Completed & Remaining Topics Grid -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <div class="p-3 bg-light rounded-3 border h-100">
+            <span class="text-muted small fw-bold text-uppercase d-block mb-2">Completed Topics</span>
+            {% if progress and progress.completed_topics %}
+              <div class="d-flex flex-column gap-1">
+                {% for line in progress.completed_topics.splitlines() %}
+                  {% if line.strip() %}
+                    <div class="small text-dark d-flex align-items-center gap-2">
+                      <span class="badge rounded-circle bg-success text-white p-1" style="font-size: 0.6rem;">✓</span>
+                      <span>{{ line.strip().lstrip('-*• ') }}</span>
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-muted small mb-0">No completed topics recorded yet.</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="p-3 bg-light rounded-3 border h-100">
+            <span class="text-muted small fw-bold text-uppercase d-block mb-2">Remaining Topics</span>
+            {% if progress and progress.remaining_topics %}
+              <div class="d-flex flex-column gap-1">
+                {% for line in progress.remaining_topics.splitlines() %}
+                  {% if line.strip() %}
+                    <div class="small text-secondary d-flex align-items-center gap-2">
+                      <span class="badge rounded-circle bg-secondary text-white p-1" style="font-size: 0.6rem;">○</span>
+                      <span>{{ line.strip().lstrip('-*• ') }}</span>
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-muted small mb-0">No remaining topics listed.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Mentor Notes & Feedback -->
+      <div class="p-3 bg-light rounded-3 border">
+        <span class="text-muted small fw-bold text-uppercase d-block mb-1">Mentor Feedback & Notes</span>
+        {% if progress and progress.mentor_notes %}
+          <p class="text-dark small mb-0" style="white-space: pre-line; line-height: 1.55;">
+            "{{ progress.mentor_notes }}"
+          </p>
+        {% else %}
+          <p class="text-muted small mb-0">No feedback notes recorded yet.</p>
+        {% endif %}
+        {% if progress and progress.updated_at %}
+          <div class="text-muted" style="font-size: 0.72rem; margin-top: 0.5rem;">
+            Last updated by mentor: {{ progress.updated_at.strftime('%B %d, %Y · %I:%M %p') }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- LEARNING PLAN DETAILS -->
+    <div class="soft-card p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+        <h2 class="h5 fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+            <path d="M2 12h20"></path>
+          </svg>
+          Learning Plan
+        </h2>
+        {% if plan %}
+          <span class="badge bg-light text-primary border">{{ plan.pricing_type }}</span>
+        {% endif %}
+      </div>
+
+      {% if plan %}
+        <div class="row g-3">
+          <div class="col-md-8">
+            <h3 class="fs-6 fw-bold text-dark mb-1">{{ plan.title }}</h3>
+            <p class="text-secondary small mb-3" style="line-height: 1.55;">
+              {{ plan.description or 'No curriculum description provided.' }}
+            </p>
+          </div>
+          <div class="col-md-4 border-start-md">
+            <div class="small text-secondary">
+              <div class="mb-1"><strong>Price:</strong> ৳{{ '%.2f'|format(plan.pricing) }}</div>
+              <div class="mb-1"><strong>Cadence:</strong> {{ plan.pricing_type }}</div>
+              <div class="mb-1"><strong>Start Date:</strong> {{ plan.start_date.strftime('%B %d, %Y') if plan.start_date else 'Flexible' }}</div>
+              <div class="mb-1"><strong>Target Date:</strong> {{ plan.expected_completion_date.strftime('%B %d, %Y') if plan.expected_completion_date else 'Flexible' }}</div>
+              <div><strong>Status:</strong> {{ relationship.status }}</div>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="text-center py-3 text-muted small">
+          No learning plan has been created yet.
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- CONVERSATION STATUS -->
+    <div class="soft-card p-4">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-light border p-2 text-primary">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <div>
+            <h3 class="h6 fw-bold text-dark mb-0">Direct Chat Conversation</h3>
+            <div class="text-muted small">
+              {% if relationship.conversation %}
+                {{ relationship.conversation.messages|length }} messages recorded between mentor and learner.
+              {% else %}
+                No conversation has been initiated yet.
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if relationship.conversation %}
+          <a href="{{ url_for('connections.chat', conversation_id=relationship.conversation.id) }}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            Open Conversation (Read-Only)
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

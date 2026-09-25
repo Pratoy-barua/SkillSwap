@@ -2,7 +2,7 @@
 
 from functools import wraps
 
-from flask import abort, g, redirect, session, url_for
+from flask import abort, g, jsonify, redirect, request, session, url_for
 
 from models.auth import User
 
@@ -18,8 +18,17 @@ def login_required(view):
     def wrapped(*args, **kwargs):
         user = load_user()
         if not user:
-            return redirect(url_for("auth.login"))
+            if request.path.startswith("/api/") and (request.is_json or request.headers.get("Accept") == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest"):
+                return jsonify({
+                    "error": "Authentication required. Please log in to access this feature.",
+                    "login_url": url_for("auth.login", next=url_for("discovery.mentor_search"))
+                }), 401
+
+            next_target = url_for("discovery.mentor_search") if request.path.startswith("/api/") else (request.full_path if request.query_string else request.path)
+            return redirect(url_for("auth.login", next=next_target))
         if user.account_status != "Approved" and user.role.name != "Admin":
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Account pending approval."}), 403
             return redirect(url_for("auth.account_status", status=user.account_status))
         return view(*args, **kwargs)
 

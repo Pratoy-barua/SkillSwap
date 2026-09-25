@@ -21,6 +21,7 @@ from models.connection import (  # noqa: F401
 from models.learning import (  # noqa: F401
     LearningPlan,
     LearningProgress,
+    MentorProfileAccess,
     Payment,
     PlatformSetting,
     Subscription,

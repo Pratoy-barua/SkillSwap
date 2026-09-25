@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% block title %}Unlock {{ mentor.full_name }}'s Contact Details · SkillSwap{% endblock %}
+
+{% block head %}
+<style>
+  .unlock-checkout-page {
+    padding: 2.5rem 0 4.5rem;
+    background-color: var(--ss-bg);
+  }
+
+  .unlock-checkout-container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .checkout-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--ss-muted);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.4rem 0.75rem;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+    background: transparent;
+    transition: all 0.15s ease-in-out;
+  }
+  .checkout-back-link:hover {
+    color: var(--ss-blue);
+    background: #eef5ff;
+  }
+  .checkout-back-link svg {
+    transition: transform 0.15s ease;
+  }
+  .checkout-back-link:hover svg {
+    transform: translateX(-3px);
+  }
+
+  .unlock-card {
+    background: var(--ss-surface);
+    border: 1px solid var(--ss-border);
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(23, 58, 105, 0.04);
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .unlock-icon-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #eef5ff;
+    color: var(--ss-blue);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .perk-item {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.75rem 1rem;
+    background: #f8fbff;
+    border: 1px solid #e2eaf5;
+    border-radius: 10px;
+    font-size: 0.92rem;
+    font-weight: 500;
+  }
+
+  .perk-item svg {
+    color: var(--ss-blue);
+    flex-shrink: 0;
+  }
+
+  .pricing-summary-box {
+    background: #fbfdff;
+    border: 1.5px solid var(--ss-border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+  }
+
+  .pricing-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.4rem 0;
+    font-size: 0.92rem;
+    color: var(--ss-muted);
+  }
+
+  .pricing-row.total-row {
+    border-top: 1.5px dashed var(--ss-border);
+    margin-top: 0.6rem;
+    padding-top: 0.75rem;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--ss-ink);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="unlock-checkout-page">
+  <div class="container unlock-checkout-container">
+
+    <a class="checkout-back-link" href="{{ url_for('discovery.mentor_profile', user_id=mentor.id) }}">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+      </svg>
+      <span>Back to {{ mentor.full_name }}'s Profile</span>
+    </a>
+
+    {% include 'partials/flash.html' %}
+
+    <div class="mb-4">
+      <p class="text-uppercase fw-bold text-primary mb-1" style="font-size: 0.78rem; letter-spacing: 0.08em;">Platform Feature</p>
+      <h1 class="h2 fw-bold mb-2">Unlock Mentor Contact Details</h1>
+      <p class="text-secondary mb-0">Get permanent access to direct professional channels to connect with {{ mentor.full_name }}.</p>
+    </div>
+
+    <div class="row g-4">
+      <!-- Left Column: Details being unlocked -->
+      <div class="col-lg-7">
+        <div class="unlock-card">
+          <div class="d-flex align-items-center gap-3 pb-3 mb-3 border-bottom">
+            {% if mentor.profile_photo %}
+              <img src="{{ url_for('static', filename='uploads/public/' + mentor.profile_photo) }}" alt="{{ mentor.full_name }}" style="width: 58px; height: 58px; border-radius: 50%; object-fit: cover; border: 2px solid #e2eaf5;">
+            {% else %}
+              <div class="avatar-fallback" style="width: 58px; height: 58px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 700; background: #eef5ff; color: var(--ss-blue);">{{ mentor.full_name[0]|upper }}</div>
+            {% endif %}
+            <div>
+              <h2 class="h5 mb-1 fw-bold">{{ mentor.full_name }}</h2>
+              <span class="badge text-bg-success" style="font-size: 0.72rem;">Verified Mentor</span>
+              {% if mentor.location %}
+                <small class="text-secondary ms-2">⌖ {{ mentor.location.city }}</small>
+              {% endif %}
+            </div>
+          </div>
+
+          <h3 class="h6 fw-bold mb-3">Professional links included in this unlock:</h3>
+          <div class="d-flex flex-column gap-2 mb-4">
+            {% if mentor.mentor_profile and mentor.mentor_profile.linkedin_url and mentor.mentor_profile.linkedin_url.strip() %}
+            <div class="perk-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854zm4.943 12.248V6.169H2.542v7.225zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248S2.4 3.226 2.4 3.934c0 .694.521 1.248 1.327 1.248zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016l.016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225z"/>
+              </svg>
+              <span><strong>LinkedIn Profile:</strong> Verified professional network link</span>
+            </div>
+            {% endif %}
+
+            {% if mentor.mentor_profile and mentor.mentor_profile.github_url and mentor.mentor_profile.github_url.strip() %}
+            <div class="perk-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+              </svg>
+              <span><strong>GitHub Profile:</strong> Code repositories and projects</span>
+            </div>
+            {% endif %}
+
+            {% if mentor.mentor_profile and mentor.mentor_profile.website_url and mentor.mentor_profile.website_url.strip() %}
+            <div class="perk-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m7.5-6.923c-.67.204-1.335.82-1.887 1.855A8 8 0 0 0 5.145 4H7.5zM4.09 4a9.3 9.3 0 0 1 .64-1.539 7 7 0 0 1 .597-.933A7.03 7.03 0 0 0 2.255 4zm-.582 3.5c.03-.877.138-1.718.312-2.5H1.67A7.03 7.03 0 0 0 1 8c0 .17.007.337.02.5zM1 9.5a7 7 0 0 0 2.222 4.432c-.174-.782-.282-1.623-.312-2.5zm4.854 4.094c.552 1.035 1.218 1.65 1.888 1.855V11H5.145a8 8 0 0 0 .709 2.594M7.5 10H5.068a9.4 9.4 0 0 1-.223-2H7.5zm0-3H4.845a9.4 9.4 0 0 1 .223-2H7.5zm1 0h2.432a9.4 9.4 0 0 1 .223 2H8.5zm0 3h2.655a9.4 9.4 0 0 1-.223 2H8.5zm1.5-6H8.5V1.077c.67.204 1.335.82 1.887 1.855.173.324.33.682.468 1.068M11.91 4a9.3 9.3 0 0 0-.64-1.539 7 7 0 0 0-.597-.933A7.03 7.03 0 0 1 13.745 4zm.582 3.5c-.03-.877-.138-1.718-.312-2.5h2.152c.08.777.12 1.622.12 2.5 0 .17-.007.337-.02.5zM15 9.5a7 7 0 0 1-2.222 4.432c.174-.782.282-1.623.312-2.5zm-4.854 4.094c-.552 1.035-1.218 1.65-1.888 1.855V11h2.355a8 8 0 0 1-.709 2.594"/>
+              </svg>
+              <span><strong>Personal Website:</strong> Portfolio and custom links</span>
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="p-3 bg-light rounded-3 text-secondary small">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1 text-primary" viewBox="0 0 16 16">
+              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+              <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+            </svg>
+            <strong>Permanent Access:</strong> Once paid, these details remain accessible indefinitely whenever you visit this mentor's profile.
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Order Summary & Checkout Form -->
+      <div class="col-lg-5">
+        <div class="unlock-card">
+          <h2 class="h5 fw-bold mb-3">Order summary</h2>
+
+          <div class="pricing-summary-box mb-4">
+            <div class="pricing-row">
+              <span>Service</span>
+              <strong class="text-dark">Profile Details Unlock</strong>
+            </div>
+            <div class="pricing-row">
+              <span>Mentor</span>
+              <strong class="text-dark">{{ mentor.full_name }}</strong>
+            </div>
+            <div class="pricing-row">
+              <span>Access Type</span>
+              <span>Permanent</span>
+            </div>
+            <div class="pricing-row">
+              <span>Platform Fee</span>
+              <span>৳{{ '%.2f'|format(fee|float) }}</span>
+            </div>
+            <div class="pricing-row total-row">
+              <span>Total Due:</span>
+              <span class="text-primary">৳{{ '%.2f'|format(fee|float) }}</span>
+            </div>
+          </div>
+
+          <form method="post" action="{{ url_for('payments.unlock_mentor_details', mentor_id=mentor.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="mb-3">
+              <label for="demo_outcome" class="form-label fw-bold small text-secondary">Demo payment test outcome</label>
+              <select class="form-select" id="demo_outcome" name="demo_outcome" required>
+                <option value="success" selected>Successful Payment</option>
+                <option value="failure">Failed Payment (Simulation)</option>
+              </select>
+              <small class="text-secondary d-block mt-1" style="font-size: 0.78rem;">Select outcome to test platform reaction.</small>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold d-flex align-items-center justify-content-center gap-2" style="min-height: 48px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M11 1a2 2 0 0 0-2 2v4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h5V3a3 3 0 0 1 6 0v4a.5.5 0 0 1-1 0V3a2 2 0 0 0-2-2"/>
+              </svg>
+              <span>Pay ৳{{ '%.2f'|format(fee|float) }} & Unlock</span>
+            </button>
+          </form>
+
+          <div class="text-center mt-3">
+            <small class="text-secondary" style="font-size: 0.76rem;">🔒 Simulated Demo Transaction · No actual funds are charged.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

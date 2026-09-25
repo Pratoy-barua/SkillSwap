@@ -544,9 +544,13 @@
       <!-- Learning Plan Summary Box -->
       <div class="invoice-plan-box">
         <div>
-          <span class="d-block text-secondary small fw-bold text-uppercase">Learning Plan</span>
+          <span class="d-block text-secondary small fw-bold text-uppercase">{% if payment.payment_type == 'Profile Unlock' %}Access Service{% else %}Learning Plan{% endif %}</span>
           <h2 class="invoice-plan-title">
-            {{ payment.relationship.plan.title if payment.relationship and payment.relationship.plan else (payment.relationship.skill.name ~ ' Mentorship' if payment.relationship else 'Skill Learning') }}
+            {% if payment.payment_type == 'Profile Unlock' %}
+              Mentor Profile Access Unlock &ndash; {{ payment.mentor.full_name }}
+            {% else %}
+              {{ payment.relationship.plan.title if payment.relationship and payment.relationship.plan else (payment.relationship.skill.name ~ ' Mentorship' if payment.relationship else 'Skill Learning') }}
+            {% endif %}
           </h2>
         </div>
         <div class="invoice-plan-meta text-sm-end">
@@ -568,13 +572,17 @@
           <tr>
             <td>
               <div class="invoice-item-title">
-                Learning Plan Payment &ndash; {{ payment.relationship.skill.name if payment.relationship else 'Mentorship' }}
+                {% if payment.payment_type == 'Profile Unlock' %}
+                  Mentor Contact Details Unlock (LinkedIn, GitHub, Website)
+                {% else %}
+                  Learning Plan Payment &ndash; {{ payment.relationship.skill.name if payment.relationship else 'Mentorship' }}
+                {% endif %}
               </div>
               <div class="invoice-item-subtext">
                 Mentor: {{ payment.mentor.full_name }}
               </div>
             </td>
-            <td>{{ payment.payment_type }}</td>
+            <td>{{ 'One-time' if payment.payment_type == 'Profile Unlock' else payment.payment_type }}</td>
             <td>৳{{ '%.2f'|format(payment.amount|float) }}</td>
           </tr>
         </tbody>
@@ -587,14 +595,21 @@
             <span>Subtotal:</span>
             <strong>৳{{ '%.2f'|format(payment.amount|float) }}</strong>
           </div>
+          {% if payment.payment_type == 'Profile Unlock' %}
           <div class="invoice-total-row">
-            <span>Platform Commission (10%):</span>
+            <span>Platform Access Fee:</span>
+            <span>৳{{ '%.2f'|format(payment.platform_commission|float) }}</span>
+          </div>
+          {% else %}
+          <div class="invoice-total-row">
+            <span>Platform Commission:</span>
             <span>৳{{ '%.2f'|format(payment.platform_commission|float) }}</span>
           </div>
           <div class="invoice-total-row">
             <span>Mentor Earning:</span>
             <span>৳{{ '%.2f'|format(payment.mentor_earning|float) }}</span>
           </div>
+          {% endif %}
           <div class="invoice-total-row grand-total">
             <span>Total Paid:</span>
             <span class="grand-amount">৳{{ '%.2f'|format(payment.amount|float) }}</span>
