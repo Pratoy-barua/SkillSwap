@@ -30,6 +30,10 @@ class LearningRelationship(db.Model):
     skill_id = db.Column(db.Integer, db.ForeignKey("skills.id", ondelete="RESTRICT"), nullable=False)
     request_id = db.Column(db.Integer, db.ForeignKey("learning_requests.id", ondelete="SET NULL"), unique=True, nullable=True)
     status = db.Column(db.String(20), nullable=False, default="Active", index=True)
+    payment_type = db.Column(db.String(30), nullable=False, default="one_time")
+    payment_frequency = db.Column(db.String(20), nullable=False, default="none")
+    payment_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    payment_status = db.Column(db.String(20), nullable=False, default="Active")
     started_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     learner = db.relationship("User", foreign_keys=[learner_id])
@@ -39,7 +43,48 @@ class LearningRelationship(db.Model):
     conversation = db.relationship("Conversation", back_populates="relationship", uselist=False, cascade="all, delete-orphan")
     plan = db.relationship("LearningPlan", back_populates="relationship", uselist=False, cascade="all, delete-orphan")
     progress = db.relationship("LearningProgress", back_populates="relationship", uselist=False, cascade="all, delete-orphan")
+    payments = db.relationship("Payment", back_populates="relationship", cascade="all, delete-orphan", order_by="Payment.created_at.desc()")
     __table_args__ = (db.UniqueConstraint("learner_id", "mentor_id", "skill_id", "status", name="uq_active_learning_relationship"),)
+
+    @property
+    def display_payment_type(self):
+        if self.payment_type in ("one_time", "One-time", "One-Time"):
+            return "One-time"
+        if self.payment_type in ("recurring", "Recurring"):
+            return "Recurring"
+        return self.payment_type or "One-time"
+
+    @property
+    def display_frequency(self):
+        if self.payment_frequency in ("weekly", "Weekly"):
+            return "Weekly"
+        if self.payment_frequency in ("monthly", "Monthly"):
+            return "Monthly"
+        if self.payment_frequency in ("none", "None", ""):
+            return "One-time" if self.display_payment_type == "One-time" else "None"
+        return self.payment_frequency.capitalize()
+
+    @property
+    def total_paid(self):
+        return sum(float(p.amount) for p in self.payments if p.display_status == "Paid")
+
+    @property
+    def pending_amount(self):
+        return sum(float(p.amount) for p in self.payments if p.display_status == "Pending")
+
+    @property
+    def overdue_amount(self):
+        return sum(float(p.amount) for p in self.payments if p.display_status == "Overdue")
+
+    @property
+    def last_payment(self):
+        paid = [p for p in self.payments if p.display_status == "Paid"]
+        return paid[0] if paid else None
+
+    @property
+    def next_payment(self):
+        due = [p for p in self.payments if p.display_status in ("Pending", "Overdue")]
+        return due[-1] if due else None
 
 
 class Conversation(db.Model):

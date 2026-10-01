@@ -1,0 +1,366 @@
+{% extends 'base.html' %}
+{% block title %}Mentor Withdrawal Requests · SkillSwap Admin{% endblock %}
+
+{% block content %}
+<section class="section py-4">
+  <div class="container">
+    
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-2">
+      <div>
+        <p class="eyebrow text-uppercase tracking-wider text-muted small mb-1">Financial Operations</p>
+        <h1 class="section-heading h2 mb-0">Mentor Withdrawal Requests</h1>
+        <p class="text-secondary small mt-1 mb-0">Review, disburse, track, and manage mentor payout requests across the platform.</p>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.payments') }}">
+          <i class="bi bi-receipt me-1"></i> Platform Invoices
+        </a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.revenue') }}">
+          <i class="bi bi-graph-up me-1"></i> Net Revenue
+        </a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('admin.dashboard') }}">
+          <i class="bi bi-speedometer2 me-1"></i> Admin Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- FLASH MESSAGES -->
+    {% include 'partials/flash.html' %}
+
+    <!-- 4 SUMMARY METRIC CARDS -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="soft-card p-3 h-100 border-start border-4 border-primary">
+          <span class="text-secondary small d-block mb-1">Total Requested</span>
+          <div class="h4 fw-bold text-dark mb-0">৳{{ '%.2f'|format(total_requested_amount|float) }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">{{ total_records }} total request(s)</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="soft-card p-3 h-100 border-start border-4 border-warning">
+          <span class="text-secondary small d-block mb-1">Pending Review</span>
+          <div class="h4 fw-bold text-warning mb-0">{{ pending_count }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">৳{{ '%.2f'|format(total_pending_amount|float) }} awaiting action</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="soft-card p-3 h-100 border-start border-4 border-info">
+          <span class="text-secondary small d-block mb-1">In Processing</span>
+          <div class="h4 fw-bold text-info mb-0">{{ processing_count }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">Payouts being dispatched</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="soft-card p-3 h-100 border-start border-4 border-success">
+          <span class="text-secondary small d-block mb-1">Completed Disbursals</span>
+          <div class="h4 fw-bold text-success mb-0">৳{{ '%.2f'|format(total_completed_amount|float) }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">{{ completed_count }} paid out</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTER TABS -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <div class="btn-group btn-group-sm" role="group" aria-label="Status filter">
+        <a href="{{ url_for('admin.withdrawals', status='All') }}" class="btn {% if selected_status == 'All' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          All ({{ total_records }})
+        </a>
+        <a href="{{ url_for('admin.withdrawals', status='Pending') }}" class="btn {% if selected_status == 'Pending' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          Pending ({{ pending_count }})
+        </a>
+        <a href="{{ url_for('admin.withdrawals', status='Processing') }}" class="btn {% if selected_status == 'Processing' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          Processing ({{ processing_count }})
+        </a>
+        <a href="{{ url_for('admin.withdrawals', status='Completed') }}" class="btn {% if selected_status == 'Completed' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          Completed ({{ completed_count }})
+        </a>
+        <a href="{{ url_for('admin.withdrawals', status='Rejected') }}" class="btn {% if selected_status == 'Rejected' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          Rejected ({{ rejected_count }})
+        </a>
+      </div>
+      <span class="text-muted small">Showing {{ withdrawals|length }} item(s)</span>
+    </div>
+
+    <!-- WITHDRAWALS TABLE -->
+    <div class="soft-card p-3 p-md-4">
+      {% if withdrawals %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light small text-uppercase text-secondary">
+              <tr>
+                <th style="min-width: 120px;">Request ID</th>
+                <th style="min-width: 200px;">Mentor</th>
+                <th style="min-width: 120px;">Amount</th>
+                <th style="min-width: 180px;">Payout Method</th>
+                <th style="min-width: 180px;">Account Destination</th>
+                <th style="min-width: 110px;">Status</th>
+                <th style="min-width: 140px;">Requested Date</th>
+                <th style="min-width: 170px; text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for w in withdrawals %}
+                <tr>
+                  <!-- ID -->
+                  <td>
+                    <span class="fw-bold font-monospace text-dark">{{ w.display_withdrawal_id }}</span>
+                    {% if w.admin_note %}
+                      <span class="badge bg-light text-muted border ms-1" title="{{ w.admin_note }}" data-bs-toggle="tooltip">Note</span>
+                    {% endif %}
+                  </td>
+
+                  <!-- MENTOR -->
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      {% if w.mentor.profile_photo %}
+                        <img src="{{ url_for('static', filename='uploads/public/' + w.mentor.profile_photo) }}" alt="{{ w.mentor.full_name }}" class="rounded-circle object-fit-cover" style="width: 32px; height: 32px;">
+                      {% else %}
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                          {{ w.mentor.full_name[0] }}
+                        </div>
+                      {% endif %}
+                      <div>
+                        <a href="{{ url_for('discovery.mentor_profile', user_id=w.mentor.id) }}" class="fw-semibold text-dark text-decoration-none">
+                          {{ w.mentor.full_name }}
+                        </a>
+                        <small class="d-block text-muted">{{ w.mentor.email }}</small>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- AMOUNT -->
+                  <td>
+                    <span class="fw-bold text-primary">৳{{ '%.2f'|format(w.amount|float) }}</span>
+                  </td>
+
+                  <!-- METHOD -->
+                  <td>
+                    <span class="badge bg-light text-dark border">
+                      {% if w.method == 'bKash' %}
+                        <span class="text-danger fw-bold me-1">●</span> bKash
+                      {% elif w.method == 'Nagad' %}
+                        <span class="text-warning fw-bold me-1">●</span> Nagad
+                      {% elif w.method == 'Rocket' %}
+                        <span class="text-primary fw-bold me-1">●</span> Rocket
+                      {% elif w.method == 'Bank Account' %}
+                        <span class="text-info fw-bold me-1">●</span> Bank Account
+                      {% elif w.method == 'Card' %}
+                        <span class="text-success fw-bold me-1">●</span> Card
+                      {% else %}
+                        {{ w.method }}
+                      {% endif %}
+                    </span>
+                    {% if w.method == 'Bank Account' and w.bank_name %}
+                      <small class="d-block text-muted">{{ w.bank_name }}</small>
+                    {% elif w.method == 'Card' and w.card_issuer %}
+                      <small class="d-block text-muted">{{ w.card_issuer }}</small>
+                    {% endif %}
+                  </td>
+
+                  <!-- DESTINATION -->
+                  <td>
+                    <span class="font-monospace small d-block">{{ w.masked_account_display }}</span>
+                    <small class="text-muted">{{ w.account_holder_name }}</small>
+                    {% if w.method == 'Bank Account' and w.branch_name %}
+                      <small class="d-block text-muted fst-italic">Branch: {{ w.branch_name }}</small>
+                    {% endif %}
+                  </td>
+
+                  <!-- STATUS -->
+                  <td>
+                    {% if w.status == 'Completed' %}
+                      <span class="badge text-bg-success px-2 py-1">Completed</span>
+                    {% elif w.status == 'Processing' %}
+                      <span class="badge text-bg-info text-white px-2 py-1">Processing</span>
+                    {% elif w.status == 'Rejected' %}
+                      <span class="badge text-bg-danger px-2 py-1" title="{{ w.rejection_reason or '' }}" data-bs-toggle="tooltip">Rejected</span>
+                    {% else %}
+                      <span class="badge text-bg-warning px-2 py-1">Pending</span>
+                    {% endif %}
+                  </td>
+
+                  <!-- DATE -->
+                  <td>
+                    <span class="small text-dark d-block">{{ w.requested_at.strftime('%d %b %Y') if w.requested_at else 'N/A' }}</span>
+                    <small class="text-muted">{{ w.requested_at.strftime('%I:%M %p') if w.requested_at else '' }}</small>
+                  </td>
+
+                  <!-- ACTIONS -->
+                  <td style="text-align: right;">
+                    <div class="d-inline-flex gap-1 justify-content-end align-items-center">
+                      
+                      {% if w.status == 'Pending' %}
+                        <!-- Process button form -->
+                        <form method="POST" action="{{ url_for('admin.process_withdrawal', withdrawal_id=w.id) }}" class="d-inline">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                          <button type="submit" class="btn btn-outline-info btn-sm px-2 py-1" title="Mark as In Processing">
+                            Process
+                          </button>
+                        </form>
+
+                        <!-- Reject button triggering modal -->
+                        <button type="button" class="btn btn-outline-danger btn-sm px-2 py-1" data-bs-toggle="modal" data-bs-target="#rejectModal{{ w.id }}">
+                          Reject
+                        </button>
+
+                      {% elif w.status == 'Processing' %}
+                        <!-- Complete button triggering modal -->
+                        <button type="button" class="btn btn-success btn-sm px-2 py-1" data-bs-toggle="modal" data-bs-target="#completeModal{{ w.id }}">
+                          Complete
+                        </button>
+
+                        <!-- Reject button triggering modal -->
+                        <button type="button" class="btn btn-outline-danger btn-sm px-2 py-1" data-bs-toggle="modal" data-bs-target="#rejectModal{{ w.id }}">
+                          Reject
+                        </button>
+
+                      {% elif w.status == 'Completed' %}
+                        <span class="small text-success fst-italic">
+                          Paid {{ w.processed_at.strftime('%d %b') if w.processed_at else '' }}
+                        </span>
+
+                      {% elif w.status == 'Rejected' %}
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" data-bs-toggle="modal" data-bs-target="#reasonModal{{ w.id }}" title="View Rejection Reason">
+                          Reason
+                        </button>
+                      {% endif %}
+
+                    </div>
+
+                    <!-- MODAL: REJECT WITHDRAWAL -->
+                    {% if w.status in ('Pending', 'Processing') %}
+                      <div class="modal fade" id="rejectModal{{ w.id }}" tabindex="-1" aria-labelledby="rejectModalLabel{{ w.id }}" aria-hidden="true" style="text-align: left;">
+                        <div class="modal-dialog modal-dialog-centered">
+                          <div class="modal-content">
+                            <form method="POST" action="{{ url_for('admin.reject_withdrawal', withdrawal_id=w.id) }}">
+                              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                              <div class="modal-header border-0 pb-0">
+                                <h5 class="modal-title text-danger fw-bold" id="rejectModalLabel{{ w.id }}">
+                                  <i class="bi bi-x-circle me-1"></i> Reject Withdrawal {{ w.display_withdrawal_id }}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                              </div>
+                              <div class="modal-body py-3">
+                                <p class="text-secondary small mb-3">
+                                  You are rejecting the payout request of <strong class="text-dark">৳{{ '%.2f'|format(w.amount|float) }}</strong> for <strong>{{ w.mentor.full_name }}</strong>.
+                                </p>
+                                <div class="alert alert-warning small py-2 px-3 mb-3">
+                                  <i class="bi bi-info-circle me-1"></i>
+                                  <strong>Fund Release:</strong> The reserved amount of ৳{{ '%.2f'|format(w.amount|float) }} will be released back into the mentor's Available Balance immediately.
+                                </div>
+                                <div class="mb-3">
+                                  <label for="rejection_reason_{{ w.id }}" class="form-label small fw-semibold text-dark">
+                                    Rejection Reason <span class="text-danger">*</span>
+                                  </label>
+                                  <textarea class="form-control" id="rejection_reason_{{ w.id }}" name="rejection_reason" rows="3" placeholder="Provide the reason for rejection (e.g. invalid account number, incorrect holder name)..." required></textarea>
+                                </div>
+                              </div>
+                              <div class="modal-footer border-0 pt-0">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger btn-sm">Confirm Rejection</button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      </div>
+                    {% endif %}
+
+                    <!-- MODAL: COMPLETE WITHDRAWAL -->
+                    {% if w.status in ('Pending', 'Processing') %}
+                      <div class="modal fade" id="completeModal{{ w.id }}" tabindex="-1" aria-labelledby="completeModalLabel{{ w.id }}" aria-hidden="true" style="text-align: left;">
+                        <div class="modal-dialog modal-dialog-centered">
+                          <div class="modal-content">
+                            <form method="POST" action="{{ url_for('admin.complete_withdrawal', withdrawal_id=w.id) }}">
+                              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                              <div class="modal-header border-0 pb-0">
+                                <h5 class="modal-title text-success fw-bold" id="completeModalLabel{{ w.id }}">
+                                  <i class="bi bi-check-circle me-1"></i> Disburse Payout {{ w.display_withdrawal_id }}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                              </div>
+                              <div class="modal-body py-3">
+                                <p class="text-secondary small mb-3">
+                                  Confirm that <strong class="text-dark">৳{{ '%.2f'|format(w.amount|float) }}</strong> has been disbursed to <strong>{{ w.account_holder_name }}</strong> via {{ w.method }} ({{ w.masked_account_display }}).
+                                </p>
+                                <div class="mb-3">
+                                  <label for="admin_note_{{ w.id }}" class="form-label small fw-semibold text-dark">
+                                    Disbursement / Transaction Reference <span class="text-muted fw-normal">(Optional)</span>
+                                  </label>
+                                  <input type="text" class="form-control form-control-sm" id="admin_note_{{ w.id }}" name="admin_note" placeholder="e.g. bKash TrxID 9K284X7 or Bank Transfer Ref #8921">
+                                </div>
+                              </div>
+                              <div class="modal-footer border-0 pt-0">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-success btn-sm">Confirm Completion</button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      </div>
+                    {% endif %}
+
+                    <!-- MODAL: VIEW REJECTION REASON -->
+                    {% if w.status == 'Rejected' %}
+                      <div class="modal fade" id="reasonModal{{ w.id }}" tabindex="-1" aria-labelledby="reasonModalLabel{{ w.id }}" aria-hidden="true" style="text-align: left;">
+                        <div class="modal-dialog modal-dialog-centered">
+                          <div class="modal-content">
+                            <div class="modal-header border-0 pb-0">
+                              <h5 class="modal-title text-danger fw-bold" id="reasonModalLabel{{ w.id }}">
+                                Rejection Details · {{ w.display_withdrawal_id }}
+                              </h5>
+                              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body py-3">
+                              <div class="mb-2">
+                                <small class="text-muted d-block">Mentor</small>
+                                <strong>{{ w.mentor.full_name }}</strong> ({{ w.mentor.email }})
+                              </div>
+                              <div class="mb-2">
+                                <small class="text-muted d-block">Amount</small>
+                                <strong class="text-primary">৳{{ '%.2f'|format(w.amount|float) }}</strong>
+                              </div>
+                              <div class="mb-3">
+                                <small class="text-muted d-block">Rejection Reason</small>
+                                <div class="p-2 bg-light rounded border text-danger small">
+                                  {{ w.rejection_reason or 'No reason specified.' }}
+                                </div>
+                              </div>
+                              <small class="text-muted d-block">
+                                Processed at: {{ w.processed_at.strftime('%d %B %Y, %I:%M %p') if w.processed_at else 'N/A' }}
+                              </small>
+                            </div>
+                            <div class="modal-footer border-0 pt-0">
+                              <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    {% endif %}
+
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-5">
+          <div class="d-inline-flex align-items-center justify-content-center bg-light text-muted rounded-circle mb-3" style="width: 56px; height: 56px;">
+            <i class="bi bi-inbox fs-3"></i>
+          </div>
+          <h2 class="h5 fw-bold text-dark mb-1">No withdrawal requests found</h2>
+          <p class="text-muted small mb-0">
+            {% if selected_status != 'All' %}
+              There are no withdrawal requests with status "{{ selected_status }}".
+            {% else %}
+              No mentors have requested withdrawals yet.
+            {% endif %}
+          </p>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+{% endblock %}

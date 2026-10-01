@@ -11,6 +11,7 @@ from models.connection import LearningRelationship, Notification
 from models.learning import LearningPlan, LearningProgress
 from models.reviews import Review
 from services.notifications import notify
+from services.payments import check_and_update_overdue_payments
 
 
 learning_bp = Blueprint("learning", __name__)
@@ -56,6 +57,7 @@ def plan(relationship_id):
 @learning_bp.route("/mentor/learning/<int:relationship_id>/progress", methods=["GET", "POST"])
 @role_required("Mentor")
 def mentor_progress(relationship_id):
+    check_and_update_overdue_payments()
     relationship = owned_relationship(relationship_id, "Mentor")
     progress = relationship.progress or LearningProgress(relationship=relationship, learner_id=relationship.learner_id, mentor_id=relationship.mentor_id, skill_id=relationship.skill_id)
     if request.method == "POST":
@@ -86,6 +88,7 @@ def mentor_progress(relationship_id):
 @learning_bp.get("/learning/<int:relationship_id>/progress")
 @role_required("Learner", "Mentor")
 def progress(relationship_id):
+    check_and_update_overdue_payments()
     relationship = LearningRelationship.query.filter(LearningRelationship.id == relationship_id, LearningRelationship.status.in_(["Active", "Completed"])).first_or_404()
     if g.current_user.id not in {relationship.learner_id, relationship.mentor_id}:
         abort(403)

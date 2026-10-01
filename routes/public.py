@@ -13,7 +13,8 @@ public_bp = Blueprint("public", __name__)
 @public_bp.get("/")
 def home():
     try:
-        skills = Skill.query.filter_by(is_active=True).order_by(Skill.name.asc()).limit(8).all()
+        all_skills = Skill.query.filter_by(is_active=True).order_by(Skill.name.asc()).all()
+        skills = all_skills[:8]
         featured = (
             MentorSkill.query.join(MentorSkill.mentor_profile)
             .join(MentorProfile.user)
@@ -26,8 +27,8 @@ def home():
         locations = Location.query.join(User, User.location_id == Location.id).join(User.role).filter(Role.name == "Mentor", User.account_status == "Approved").distinct().order_by(Location.city, Location.area).all()
     except Exception:
         # Keep the Phase 1 marketing page available while the database is starting.
-        skills, featured, locations = [], [], []
-    return render_template("public/home.html", page_title="Learn locally. Grow together.", skills=skills, featured=featured, locations=locations)
+        all_skills, skills, featured, locations = [], [], [], []
+    return render_template("public/home.html", page_title="Learn locally. Grow together.", skills=skills, all_skills=all_skills, featured=featured, locations=locations)
 
 
 @public_bp.get("/about")

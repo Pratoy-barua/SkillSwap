@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% block title %}Terms & Regulations · SkillSwap{% endblock %}
+{% block content %}
+<section class="placeholder-page py-5">
+  <div class="container">
+    <div class="soft-card mx-auto p-4 p-md-5" style="max-width: 900px;">
+      
+      <!-- Top header / breadcrumb -->
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <p class="eyebrow mb-0">Join SkillSwap</p>
+        {% if role == 'learner' %}
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1.5 rounded-pill fw-semibold" style="font-size: 0.8rem;">
+            Account Type: Learner
+          </span>
+        {% elif role == 'mentor' %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1.5 rounded-pill fw-semibold" style="font-size: 0.8rem;">
+            Account Type: Mentor
+          </span>
+        {% endif %}
+      </div>
+
+      <h1 class="section-heading h2 mb-2">SkillSwap Terms &amp; Regulations</h1>
+      <p class="section-copy mb-4 text-muted">Please read and accept the following rules before creating your account.</p>
+
+      {% include 'partials/flash.html' %}
+
+      <!-- Scrollable Terms Card -->
+      <div class="terms-card-scrollable mb-4" tabindex="0" role="region" aria-label="SkillSwap Terms and Regulations content">
+        
+        <!-- 1. ACCOUNT & INFORMATION -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">1. Account &amp; Information</h2>
+          <div class="terms-section-content">
+            <p>All members of the SkillSwap community are expected to maintain integrity and truthfulness in their account information.</p>
+            <ul>
+              <li>Users must provide accurate, current, and truthful information during registration and in profile updates.</li>
+              <li>Users must not use another person's identity, national ID, certificates, or documents.</li>
+              <li>Users must keep their login credentials, passwords, and access tokens secure at all times.</li>
+              <li>Users must not create fraudulent, misleading, duplicate, or impersonated accounts.</li>
+              <li>Verification documents (such as NID, passport, certificates, and evidence files) must be genuine and unaltered when requested.</li>
+              <li>Users remain solely responsible for all activities conducted under their account and for any information they submit to SkillSwap.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 2. ADMIN APPROVAL -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">2. Admin Approval</h2>
+          <div class="terms-section-content">
+            <p>Registration on SkillSwap does not automatically confer active membership or platform privileges.</p>
+            <ul>
+              <li>Submitting an account application does not automatically mean the account is approved.</li>
+              <li>Mentor accounts require identity verification, skill assessment, and formal administrator approval before appearing in public searches or taking on learners.</li>
+              <li>Learner accounts are also subject to platform verification rules, compliance checks, and admin review.</li>
+              <li>Platform administrators reserve the right to reject applications containing false, incomplete, misleading, suspicious, or unverified information.</li>
+              <li>Administrators may suspend, restrict, or terminate any account that violates platform guidelines, community standards, or these Terms &amp; Regulations.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 3. PAYMENT RULES -->
+        <div class="terms-section">
+          <h2 class="terms-section-title text-primary">3. Payment Rules</h2>
+          <div class="terms-section-content">
+            <div class="terms-highlight-box terms-highlight-warning mb-3">
+              <strong>Crucial Platform Policy:</strong> SkillSwap enforces strict payment compliance to protect both learners and mentors from fraud, financial disputes, and unverified service delivery.
+            </div>
+            <ul>
+              <li><strong>Official Platform Transactions:</strong> Payments for SkillSwap services, courses, learning plans, sessions, mentor unlock fees, and store products must be completed exclusively through the official SkillSwap website and payment system when a platform payment system is provided.</li>
+              <li><strong>Prohibition of Payment Bypass:</strong> Learners and Mentors must <strong>not bypass</strong> the platform payment system by transferring money directly through personal bKash, Nagad, Rocket, personal bank accounts, direct cash, or any external offline or online methods for transactions that are supposed to be processed through SkillSwap.</li>
+              <li><strong>No Encouragement of Bypass:</strong> Users must not encourage, suggest, demand, or force another user to bypass SkillSwap's official payment system under any circumstances.</li>
+              <li><strong>Price and Fee Verification:</strong> Users should carefully review the displayed price, transaction details, and applicable fees before confirming any payment on the platform.</li>
+              <li><strong>Platform Records:</strong> Payment records, invoices, and receipts must remain documented within SkillSwap whenever the platform payment system is used. External or undocumented transactions will not be protected, verified, or acknowledged by platform administrators.</li>
+              <li><strong>Platform Fees:</strong> Any applicable platform fees, tuitions, or platform commissions are handled strictly according to the existing SkillSwap payment and store system.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 4. MENTOR RULES -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">4. Mentor Rules</h2>
+          <div class="terms-section-content">
+            <p>Mentors hold a position of educational trust. As a Mentor on SkillSwap, you agree to:</p>
+            <ul>
+              <li>Provide completely truthful and verified information regarding your skills, subject areas, and expertise.</li>
+              <li>Provide accurate details regarding your years of experience, professional background, and qualifications.</li>
+              <li>Keep your profile, availability, contact details, and schedule reasonably up to date.</li>
+              <li>Clearly state your pricing, tuition terms, and available services without hidden charges.</li>
+              <li>Treat every Learner respectfully, ethically, and courteously without prejudice.</li>
+              <li>Provide the agreed learning services, sessions, and guidance professionally and punctually.</li>
+              <li>Avoid making exaggerated, fraudulent, or misleading claims about learning outcomes or career guarantees.</li>
+              <li>Avoid any form of harassment, discrimination, hate speech, threats, intimidation, or abusive behavior.</li>
+              <li>Protect Learner privacy and strictly avoid misusing Learner contact or personal details obtained through the platform.</li>
+              <li>Never encourage, request, or accept payments from Learners outside of SkillSwap's official payment system.</li>
+              <li>Never upload illegal, harmful, defamatory, malicious, or copyrighted material without proper authorization.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 5. LEARNER RULES -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">5. Learner Rules</h2>
+          <div class="terms-section-content">
+            <p>Learners benefit from community knowledge and dedicated mentor time. As a Learner on SkillSwap, you agree to:</p>
+            <ul>
+              <li>Provide accurate personal and account details during registration and application.</li>
+              <li>Treat Mentors, fellow learners, and platform staff respectfully and professionally.</li>
+              <li>Follow agreed learning arrangements, schedules, preparation tasks, and attendance commitments.</li>
+              <li>Carefully review session prices and payment totals before making any payment.</li>
+              <li>Never intentionally submit fake, retaliatory, defamatory, or malicious reviews or ratings.</li>
+              <li>Never harass, insult, threaten, or abuse Mentors or other platform participants.</li>
+              <li>Never misuse Mentor personal information or contact details for unauthorized or commercial purposes.</li>
+              <li>Never copy, redistribute, record, or publish paid or private learning materials provided by mentors without explicit written permission.</li>
+              <li>Never encourage or request Mentors to bypass SkillSwap's official payment system.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 6. REVIEWS & RATINGS -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">6. Reviews &amp; Ratings</h2>
+          <div class="terms-section-content">
+            <p>SkillSwap maintains a community-driven reputation system to foster trust and quality.</p>
+            <ul>
+              <li>Learners may rate and review Mentors based strictly on their actual, firsthand learning experience with that Mentor.</li>
+              <li>All reviews and feedback should be honest, constructive, factual, and experience-based.</li>
+              <li>Fake, manufactured, coordinated, or incentivized reviews are strictly prohibited.</li>
+              <li>Spam, repetitive, or promotional reviews are strictly prohibited.</li>
+              <li>Abusive, derogatory, offensive, obscene, or threatening reviews are prohibited.</li>
+              <li>Reviews must never be used as extortion, retaliation, or to intentionally damage another user's professional reputation.</li>
+              <li>Platform administrators reserve the right to review, moderate, edit, or remove reviews that violate platform policies.</li>
+              <li>Mentor ratings and reviews will be publicly visible on the Mentor's profile according to platform design.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 7. PRIVACY & SECURITY -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">7. Privacy &amp; Security</h2>
+          <div class="terms-section-content">
+            <p>Security and personal data protection are shared platform responsibilities.</p>
+            <ul>
+              <li>Users must maintain strong passwords and keep them strictly confidential.</li>
+              <li>Users must never share OTPs (One-Time Passwords), verification codes, or authentication tokens with anyone.</li>
+              <li>Users must never share bank, bKash, Nagad, card PINs, or sensitive payment credentials with other users.</li>
+              <li>Users must not attempt to access another user's account, session, messages, or files.</li>
+              <li>Users must not attempt to harvest, scrape, or access private personal information of other members.</li>
+              <li>Users must not misuse personal information obtained through SkillSwap for spam or harassment.</li>
+              <li>SkillSwap processes and protects user data for legitimate platform purposes, including account administration, identity verification, service delivery, messaging, communication, payment processing, fraud prevention, security monitoring, and platform operations.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 8. PROHIBITED ACTIVITIES -->
+        <div class="terms-section">
+          <h2 class="terms-section-title text-danger">8. Prohibited Activities</h2>
+          <div class="terms-section-content">
+            <p>Any user engaging in the following prohibited activities will be subject to immediate disciplinary and corrective action:</p>
+            <ul>
+              <li>Fraud, financial scams, deceptive schemes, or extortion.</li>
+              <li>Providing fake identities, falsified credentials, or counterfeit verification documents.</li>
+              <li>Account impersonation or misrepresenting affiliation with any individual, institution, or organization.</li>
+              <li>Harassment, stalking, threats, bullying, hate speech, or abuse of any kind.</li>
+              <li>Illegal activities, unlawful services, or encouraging others to commit unlawful acts.</li>
+              <li>Distributing malware, viruses, harmful scripts, hacking utilities, or unauthorized access tools.</li>
+              <li>Spamming, unsolicited advertising, phishing, or social engineering attacks.</li>
+              <li>Infringing upon intellectual property, copyrights, trademarks, or proprietary content.</li>
+              <li>Payment fraud, unauthorized card usage, chargeback abuse, or intentional payment bypass.</li>
+              <li>Attempting to manipulate, reverse-engineer, exploit, or bypass platform security, access controls, or business logic.</li>
+            </ul>
+            <p class="mb-0">Administrators may take appropriate enforcement actions, including account warnings, feature restrictions, suspension, or permanent banning according to platform rules.</p>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 9. CANCELLATION, REFUND & DISPUTES -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">9. Cancellation, Refund &amp; Disputes</h2>
+          <div class="terms-section-content">
+            <p>SkillSwap provides fair and transparent handling of service issues and transactions.</p>
+            <ul>
+              <li>Cancellation and refund requests are handled according to the applicable SkillSwap platform policies and relationship terms.</li>
+              <li>Users should review all relevant pricing, schedule, and plan information before confirming transactions.</li>
+              <li>Payment disputes, session scheduling conflicts, or learning plan disagreements should be reported promptly through platform channels.</li>
+              <li>SkillSwap administrators may review verified platform records, message histories, learning plan statuses, and payment receipts when investigating and resolving disputes.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 10. COMPLAINTS & REPORTING -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">10. Complaints &amp; Reporting</h2>
+          <div class="terms-section-content">
+            <p>Members can submit reports to help maintain a safe, high-quality community.</p>
+            <ul>
+              <li>Users may report Mentor misconduct, unprofessional behavior, or unfulfilled commitments.</li>
+              <li>Users may report Learner misconduct, non-compliance, or abusive conduct.</li>
+              <li>Users may report payment issues, fraudulent behavior, suspicious profiles, or attempts to bypass payment.</li>
+              <li>Users may report review abuse, spam, harassment, or policy violations.</li>
+              <li>Platform administrators review relevant logs, messages, and evidence to take fair and appropriate corrective action.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 11. PLATFORM RESPONSIBILITY -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">11. Platform Responsibility</h2>
+          <div class="terms-section-content">
+            <p>SkillSwap operates as a community platform connecting Learners seeking skills with Mentors offering practical knowledge.</p>
+            <ul>
+              <li>SkillSwap provides the digital infrastructure, matching tools, messaging system, and verification workflows to facilitate connections.</li>
+              <li>SkillSwap does not guarantee every individual Mentor's teaching outcome, subjective satisfaction, personal learning speed, or career outcome.</li>
+              <li>However, SkillSwap actively monitors community safety and will intervene promptly when users violate platform rules, commit fraud, abuse other members, or circumvent platform policies.</li>
+            </ul>
+          </div>
+        </div>
+
+        <hr class="my-3 opacity-25">
+
+        <!-- 12. TERMS UPDATES -->
+        <div class="terms-section">
+          <h2 class="terms-section-title">12. Terms Updates</h2>
+          <div class="terms-section-content">
+            <p>SkillSwap evolves to serve our community better.</p>
+            <ul>
+              <li>SkillSwap may revise, amend, or update these Terms &amp; Regulations from time to time.</li>
+              <li>Users may be notified of significant changes and may be required to review and accept the updated version.</li>
+              <li>The specific version of the Terms accepted during your account registration is recorded securely.</li>
+              <li>Your acceptance timestamp is recorded directly on the platform server upon completion of this step.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Terms Version Footer inside card -->
+        <div class="mt-4 pt-3 border-top d-flex flex-wrap justify-content-between align-items-center text-muted small">
+          <span class="fw-bold text-dark">Terms &amp; Regulations Version: 1.0</span>
+          <span>Effective: October 2026 · Official SkillSwap Policy</span>
+        </div>
+
+      </div>
+
+      <!-- Acceptance Form -->
+      <form method="post" action="{{ url_for('auth.terms') }}" id="termsForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="role" value="{{ role }}">
+
+        <div class="terms-acceptance-box mb-4">
+          <div class="form-check d-flex align-items-start gap-2 mb-0">
+            <input class="form-check-input mt-1 flex-shrink-0" type="checkbox" name="agree_terms" id="agreeTerms" value="1" required style="width: 1.25rem; height: 1.25rem; cursor: pointer;">
+            <label class="form-check-label fw-semibold text-dark user-select-none" for="agreeTerms" style="cursor: pointer; font-size: 0.98rem; line-height: 1.45;">
+              I have read, understood and agree to the SkillSwap Terms &amp; Regulations.
+            </label>
+          </div>
+        </div>
+
+        <div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-3">
+          <a class="btn btn-outline-secondary" href="{{ url_for('public.sign_up') }}">
+            &larr; Back to role selection
+          </a>
+          <button type="submit" id="continueBtn" class="btn btn-primary px-4 py-2.5 fw-bold" disabled>
+            Continue to Registration &rarr;
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const checkbox = document.getElementById("agreeTerms");
+  const continueBtn = document.getElementById("continueBtn");
+  const form = document.getElementById("termsForm");
+
+  if (checkbox && continueBtn) {
+    checkbox.addEventListener("change", function () {
+      continueBtn.disabled = !checkbox.checked;
+    });
+
+    if (form) {
+      form.addEventListener("submit", function (e) {
+        if (!checkbox.checked) {
+          e.preventDefault();
+          alert("Please accept the Terms & Regulations to continue.");
+        }
+      });
+    }
+  }
+});
+</script>
+{% endblock %}

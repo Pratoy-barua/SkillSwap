@@ -1,0 +1,626 @@
+{% extends 'base.html' %}
+{% block title %}Withdraw Funds · Mentor Finance · SkillSwap{% endblock %}
+
+{% block content %}
+<section class="section py-4">
+  <div class="container">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-2">
+      <div>
+        <p class="eyebrow text-uppercase tracking-wider text-muted small mb-1">Mentor Finance</p>
+        <h1 class="section-heading h2 mb-0">Withdraw Funds</h1>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('payments.earnings') }}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" class="me-1">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+          </svg>
+          Earnings & Invoices
+        </a>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('mentor.dashboard') }}">Mentor Dashboard</a>
+      </div>
+    </div>
+
+    <!-- FLASH MESSAGES -->
+    {% include 'partials/flash.html' %}
+
+    <!-- 4 SUMMARY CARDS -->
+    <div class="row g-3 mb-4">
+      <!-- 1. Available Balance -->
+      <div class="col-6 col-lg-3">
+        <div class="soft-card p-3 h-100 border-start border-4 border-success bg-white shadow-sm">
+          <span class="text-secondary small d-block mb-1">Available Balance</span>
+          <div class="h3 fw-bold text-success mb-0" id="topAvailableBalanceDisplay">
+            ৳{{ '%.2f'|format(balance.available_balance|float) }}
+          </div>
+          <small class="text-muted" style="font-size: 0.75rem;">Eligible for immediate withdrawal</small>
+        </div>
+      </div>
+
+      <!-- 2. Total Withdrawn -->
+      <div class="col-6 col-lg-3">
+        <div class="soft-card p-3 h-100 border-start border-4 border-primary bg-white shadow-sm">
+          <span class="text-secondary small d-block mb-1">Total Withdrawn</span>
+          <div class="h3 fw-bold text-primary mb-0">
+            ৳{{ '%.2f'|format(balance.total_withdrawn|float) }}
+          </div>
+          <small class="text-muted" style="font-size: 0.75rem;">Disbursed historically</small>
+        </div>
+      </div>
+
+      <!-- 3. Pending Withdrawals -->
+      <div class="col-6 col-lg-3">
+        <div class="soft-card p-3 h-100 border-start border-4 border-warning bg-white shadow-sm">
+          <span class="text-secondary small d-block mb-1">Pending Withdrawals</span>
+          <div class="h3 fw-bold text-warning mb-0">
+            ৳{{ '%.2f'|format(balance.pending_withdrawals|float) }}
+          </div>
+          <small class="text-muted" style="font-size: 0.75rem;">Reserved under review/processing</small>
+        </div>
+      </div>
+
+      <!-- 4. Total Earnings -->
+      <div class="col-6 col-lg-3">
+        <div class="soft-card p-3 h-100 border-start border-4 border-secondary bg-white shadow-sm">
+          <span class="text-secondary small d-block mb-1">Total Lifetime Earnings</span>
+          <div class="h3 fw-bold text-dark mb-0">
+            ৳{{ '%.2f'|format(balance.total_earnings|float) }}
+          </div>
+          <small class="text-muted" style="font-size: 0.75rem;">Settled from learner invoices</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- WITHDRAWAL FORM SECTION -->
+    <div class="row g-4 mb-4">
+      <div class="col-lg-7">
+        <div class="soft-card p-4 h-100 bg-white">
+          <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+            <div>
+              <h2 class="h5 fw-bold mb-0">Request Payout</h2>
+              <p class="text-muted small mb-0">Transfer your settled earnings to your local mobile wallet or bank</p>
+            </div>
+            <span class="badge bg-light text-success border border-success-subtle px-3 py-1">
+              Max: ৳{{ '%.2f'|format(balance.available_balance|float) }}
+            </span>
+          </div>
+
+          <form method="post" action="{{ url_for('payments.withdraw') }}" id="withdrawForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <!-- 1. Withdrawal Amount -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-dark" for="withdrawAmount">
+                Withdrawal Amount (BDT/৳) <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light fw-bold text-dark">৳</span>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  min="1" 
+                  max="{{ balance.available_balance|float }}" 
+                  class="form-control" 
+                  id="withdrawAmount" 
+                  name="amount" 
+                  placeholder="Enter amount" 
+                  value="{{ form_data.get('amount', '') }}" 
+                  required
+                >
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-1">
+                <small class="text-muted">
+                  Available balance: <strong>৳{{ '%.2f'|format(balance.available_balance|float) }}</strong>
+                </small>
+                <small id="remainingBalanceText" class="fw-semibold text-secondary">
+                  Remaining after withdrawal: ৳{{ '%.2f'|format(balance.available_balance|float) }}
+                </small>
+              </div>
+              <div id="amountValidationFeedback" class="small text-danger mt-1 d-none">
+                Amount cannot exceed your available balance of ৳{{ '%.2f'|format(balance.available_balance|float) }}.
+              </div>
+            </div>
+
+            <!-- 2. Select Withdrawal Method -->
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-dark" for="withdrawMethod">
+                Select Withdrawal Method <span class="text-danger">*</span>
+              </label>
+              <select class="form-select" id="withdrawMethod" name="method" required onchange="onMethodChange(this.value)">
+                <option value="bKash" {% if form_data.get('method', 'bKash') == 'bKash' %}selected{% endif %}>bKash (Personal / Merchant)</option>
+                <option value="Nagad" {% if form_data.get('method') == 'Nagad' %}selected{% endif %}>Nagad</option>
+                <option value="Rocket" {% if form_data.get('method') == 'Rocket' %}selected{% endif %}>DBBL Rocket</option>
+                <option value="Bank Account" {% if form_data.get('method') == 'Bank Account' %}selected{% endif %}>Bank Account (Local Wire / BEFTN)</option>
+                <option value="Card" {% if form_data.get('method') == 'Card' %}selected{% endif %}>Debit / Credit Card</option>
+              </select>
+            </div>
+
+            <!-- 3. Dynamic Method Fields -->
+            <div class="p-3 bg-light rounded-3 mb-4 border">
+              
+              <!-- Common: Account Holder Name -->
+              <div class="mb-3" id="holderNameGroup">
+                <label class="form-label small fw-semibold text-dark" for="accountHolderName" id="holderNameLabel">
+                  Account Holder Name <span class="text-danger">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  class="form-control form-control-sm" 
+                  id="accountHolderName" 
+                  name="account_holder_name" 
+                  placeholder="e.g. John Doe" 
+                  value="{{ form_data.get('account_holder_name', current_user.full_name) }}" 
+                  required
+                >
+              </div>
+
+              <!-- Mobile Account Number (bKash / Nagad / Rocket) -->
+              <div class="mb-3" id="mobileNumberGroup">
+                <label class="form-label small fw-semibold text-dark" for="accountNumberMobile" id="mobileNumberLabel">
+                  bKash Account Number <span class="text-danger">*</span>
+                </label>
+                <input 
+                  type="tel" 
+                  class="form-control form-control-sm" 
+                  id="accountNumberMobile" 
+                  name="account_number" 
+                  placeholder="01XXXXXXXXX" 
+                  value="{{ form_data.get('account_number', '') }}"
+                >
+                <small class="text-muted" style="font-size: 0.72rem;" id="mobileNumberHelp">
+                  Must be an active 11-digit Bangladeshi mobile wallet number.
+                </small>
+              </div>
+
+              <!-- Bank Account Specific Fields -->
+              <div id="bankAccountGroup" class="d-none">
+                <div class="row g-2 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-semibold text-dark" for="bankName">
+                      Bank Name <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="bankName" name="bank_name" placeholder="e.g. Dutch-Bangla Bank, BRAC Bank" value="{{ form_data.get('bank_name', '') }}">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-semibold text-dark" for="branchName">
+                      Branch Name <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="branchName" name="branch_name" placeholder="e.g. Dhanmondi Branch" value="{{ form_data.get('branch_name', '') }}">
+                  </div>
+                </div>
+                <div class="row g-2 mb-3">
+                  <div class="col-md-7">
+                    <label class="form-label small fw-semibold text-dark" for="bankAccountNumber">
+                      Account Number <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="bankAccountNumber" name="bank_account_number" placeholder="Enter bank account number" value="{{ form_data.get('account_number', '') }}">
+                  </div>
+                  <div class="col-md-5">
+                    <label class="form-label small fw-semibold text-dark" for="routingNumber">
+                      Routing Number
+                    </label>
+                    <input type="text" class="form-control form-control-sm" id="routingNumber" name="routing_number" placeholder="9-digit routing #" value="{{ form_data.get('routing_number', '') }}">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card Specific Fields -->
+              <div id="cardGroup" class="d-none">
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold text-dark" for="cardNumber">
+                    Card Number <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" class="form-control form-control-sm" id="cardNumber" name="card_number" placeholder="XXXX XXXX XXXX XXXX" maxlength="19" value="{{ form_data.get('card_number', '') }}">
+                  <small class="text-muted" style="font-size: 0.72rem;">Enter 16-digit card number. We safely mask it and only store the last 4 digits.</small>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small fw-semibold text-dark" for="cardIssuer">
+                    Bank / Card Issuer
+                  </label>
+                  <input type="text" class="form-control form-control-sm" id="cardIssuer" name="card_issuer" placeholder="e.g. Visa, Mastercard, City Bank" value="{{ form_data.get('card_issuer', '') }}">
+                </div>
+                <div class="p-2 bg-white rounded border small text-muted mt-2" style="font-size: 0.73rem;">
+                  🔒 <strong>Security Guarantee:</strong> We never request or store CVV, expiry dates, or PINs. Payout is processed safely to your linked account.
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <a href="{{ url_for('payments.earnings') }}" class="btn btn-outline-secondary btn-sm">
+                Cancel
+              </a>
+              <button type="button" class="btn btn-success btn-sm px-4 fw-bold" id="openConfirmModalBtn" onclick="openConfirmationModal()">
+                Submit Withdrawal
+              </button>
+            </div>
+
+            <!-- CONFIRMATION MODAL -->
+            <div class="modal fade" id="withdrawConfirmModal" tabindex="-1" aria-labelledby="withdrawConfirmModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content shadow border-0">
+                  <div class="modal-header bg-success text-white py-3">
+                    <h5 class="modal-title fw-bold text-white fs-6" id="withdrawConfirmModalLabel">Confirm Withdrawal Request</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body p-4">
+                    <p class="small text-muted mb-3">
+                      Please review your payout request before confirming. The requested funds will be reserved and processed by platform administration.
+                    </p>
+
+                    <div class="soft-card p-3 mb-3 bg-light border">
+                      <h3 class="h6 fw-bold text-dark border-bottom pb-2 mb-2">Withdrawal Summary</h3>
+                      <div class="d-flex justify-content-between py-1 small">
+                        <span class="text-secondary">Amount:</span>
+                        <strong class="text-success fs-6" id="summaryAmount">৳0.00</strong>
+                      </div>
+                      <div class="d-flex justify-content-between py-1 small">
+                        <span class="text-secondary">Method:</span>
+                        <strong class="text-dark" id="summaryMethod">bKash</strong>
+                      </div>
+                      <div class="d-flex justify-content-between py-1 small">
+                        <span class="text-secondary">Account:</span>
+                        <span class="text-dark fw-semibold" id="summaryAccount">-</span>
+                      </div>
+                      <div class="d-flex justify-content-between py-1 small">
+                        <span class="text-secondary">Account Holder:</span>
+                        <span class="text-dark" id="summaryHolder">-</span>
+                      </div>
+                      <div class="border-top pt-2 mt-2">
+                        <div class="d-flex justify-content-between py-1 small">
+                          <span class="text-secondary">Current Available:</span>
+                          <span class="text-dark">৳{{ '%.2f'|format(balance.available_balance|float) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between py-1 small">
+                          <span class="text-secondary">Remaining Balance:</span>
+                          <strong class="text-primary" id="summaryRemaining">৳0.00</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="flex-shrink-0">
+                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+                      </svg>
+                      <span>Funds will be reserved immediately upon confirmation.</span>
+                    </div>
+                  </div>
+                  <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm px-3 fw-bold" id="confirmSubmitBtn" onclick="doSubmitForm()">
+                      Confirm Withdrawal
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+      <!-- Live Summary Card on Right Column -->
+      <div class="col-lg-5">
+        <div class="soft-card p-4 h-100 bg-white">
+          <h2 class="h6 fw-bold text-dark text-uppercase mb-3 pb-2 border-bottom">Withdrawal Summary</h2>
+
+          <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+            <span class="text-secondary small">Requested Amount</span>
+            <span class="h5 fw-bold text-success mb-0" id="liveAmountDisplay">৳0.00</span>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+            <span class="text-secondary small">Payment Method</span>
+            <span class="fw-semibold text-dark" id="liveMethodDisplay">bKash</span>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+            <span class="text-secondary small">Destination</span>
+            <span class="small fw-semibold text-dark text-truncate" style="max-width: 200px;" id="liveAccountDisplay">-</span>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between py-2 border-bottom">
+            <span class="text-secondary small">Current Available</span>
+            <span class="small text-muted">৳{{ '%.2f'|format(balance.available_balance|float) }}</span>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between py-2 pt-3">
+            <span class="text-dark fw-bold small">Remaining Balance</span>
+            <span class="h5 fw-bold text-primary mb-0" id="liveRemainingDisplay">৳{{ '%.2f'|format(balance.available_balance|float) }}</span>
+          </div>
+
+          <div class="p-3 bg-light rounded-3 mt-4">
+            <h3 class="small fw-bold text-dark mb-1">ℹ️ Payout Guidelines</h3>
+            <ul class="text-muted small ps-3 mb-0" style="font-size: 0.76rem; line-height: 1.5;">
+              <li>Mobile wallet payouts (bKash, Nagad, Rocket) are typically reviewed and sent within 12-24 hours.</li>
+              <li>Bank wire transfers settle on regular business days.</li>
+              <li>Only settled earnings can be withdrawn. Pending invoices are not eligible.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WITHDRAWAL HISTORY TABLE -->
+    <div class="soft-card p-3 p-md-4 bg-white">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+          <h2 class="h5 fw-bold mb-0">Withdrawal History</h2>
+          <p class="text-muted small mb-0">Past payout requests and disbursement records</p>
+        </div>
+        <span class="badge bg-light text-secondary border">{{ withdrawals|length }} record(s)</span>
+      </div>
+
+      {% if withdrawals %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr class="small text-muted text-uppercase">
+                <th>Withdrawal ID</th>
+                <th>Requested Date</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Destination</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for w in withdrawals %}
+                <tr>
+                  <td>
+                    <strong class="text-dark">{{ w.display_withdrawal_id }}</strong>
+                  </td>
+                  <td>
+                    <span class="small text-muted">{{ w.requested_at.strftime('%d %b %Y, %I:%M %p') }}</span>
+                  </td>
+                  <td>
+                    <strong class="text-dark">৳{{ '%.2f'|format(w.amount|float) }}</strong>
+                  </td>
+                  <td>
+                    <span class="badge bg-light text-primary border border-primary-subtle">{{ w.method }}</span>
+                  </td>
+                  <td>
+                    <span class="small text-dark">{{ w.masked_account_display }}</span>
+                    {% if w.account_holder_name %}
+                      <div class="small text-muted" style="font-size: 0.72rem;">{{ w.account_holder_name }}</div>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if w.status == 'Completed' %}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Completed</span>
+                    {% elif w.status == 'Processing' %}
+                      <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Processing</span>
+                    {% elif w.status == 'Pending' %}
+                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Pending</span>
+                    {% elif w.status == 'Rejected' %}
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" title="{{ w.rejection_reason or '' }}">Rejected</span>
+                    {% else %}
+                      <span class="badge bg-secondary text-white px-2 py-1">{{ w.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <a href="{{ url_for('payments.withdraw_details', withdrawal_id=w.withdrawal_id) }}" class="btn btn-sm btn-outline-primary py-1 px-2 d-inline-flex align-items-center gap-1" style="font-size: 0.78rem;">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"/>
+                        <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/>
+                      </svg>
+                      <span>View</span>
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state py-5 text-center text-muted">
+          No withdrawal records found yet.
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+
+{% block scripts %}
+<script>
+const availableBalance = {{ balance.available_balance|float }};
+
+function onMethodChange(method) {
+  const mobileGroup = document.getElementById('mobileNumberGroup');
+  const bankGroup = document.getElementById('bankAccountGroup');
+  const cardGroup = document.getElementById('cardGroup');
+  const mobileLabel = document.getElementById('mobileNumberLabel');
+  const mobileHelp = document.getElementById('mobileNumberHelp');
+  const holderLabel = document.getElementById('holderNameLabel');
+
+  // Reset displays
+  mobileGroup.classList.add('d-none');
+  bankGroup.classList.add('d-none');
+  cardGroup.classList.add('d-none');
+
+  if (method === 'bKash') {
+    mobileGroup.classList.remove('d-none');
+    mobileLabel.innerHTML = 'bKash Mobile Account Number <span class="text-danger">*</span>';
+    mobileHelp.innerText = 'Must be an active 11-digit Bangladeshi mobile wallet number (e.g. 017XXXXXXXX).';
+    holderLabel.innerHTML = 'Account Holder Name <span class="text-danger">*</span>';
+  } else if (method === 'Nagad') {
+    mobileGroup.classList.remove('d-none');
+    mobileLabel.innerHTML = 'Nagad Mobile Account Number <span class="text-danger">*</span>';
+    mobileHelp.innerText = 'Must be an active 11-digit Bangladeshi mobile wallet number (e.g. 018XXXXXXXX).';
+    holderLabel.innerHTML = 'Account Holder Name <span class="text-danger">*</span>';
+  } else if (method === 'Rocket') {
+    mobileGroup.classList.remove('d-none');
+    mobileLabel.innerHTML = 'Rocket Mobile Account Number <span class="text-danger">*</span>';
+    mobileHelp.innerText = 'Must be an active 11 or 12-digit DBBL Rocket number.';
+    holderLabel.innerHTML = 'Account Holder Name <span class="text-danger">*</span>';
+  } else if (method === 'Bank Account') {
+    bankGroup.classList.remove('d-none');
+    holderLabel.innerHTML = 'Bank Account Holder Name <span class="text-danger">*</span>';
+  } else if (method === 'Card') {
+    cardGroup.classList.remove('d-none');
+    holderLabel.innerHTML = 'Cardholder Name <span class="text-danger">*</span>';
+  }
+
+  updateLivePreview();
+}
+
+function updateLivePreview() {
+  const amountInput = document.getElementById('withdrawAmount');
+  const amountVal = parseFloat(amountInput.value) || 0;
+  const methodSelect = document.getElementById('withdrawMethod');
+  const method = methodSelect.value;
+  const feedback = document.getElementById('amountValidationFeedback');
+  const openModalBtn = document.getElementById('openConfirmModalBtn');
+
+  // Validate amount limits
+  let remaining = availableBalance - amountVal;
+  if (remaining < 0 || amountVal <= 0 || isNaN(amountVal)) {
+    if (amountVal > availableBalance) {
+      feedback.classList.remove('d-none');
+      amountInput.classList.add('is-invalid');
+    } else {
+      feedback.classList.add('d-none');
+      amountInput.classList.remove('is-invalid');
+    }
+  } else {
+    feedback.classList.add('d-none');
+    amountInput.classList.remove('is-invalid');
+  }
+
+  const remainingSafe = Math.max(0, remaining).toFixed(2);
+  const amountFormatted = amountVal.toFixed(2);
+
+  document.getElementById('remainingBalanceText').innerText = 'Remaining after withdrawal: ৳' + remainingSafe;
+  document.getElementById('liveAmountDisplay').innerText = '৳' + amountFormatted;
+  document.getElementById('liveMethodDisplay').innerText = method;
+  document.getElementById('liveRemainingDisplay').innerText = '৳' + remainingSafe;
+
+  // Destination preview
+  let dest = '-';
+  if (method === 'bKash' || method === 'Nagad' || method === 'Rocket') {
+    const raw = (document.getElementById('accountNumberMobile').value || '').trim();
+    if (raw.length >= 8) {
+      dest = raw.substring(0, 2) + '******' + raw.substring(raw.length - 3);
+    } else {
+      dest = raw || '-';
+    }
+  } else if (method === 'Bank Account') {
+    const bName = (document.getElementById('bankName').value || '').trim();
+    const rawAcc = (document.getElementById('bankAccountNumber').value || '').trim();
+    const masked = rawAcc.length > 4 ? '******' + rawAcc.substring(rawAcc.length - 4) : rawAcc;
+    dest = (bName ? bName + ' ' : '') + (masked ? masked : '');
+  } else if (method === 'Card') {
+    const rawCard = (document.getElementById('cardNumber').value || '').trim();
+    const last4 = rawCard.length >= 4 ? rawCard.substring(rawCard.length - 4) : '****';
+    dest = '**** **** **** ' + last4;
+  }
+  document.getElementById('liveAccountDisplay').innerText = dest || '-';
+}
+
+function openConfirmationModal() {
+  const amountInput = document.getElementById('withdrawAmount');
+  const amountVal = parseFloat(amountInput.value) || 0;
+
+  if (isNaN(amountVal) || amountVal <= 0) {
+    alert('Please enter a valid withdrawal amount greater than zero.');
+    amountInput.focus();
+    return;
+  }
+
+  if (amountVal > availableBalance) {
+    alert('Withdrawal amount cannot exceed your available balance of ৳' + availableBalance.toFixed(2));
+    amountInput.focus();
+    return;
+  }
+
+  const method = document.getElementById('withdrawMethod').value;
+  const holder = (document.getElementById('accountHolderName').value || '').trim();
+  if (!holder) {
+    alert('Please provide the account holder name.');
+    document.getElementById('accountHolderName').focus();
+    return;
+  }
+
+  let accDisplay = '-';
+  if (method === 'bKash' || method === 'Nagad' || method === 'Rocket') {
+    const raw = (document.getElementById('accountNumberMobile').value || '').trim();
+    if (!raw) {
+      alert('Please enter your ' + method + ' account number.');
+      document.getElementById('accountNumberMobile').focus();
+      return;
+    }
+    accDisplay = raw.length >= 8 ? raw.substring(0, 2) + '******' + raw.substring(raw.length - 3) : raw;
+  } else if (method === 'Bank Account') {
+    const bName = (document.getElementById('bankName').value || '').trim();
+    const rawAcc = (document.getElementById('bankAccountNumber').value || '').trim();
+    const brName = (document.getElementById('branchName').value || '').trim();
+    if (!bName || !rawAcc || !brName) {
+      alert('Please complete all required bank account fields (Bank Name, Branch, Account Number).');
+      return;
+    }
+    // sync to hidden/field for submission
+    document.getElementById('accountNumberMobile').value = rawAcc;
+    accDisplay = bName + ' (' + (rawAcc.length > 4 ? '******' + rawAcc.substring(rawAcc.length - 4) : rawAcc) + ')';
+  } else if (method === 'Card') {
+    const rawCard = (document.getElementById('cardNumber').value || '').trim();
+    if (!rawCard || rawCard.length < 13) {
+      alert('Please enter a valid card number.');
+      document.getElementById('cardNumber').focus();
+      return;
+    }
+    const last4 = rawCard.substring(rawCard.length - 4);
+    accDisplay = '**** **** **** ' + last4;
+  }
+
+  const remaining = Math.max(0, availableBalance - amountVal).toFixed(2);
+  document.getElementById('summaryAmount').innerText = '৳' + amountVal.toFixed(2);
+  document.getElementById('summaryMethod').innerText = method;
+  document.getElementById('summaryAccount').innerText = accDisplay;
+  document.getElementById('summaryHolder').innerText = holder;
+  document.getElementById('summaryRemaining').innerText = '৳' + remaining;
+
+  const modalEl = document.getElementById('withdrawConfirmModal');
+  const modal = new bootstrap.Modal(modalEl);
+  modal.show();
+}
+
+function doSubmitForm() {
+  const method = document.getElementById('withdrawMethod').value;
+  if (method === 'Bank Account') {
+    const rawAcc = (document.getElementById('bankAccountNumber').value || '').trim();
+    document.getElementById('accountNumberMobile').value = rawAcc;
+  }
+  document.getElementById('withdrawForm').submit();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const amountInput = document.getElementById('withdrawAmount');
+  if (amountInput) {
+    amountInput.addEventListener('input', updateLivePreview);
+  }
+  const mobileInput = document.getElementById('accountNumberMobile');
+  if (mobileInput) {
+    mobileInput.addEventListener('input', updateLivePreview);
+  }
+  const cardInput = document.getElementById('cardNumber');
+  if (cardInput) {
+    cardInput.addEventListener('input', updateLivePreview);
+  }
+  const bankAccInput = document.getElementById('bankAccountNumber');
+  if (bankAccInput) {
+    bankAccInput.addEventListener('input', updateLivePreview);
+  }
+  const holderInput = document.getElementById('accountHolderName');
+  if (holderInput) {
+    holderInput.addEventListener('input', updateLivePreview);
+  }
+
+  onMethodChange(document.getElementById('withdrawMethod').value);
+  updateLivePreview();
+});
+</script>
+{% endblock %}
+{% endblock %}

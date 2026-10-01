@@ -10,12 +10,12 @@ from sqlalchemy import func, or_
 from decorators.auth import role_required
 from extensions import db
 from models.auth import Role, Skill, User, VerificationDocument
-from models.learning import LearningProgress, Payment, PlatformSetting, Subscription
+from models.learning import LearningProgress, Payment, PlatformSetting, Subscription, Withdrawal
 from models.connection import LearningRelationship
 from models.store import CartItem, Order, OrderItem, Product, ProductCategory
 from models.reviews import PremiumPlan, RevenueRecord, Review
 from services.notifications import notify
-from services.payments import get_mentor_unlock_fee
+from services.payments import get_mentor_unlock_fee, check_and_update_overdue_payments
 from services.uploads import save_upload
 
 
@@ -133,6 +133,7 @@ def dashboard():
         "revenue": sum((item.net_platform_revenue for item in RevenueRecord.query.filter_by(status="Successful").all()), 0),
         "premium_subscribers": Subscription.query.filter_by(status="Active").count(),
         "products": Product.query.count(),
+        "pending_withdrawals": Withdrawal.query.filter_by(status="Pending").count(),
     }
     business_data = get_business_analytics(months_limit=6)
     unlock_fee = get_mentor_unlock_fee(db.session)
@@ -423,9 +424,33 @@ def toggle_skill(skill_id):
 @admin_bp.get("/payments")
 @role_required("Admin")
 def payments():
+    check_and_update_overdue_payments()
     records = Payment.query.order_by(Payment.created_at.desc()).all()
-    successful = [item for item in records if item.status == "Successful"]
-    return render_template("admin/payments.html", payments=records, total_transactions=len(records), successful_count=len(successful), gross=sum((item.amount for item in successful), 0), commission=sum((item.platform_commission for item in successful), 0), mentor_earnings=sum((item.mentor_earning for item in successful), 0), subscription_revenue=sum((item.amount for item in Subscription.query.filter_by(status="Active").all()), 0))
+    paid_records = [item for item in records if item.display_status == "Paid"]
+    total_volume = sum((item.amount for item in records), 0)
+    total_paid = sum((item.amount for item in paid_records), 0)
+    total_pending = sum((item.amount for item in records if item.display_status == "Pending"), 0)
+    total_overdue = sum((item.amount for item in records if item.display_status == "Overdue"), 0)
+    total_commission = sum((item.platform_commission for item in paid_records), 0)
+    total_mentor_earnings = sum((item.mentor_earning for item in paid_records), 0)
+    subscription_revenue = sum((item.amount for item in Subscription.query.filter_by(status="Active").all()), 0)
+
+    return render_template(
+        "admin/payments.html",
+        payments=records,
+        total_transactions=len(records),
+        total_volume=total_volume,
+        total_paid=total_paid,
+        total_pending=total_pending,
+        total_overdue=total_overdue,
+        total_commission=total_commission,
+        total_mentor_earnings=total_mentor_earnings,
+        subscription_revenue=subscription_revenue,
+        successful_count=len(paid_records),
+        gross=total_paid,
+        commission=total_commission,
+        mentor_earnings=total_mentor_earnings,
+    )
 
 
 @admin_bp.get("/revenue")
@@ -439,6 +464,119 @@ def revenue():
         row["net"] += record.net_platform_revenue
         row["count"] += 1
     return render_template("admin/revenue.html", records=records, by_source=by_source, total=sum((item.net_platform_revenue for item in records), 0))
+
+
+@admin_bp.get("/withdrawals")
+@role_required("Admin")
+def withdrawals():
+    status_filter = request.args.get("status", "All").strip()
+    query = Withdrawal.query.options(db.joinedload(Withdrawal.mentor)).order_by(Withdrawal.requested_at.desc())
+    if status_filter and status_filter.lower() != "all":
+        query = query.filter(Withdrawal.status == status_filter)
+    all_withdrawals = query.all()
+
+    total_records = Withdrawal.query.count()
+    pending_records = Withdrawal.query.filter_by(status="Pending").all()
+    processing_records = Withdrawal.query.filter_by(status="Processing").all()
+    completed_records = Withdrawal.query.filter_by(status="Completed").all()
+    rejected_records = Withdrawal.query.filter_by(status="Rejected").all()
+
+    total_requested_amount = sum((w.amount for w in Withdrawal.query.all()), Decimal("0.00"))
+    total_completed_amount = sum((w.amount for w in completed_records), Decimal("0.00"))
+    total_pending_amount = sum((w.amount for w in pending_records), Decimal("0.00"))
+
+    return render_template(
+        "admin/withdrawals.html",
+        withdrawals=all_withdrawals,
+        selected_status=status_filter,
+        total_records=total_records,
+        pending_count=len(pending_records),
+        processing_count=len(processing_records),
+        completed_count=len(completed_records),
+        rejected_count=len(rejected_records),
+        total_requested_amount=total_requested_amount,
+        total_completed_amount=total_completed_amount,
+        total_pending_amount=total_pending_amount,
+    )
+
+
+@admin_bp.post("/withdrawals/<int:withdrawal_id>/process")
+@role_required("Admin")
+def process_withdrawal(withdrawal_id):
+    withdrawal = Withdrawal.query.get_or_404(withdrawal_id)
+    if withdrawal.status != "Pending":
+        flash("Only pending withdrawal requests can be moved to processing.", "warning")
+        return redirect(url_for("admin.withdrawals"))
+
+    withdrawal.status = "Processing"
+    db.session.commit()
+
+    notify(
+        withdrawal.mentor_id,
+        "withdrawal_processing",
+        "Withdrawal In Processing",
+        f"Your withdrawal request {withdrawal.display_withdrawal_id} for ৳{withdrawal.amount:.2f} is now being processed.",
+        "withdrawal",
+        withdrawal.id,
+    )
+    flash(f"Withdrawal {withdrawal.display_withdrawal_id} is now processing.", "info")
+    return redirect(url_for("admin.withdrawals"))
+
+
+@admin_bp.post("/withdrawals/<int:withdrawal_id>/complete")
+@role_required("Admin")
+def complete_withdrawal(withdrawal_id):
+    withdrawal = Withdrawal.query.get_or_404(withdrawal_id)
+    if withdrawal.status not in ("Pending", "Processing"):
+        flash("This withdrawal request cannot be marked as completed.", "warning")
+        return redirect(url_for("admin.withdrawals"))
+
+    admin_note = request.form.get("admin_note", "").strip() or None
+    withdrawal.status = "Completed"
+    withdrawal.processed_at = datetime.utcnow()
+    withdrawal.admin_note = admin_note
+    db.session.commit()
+
+    notify(
+        withdrawal.mentor_id,
+        "withdrawal_completed",
+        "Withdrawal Completed",
+        f"Your withdrawal request {withdrawal.display_withdrawal_id} for ৳{withdrawal.amount:.2f} via {withdrawal.method} has been completed.",
+        "withdrawal",
+        withdrawal.id,
+    )
+    flash(f"Withdrawal {withdrawal.display_withdrawal_id} has been marked as Completed.", "success")
+    return redirect(url_for("admin.withdrawals"))
+
+
+@admin_bp.post("/withdrawals/<int:withdrawal_id>/reject")
+@role_required("Admin")
+def reject_withdrawal(withdrawal_id):
+    withdrawal = Withdrawal.query.get_or_404(withdrawal_id)
+    if withdrawal.status not in ("Pending", "Processing"):
+        flash("This withdrawal request cannot be rejected.", "warning")
+        return redirect(url_for("admin.withdrawals"))
+
+    reason = request.form.get("rejection_reason", "").strip()
+    if not reason:
+        flash("Please provide a reason for rejecting the withdrawal request.", "danger")
+        return redirect(url_for("admin.withdrawals"))
+
+    withdrawal.status = "Rejected"
+    withdrawal.processed_at = datetime.utcnow()
+    withdrawal.rejection_reason = reason
+    db.session.commit()
+
+    notify(
+        withdrawal.mentor_id,
+        "withdrawal_rejected",
+        "Withdrawal Request Rejected",
+        f"Your withdrawal request {withdrawal.display_withdrawal_id} for ৳{withdrawal.amount:.2f} was rejected. Reason: {reason}. The amount has been returned to your available balance.",
+        "withdrawal",
+        withdrawal.id,
+    )
+    flash(f"Withdrawal {withdrawal.display_withdrawal_id} was rejected. The reserved funds of ৳{withdrawal.amount:.2f} have been released back to the mentor's available balance.", "warning")
+    return redirect(url_for("admin.withdrawals"))
 
 
 @admin_bp.route("/store/categories", methods=["GET", "POST"])

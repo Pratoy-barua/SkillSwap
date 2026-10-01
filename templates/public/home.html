@@ -10,22 +10,34 @@
         <p class="hero-copy mb-4">SkillSwap connects curious learners with verified local mentors, making practical learning one helpful connection at a time.</p>
         
         <!-- SEARCH FORM -->
-        <form class="search-panel mb-0" action="{{ url_for('discovery.mentor_search') }}" method="get">
+        <form class="search-panel mb-0" action="{{ url_for('discovery.mentor_search') }}" method="get" id="heroSearchForm">
           <div class="row g-0 align-items-center">
-            <div class="col-md-5 search-field">
+            <div class="col-md-5 search-field position-relative">
               <div class="search-field-content">
                 <svg class="search-field-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21.5zM20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5a2.5 2.5 0 0 1 2.5 2.5z" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.8"/>
                 </svg>
-                <div>
-                  <span class="field-label">I want to learn</span>
-                  <select class="form-select border-0 p-0 fw-bold" name="skill_id" aria-label="Skill">
-                    {% for skill in skills %}
-                      <option value="{{ skill.id }}">{{ skill.name }}</option>
-                    {% else %}
-                      <option value="">Add skills from the admin dashboard</option>
-                    {% endfor %}
-                  </select>
+                <div class="skill-autocomplete-wrapper">
+                  <label class="field-label d-block mb-0" for="skillSearchInput">I want to learn</label>
+                  <input 
+                    type="text" 
+                    class="form-control border-0 p-0 fw-bold skill-search-input" 
+                    id="skillSearchInput" 
+                    name="skill"
+                    placeholder="What do you want to learn?" 
+                    aria-label="I want to learn" 
+                    autocomplete="off"
+                    spellcheck="false"
+                  >
+                  <input type="hidden" name="skill_id" id="selectedSkillId" value="">
+                </div>
+              </div>
+
+              <!-- Autocomplete suggestions dropdown -->
+              <div id="skillAutocompleteDropdown" class="skill-autocomplete-dropdown shadow-lg d-none" role="listbox" aria-label="Skill suggestions">
+                <div id="skillSuggestionsList" class="skill-suggestions-list"></div>
+                <div id="skillNoMatches" class="skill-no-matches d-none">
+                  <span>No matching skills found.</span>
                 </div>
               </div>
             </div>
@@ -177,4 +189,236 @@
 </section>
 <section class="section bg-white"><div class="container"><p class="eyebrow mb-2">A place to start</p><h2 class="section-heading mb-2">Explore what you could learn.</h2><p class="section-copy mb-4">These categories are managed through the admin skill catalogue.</p><div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">{% for skill in skills %}<div class="col"><a class="skill-card" href="{{ url_for('discovery.mentor_search', skill_id=skill.id) }}"><span class="skill-icon">{{ skill.icon or '✦' }}</span><span><strong>{{ skill.name }}</strong><small>Explore mentors</small></span></a></div>{% else %}<div class="col-12"><div class="empty-state">No active skills have been added yet.</div></div>{% endfor %}</div></div></section>
 <section class="section"><div class="container"><div class="mentor-cta"><p class="eyebrow text-white-50 mb-2">Share what you know</p><h2 class="section-heading text-white mb-3">Your experience could be someone’s next breakthrough.</h2><p class="mb-4">Create a verified mentor profile and help learners in your community move forward.</p><a class="btn btn-accent" href="{{ url_for('public.become_a_mentor') }}">Start your mentor profile <span class="ms-2">→</span></a></div></div></section>
+{% endblock %}
+
+{% block scripts %}
+{% set skill_source = all_skills if all_skills is defined and all_skills else skills %}
+<script type="application/json" id="skillsData">
+  [
+    {% for s in skill_source %}
+      {"id": {{ s.id }}, "name": {{ s.name|tojson }}}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ]
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const input = document.getElementById("skillSearchInput");
+  const hiddenInput = document.getElementById("selectedSkillId");
+  const dropdown = document.getElementById("skillAutocompleteDropdown");
+  const list = document.getElementById("skillSuggestionsList");
+  const noMatches = document.getElementById("skillNoMatches");
+  const searchForm = document.getElementById("heroSearchForm");
+  const searchField = input ? input.closest(".search-field") : null;
+
+  if (!input || !dropdown || !list || !noMatches) return;
+
+  let skills = [];
+  try {
+    const raw = document.getElementById("skillsData");
+    if (raw && raw.textContent) {
+      skills = JSON.parse(raw.textContent);
+    }
+  } catch (err) {
+    console.error("Failed to parse skills data:", err);
+  }
+
+  let activeIndex = -1;
+  let currentMatches = [];
+
+  function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function highlightMatch(name, query) {
+    if (!query) return escapeHtml(name);
+    const q = query.trim();
+    if (!q) return escapeHtml(name);
+    const regex = new RegExp(`(${escapeRegex(q)})`, "gi");
+    return escapeHtml(name).replace(regex, "<mark>$1</mark>");
+  }
+
+  function getMatches(query) {
+    const q = (query || "").trim().toLowerCase();
+    if (!q) {
+      return [...skills];
+    }
+
+    const startsWith = [];
+    const wordStartsWith = [];
+    const contains = [];
+
+    for (const item of skills) {
+      const lower = item.name.toLowerCase();
+      if (lower.startsWith(q)) {
+        startsWith.push(item);
+      } else if (lower.includes(" " + q) || lower.includes("/ " + q) || lower.includes("-" + q)) {
+        wordStartsWith.push(item);
+      } else if (lower.includes(q)) {
+        contains.push(item);
+      }
+    }
+
+    return [...startsWith, ...wordStartsWith, ...contains];
+  }
+
+  function renderDropdown(matches, query) {
+    currentMatches = matches;
+    activeIndex = -1;
+    list.innerHTML = "";
+
+    if (matches.length === 0) {
+      list.classList.add("d-none");
+      noMatches.classList.remove("d-none");
+    } else {
+      noMatches.classList.add("d-none");
+      list.classList.remove("d-none");
+
+      matches.forEach((skill, index) => {
+        const item = document.createElement("div");
+        item.className = "skill-suggestion-item";
+        item.setAttribute("role", "option");
+        item.setAttribute("data-id", skill.id);
+        item.setAttribute("data-name", skill.name);
+        item.setAttribute("data-index", index);
+
+        item.innerHTML = `
+          <span class="suggestion-icon" aria-hidden="true">✦</span>
+          <span class="suggestion-name flex-grow-1">${highlightMatch(skill.name, query)}</span>
+        `;
+
+        item.addEventListener("mousedown", function (e) {
+          e.preventDefault();
+        });
+
+        item.addEventListener("click", function () {
+          selectSkill(skill);
+        });
+
+        list.appendChild(item);
+      });
+    }
+
+    dropdown.classList.remove("d-none");
+  }
+
+  function selectSkill(skill) {
+    input.value = skill.name;
+    hiddenInput.value = skill.id;
+    closeDropdown();
+  }
+
+  function openDropdown() {
+    const matches = getMatches(input.value);
+    renderDropdown(matches, input.value);
+  }
+
+  function closeDropdown() {
+    dropdown.classList.add("d-none");
+    activeIndex = -1;
+    list.querySelectorAll(".skill-suggestion-item").forEach((el) => el.classList.remove("active"));
+  }
+
+  function updateActiveItem(items) {
+    items.forEach((el, idx) => {
+      if (idx === activeIndex) {
+        el.classList.add("active");
+        el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      } else {
+        el.classList.remove("active");
+      }
+    });
+  }
+
+  input.addEventListener("focus", function () {
+    openDropdown();
+  });
+
+  input.addEventListener("input", function () {
+    const val = input.value.trim().toLowerCase();
+
+    // Reset hidden input if user changed input away from selected skill
+    const currentSelected = skills.find((s) => String(s.id) === String(hiddenInput.value));
+    if (!currentSelected || currentSelected.name.toLowerCase() !== val) {
+      hiddenInput.value = "";
+    }
+
+    // Auto-match exact match if user typed full name
+    const exact = skills.find((s) => s.name.toLowerCase() === val);
+    if (exact) {
+      hiddenInput.value = exact.id;
+    }
+
+    const matches = getMatches(input.value);
+    renderDropdown(matches, input.value);
+  });
+
+  input.addEventListener("keydown", function (e) {
+    const isClosed = dropdown.classList.contains("d-none");
+
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (isClosed) {
+        openDropdown();
+        e.preventDefault();
+        return;
+      }
+    }
+
+    const items = list.querySelectorAll(".skill-suggestion-item");
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (items.length > 0) {
+        activeIndex = (activeIndex + 1) % items.length;
+        updateActiveItem(items);
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (items.length > 0) {
+        activeIndex = (activeIndex - 1 + items.length) % items.length;
+        updateActiveItem(items);
+      }
+    } else if (e.key === "Enter") {
+      if (!isClosed && activeIndex >= 0 && activeIndex < currentMatches.length) {
+        e.preventDefault();
+        selectSkill(currentMatches[activeIndex]);
+      }
+    } else if (e.key === "Escape") {
+      closeDropdown();
+    }
+  });
+
+  // Close dropdown on click outside
+  document.addEventListener("click", function (e) {
+    if (searchField && !searchField.contains(e.target)) {
+      closeDropdown();
+    }
+  });
+
+  // Sync skill on form submit
+  if (searchForm) {
+    searchForm.addEventListener("submit", function () {
+      const val = input.value.trim().toLowerCase();
+      if (!hiddenInput.value && val) {
+        const exact = skills.find((s) => s.name.toLowerCase() === val);
+        if (exact) {
+          hiddenInput.value = exact.id;
+          input.value = exact.name;
+        } else {
+          const prefix = skills.find((s) => s.name.toLowerCase().startsWith(val));
+          if (prefix) {
+            hiddenInput.value = prefix.id;
+            input.value = prefix.name;
+          }
+        }
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

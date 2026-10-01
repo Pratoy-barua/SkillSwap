@@ -23,8 +23,11 @@ from models.learning import (  # noqa: F401
     LearningProgress,
     MentorProfileAccess,
     Payment,
+    PaymentInvoice,
+    PaymentTransaction,
     PlatformSetting,
     Subscription,
+    Withdrawal,
 )
 from models.store import (  # noqa: F401
     Cart,

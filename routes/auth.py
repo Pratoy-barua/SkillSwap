@@ -1,5 +1,6 @@
 """Learner, mentor, and admin authentication and registration."""
 
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, flash, g, redirect, render_template, request, session, url_for
@@ -131,8 +132,52 @@ def admin_login():
     return render_template("auth/admin_login.html")
 
 
+@auth_bp.route("/terms", methods=["GET", "POST"], endpoint="terms")
+@auth_bp.route("/terms-and-regulations", methods=["GET", "POST"], endpoint="terms_and_regulations")
+def terms():
+    role = request.args.get("role") or request.form.get("role") or session.get("signup_role")
+    if role:
+        role = role.strip().lower()
+
+    if role in {"learner", "mentor"}:
+        if session.get("signup_role") != role:
+            session["signup_role"] = role
+            session["terms_accepted"] = False
+    elif not session.get("signup_role"):
+        flash("Please choose your account type first.", "info")
+        return redirect(url_for("public.sign_up"))
+
+    current_role = session.get("signup_role")
+
+    if request.method == "POST":
+        if not csrf_valid():
+            flash("Your form expired. Please try again.", "danger")
+            return redirect(url_for("auth.terms", role=current_role))
+
+        if not request.form.get("agree_terms"):
+            flash("Please accept the Terms & Regulations to continue.", "danger")
+            return render_template("auth/terms.html", role=current_role)
+
+        session["terms_accepted"] = True
+        session["terms_version"] = "1.0"
+        session["terms_accepted_at"] = datetime.utcnow().isoformat()
+
+        if current_role == "learner":
+            return redirect(url_for("auth.register_learner"))
+        elif current_role == "mentor":
+            return redirect(url_for("auth.register_mentor"))
+        else:
+            return redirect(url_for("public.sign_up"))
+
+    return render_template("auth/terms.html", role=current_role)
+
+
 @auth_bp.route("/register/learner", methods=["GET", "POST"])
 def register_learner():
+    if not session.get("terms_accepted") or session.get("signup_role") != "learner":
+        flash("Please accept the Terms & Regulations to continue.", "warning")
+        return redirect(url_for("auth.terms", role="learner"))
+
     data = common_fields()
     if request.method == "POST":
         if not csrf_valid():
@@ -143,7 +188,18 @@ def register_learner():
             flash("An NID/Voter ID document is required.", "danger")
         else:
             try:
-                user = User(role=role_for("Learner"), full_name=data["full_name"], email=data["email"], phone=data["phone"], address=data["address"], account_status="Pending", location=location_for(data["city"], data["area"]))
+                user = User(
+                    role=role_for("Learner"),
+                    full_name=data["full_name"],
+                    email=data["email"],
+                    phone=data["phone"],
+                    address=data["address"],
+                    account_status="Pending",
+                    location=location_for(data["city"], data["area"]),
+                    terms_accepted=True,
+                    terms_version=session.get("terms_version", "1.0"),
+                    terms_accepted_at=datetime.utcnow(),
+                )
                 user.set_password(data["password"])
                 profile_info = save_upload(request.files.get("profile_photo"), "profile")
                 if profile_info:
@@ -155,6 +211,12 @@ def register_learner():
                 db.session.flush()
                 persist_documents(user, data)
                 db.session.commit()
+
+                session.pop("terms_accepted", None)
+                session.pop("terms_version", None)
+                session.pop("terms_accepted_at", None)
+                session.pop("signup_role", None)
+
                 flash("Your learner application was submitted for admin approval.", "success")
                 return redirect(url_for("auth.login"))
             except (ValueError, IntegrityError) as error:
@@ -220,6 +282,10 @@ def get_mentor_signup_skills():
 
 @auth_bp.route("/register/mentor", methods=["GET", "POST"])
 def register_mentor():
+    if not session.get("terms_accepted") or session.get("signup_role") != "mentor":
+        flash("Please accept the Terms & Regulations to continue.", "warning")
+        return redirect(url_for("auth.terms", role="mentor"))
+
     data = common_fields()
     available_skills = get_mentor_signup_skills()
     selected_skill_ids = []
@@ -275,6 +341,9 @@ def register_mentor():
                     address=data["address"],
                     account_status="Pending",
                     location=location_for(data["city"], data["area"]),
+                    terms_accepted=True,
+                    terms_version=session.get("terms_version", "1.0"),
+                    terms_accepted_at=datetime.utcnow(),
                 )
                 user.set_password(data["password"])
                 profile_info = save_upload(request.files.get("profile_photo"), "profile")
@@ -308,6 +377,12 @@ def register_mentor():
 
                 persist_documents(user, data)
                 db.session.commit()
+
+                session.pop("terms_accepted", None)
+                session.pop("terms_version", None)
+                session.pop("terms_accepted_at", None)
+                session.pop("signup_role", None)
+
                 flash("Your mentor application was submitted for admin approval.", "success")
                 return redirect(url_for("auth.login"))
             except (ValueError, InvalidOperation, IntegrityError) as error:

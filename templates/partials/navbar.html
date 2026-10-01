@@ -110,8 +110,12 @@
               <li><hr class="dropdown-divider"></li>
               {% if current_user.role.name == 'Learner' %}
                 <li><a class="dropdown-item" href="{{ url_for('learner.profile') }}">My profile</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('payments.history') }}">My payments & invoices</a></li>
               {% elif current_user.role.name == 'Mentor' %}
                 <li><a class="dropdown-item" href="{{ url_for('mentor.profile') }}">My profile</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('payments.earnings') }}">My earnings & invoices</a></li>
+              {% elif current_user.role.name == 'Admin' %}
+                <li><a class="dropdown-item" href="{{ url_for('admin.payments') }}">Payment management</a></li>
               {% endif %}
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Log out</a></li>

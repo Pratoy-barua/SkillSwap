@@ -11,6 +11,8 @@ from models.connection import Conversation, LearningRelationship, LearningReques
 from models.learning import Payment
 from models.reviews import Review
 from models.store import Order
+from services.notifications import notify
+from services.payments import check_and_update_overdue_payments
 from services.security import issue_csrf_token
 from services.uploads import save_upload
 
@@ -32,11 +34,14 @@ def valid_csrf():
 @learner_bp.get("/dashboard")
 @role_required("Learner")
 def dashboard():
+    check_and_update_overdue_payments()
     user_id = g.current_user.id
     active_relationships = LearningRelationship.query.filter_by(learner_id=user_id, status="Active").order_by(LearningRelationship.updated_at.desc()).limit(3).all()
     recent_requests = LearningRequest.query.filter_by(learner_id=user_id).order_by(LearningRequest.created_at.desc()).limit(4).all()
     recent_notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(4).all()
     recent_orders = Order.query.filter_by(buyer_id=user_id).order_by(Order.created_at.desc()).limit(5).all()
+    pending_invoices = Payment.query.filter_by(learner_id=user_id).filter(Payment.status.in_(["Pending", "Overdue"])).order_by(Payment.due_date.is_(None), Payment.due_date.asc(), Payment.created_at.desc()).all()
+    recent_invoices = Payment.query.filter_by(learner_id=user_id).order_by(Payment.created_at.desc()).limit(5).all()
     return render_template(
         "learner/dashboard.html",
         profile=g.current_user.learner_profile,
@@ -44,6 +49,8 @@ def dashboard():
         recent_requests=recent_requests,
         recent_notifications=recent_notifications,
         recent_orders=recent_orders,
+        pending_invoices=pending_invoices,
+        recent_invoices=recent_invoices,
         pending_requests=LearningRequest.query.filter_by(learner_id=user_id, status="Pending").count(),
         relationships=LearningRelationship.query.filter_by(learner_id=user_id, status="Active").count(),
         completed_learning=LearningRelationship.query.filter_by(learner_id=user_id, status="Completed").count(),
@@ -279,25 +286,39 @@ def view_profile(user_id):
 @mentor_bp.get("/dashboard")
 @role_required("Mentor")
 def dashboard():
+    check_and_update_overdue_payments()
     user_id = g.current_user.id
-    active_relationships = LearningRelationship.query.filter_by(mentor_id=user_id, status="Active").order_by(LearningRelationship.updated_at.desc()).limit(4).all()
+    active_relationships = LearningRelationship.query.filter_by(mentor_id=user_id, status="Active").order_by(LearningRelationship.updated_at.desc()).all()
     pending_items = LearningRequest.query.filter_by(mentor_id=user_id, status="Pending").order_by(LearningRequest.created_at.desc()).limit(4).all()
     recent_notifications = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(4).all()
     recent_reviews = Review.query.filter_by(mentor_id=user_id).order_by(Review.created_at.desc()).limit(3).all()
-    successful_payments = Payment.query.filter_by(mentor_id=user_id, status="Successful").all()
+    all_payments = Payment.query.filter_by(mentor_id=user_id).order_by(Payment.created_at.desc()).all()
+    paid_payments = [item for item in all_payments if item.display_status == "Paid"]
+    total_earnings = sum((item.mentor_earning for item in paid_payments), 0)
+    paid_earnings = total_earnings
+    pending_earnings = sum((item.amount for item in all_payments if item.display_status == "Pending"), 0)
+    overdue_payments = sum((item.amount for item in all_payments if item.display_status == "Overdue"), 0)
+    paid_invoices_count = len(paid_payments)
+    recent_invoices = all_payments[:5]
     recent_orders = Order.query.filter_by(buyer_id=user_id).order_by(Order.created_at.desc()).limit(5).all()
     return render_template(
         "mentor/dashboard.html",
         profile=g.current_user.mentor_profile,
-        active_relationships=active_relationships,
+        active_relationships=active_relationships[:4],
+        all_active_relationships=active_relationships,
         pending_items=pending_items,
         recent_notifications=recent_notifications,
         recent_reviews=recent_reviews,
         recent_orders=recent_orders,
+        recent_invoices=recent_invoices,
         pending_requests=LearningRequest.query.filter_by(mentor_id=user_id, status="Pending").count(),
-        relationships=LearningRelationship.query.filter_by(mentor_id=user_id, status="Active").count(),
+        relationships=len(active_relationships),
         completed_learning=LearningRelationship.query.filter_by(mentor_id=user_id, status="Completed").count(),
-        total_earnings=sum((item.mentor_earning for item in successful_payments), 0),
+        total_earnings=total_earnings,
+        paid_earnings=paid_earnings,
+        pending_earnings=pending_earnings,
+        overdue_payments=overdue_payments,
+        paid_invoices_count=paid_invoices_count,
     )
 
 

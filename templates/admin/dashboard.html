@@ -3,7 +3,7 @@
 {% block content %}
 <section class="dashboard-page">
   <div class="container dashboard-container">
-    <header class="dashboard-header"><div><p class="dashboard-kicker">Platform control</p><h1>Admin dashboard</h1><p>Monitor and manage the SkillSwap platform from one place.</p></div><div class="dashboard-header-actions"><a class="btn btn-primary" href="{{ url_for('admin.users') }}">Manage users</a><a class="btn btn-outline-primary" href="{{ url_for('admin.skills') }}">Manage skills</a></div></header>
+    <header class="dashboard-header"><div><p class="dashboard-kicker">Platform control</p><h1>Admin dashboard</h1><p>Monitor and manage the SkillSwap platform from one place.</p></div><div class="dashboard-header-actions"><a class="btn btn-primary" href="{{ url_for('admin.users') }}">Manage users</a><a class="btn btn-outline-primary" href="{{ url_for('admin.skills') }}">Manage skills</a><a class="btn btn-outline-dark" href="{{ url_for('admin.withdrawals') }}">Withdrawals{% if counts.pending_withdrawals %} <span class="badge bg-danger ms-1">{{ counts.pending_withdrawals }}</span>{% endif %}</a></div></header>
     {% include 'partials/flash.html' %}
 
     <section class="dashboard-metric-section"><div class="metric-section-heading"><h2>Platform overview</h2><p>People and account activity across SkillSwap.</p></div><div class="dashboard-stat-grid four-up"><a class="dashboard-stat-card" href="{{ url_for('admin.users', role='Learner') }}"><span>Learners</span><strong>{{ counts.learners }}</strong><small>Registered learner accounts</small></a><a class="dashboard-stat-card" href="{{ url_for('admin.users', role='Mentor') }}"><span>Mentors</span><strong>{{ counts.mentors }}</strong><small>Registered mentor accounts</small></a><a class="dashboard-stat-card" href="{{ url_for('admin.users', status='Approved') }}"><span>Active users</span><strong>{{ counts.active_users }}</strong><small>Approved accounts</small></a><a class="dashboard-stat-card" href="{{ url_for('admin.users', status='Pending') }}"><span>Pending users</span><strong>{{ counts.pending_users }}</strong><small>Awaiting verification</small></a></div></section>
@@ -22,12 +22,13 @@
       </div>
       <div class="col-lg-6">
         <section class="dashboard-metric-section h-100">
-          <div class="metric-section-heading"><h2>Business</h2><p>Payments, store activity and subscriptions.</p></div>
+          <div class="metric-section-heading"><h2>Business</h2><p>Payments, withdrawals and store activity.</p></div>
           <div class="mini-metric-grid">
             <a href="{{ url_for('admin.payments') }}"><span>Successful payments</span><strong>{{ counts.successful_payments }}</strong></a>
             <a href="{{ url_for('admin.revenue') }}"><span>Net revenue</span><strong>৳{{ '%.0f'|format(counts.revenue|float) }}</strong></a>
-            <a href="{{ url_for('admin.store_products') }}"><span>Store products</span><strong>{{ counts.products }}</strong></a>
+            <a href="{{ url_for('admin.withdrawals') }}" style="grid-column: 1 / -1;"><span>Pending withdrawals</span><strong>{{ counts.pending_withdrawals }}</strong></a>
             <a href="{{ url_for('admin.store_orders') }}"><span>Store orders</span><strong>{{ counts.orders }}</strong></a>
+            <a href="{{ url_for('admin.store_products') }}"><span>Store products</span><strong>{{ counts.products }}</strong></a>
           </div>
         </section>
       </div>

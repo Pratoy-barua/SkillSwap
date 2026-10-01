@@ -51,6 +51,13 @@ def mentor_search():
         flash("Advanced mentor filters are available with an active Premium plan.", "warning")
         return render_template("skills/search.html", matches=[], skills=active_skills(), locations=[], filters=request.args, selected_skill_id=request.args.get("skill_id", type=int), premium_required=True)
     skill_id = request.args.get("skill_id", type=int)
+    skill_query = (request.args.get("skill") or "").strip()
+    if not skill_id and skill_query:
+        matched = Skill.query.filter(func.lower(Skill.name) == skill_query.lower(), Skill.is_active.is_(True)).first()
+        if not matched:
+            matched = Skill.query.filter(func.lower(Skill.name).like(f"%{skill_query.lower()}%"), Skill.is_active.is_(True)).first()
+        if matched:
+            skill_id = matched.id
     city = request.args.get("city", "").strip()
     area = request.args.get("area", "").strip()
     is_paid = request.args.get("is_paid", "")

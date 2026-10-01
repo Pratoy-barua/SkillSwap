@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Invoice #INV-{{ payment.created_at.year }}-{{ '%05d'|format(payment.id) }} · Payment #{{ payment.id }} · SkillSwap{% endblock %}
+{% block title %}Invoice #{{ payment.display_invoice_number }} · SkillSwap{% endblock %}
 
 {% block head %}
 <style>
@@ -193,10 +193,16 @@
     color: #92400e;
     border: 1px solid #fde68a;
   }
+  .invoice-status-pill.status-overdue,
   .invoice-status-pill.status-failed {
     background: #fee2e2;
     color: #991b1b;
     border: 1px solid #fecaca;
+  }
+  .invoice-status-pill.status-cancelled {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
   }
 
   /* Address Columns */
@@ -460,6 +466,15 @@
       {% endif %}
 
       <div class="invoice-actions-group">
+        {% if current_user.id == payment.learner_id and payment.display_status in ['Pending', 'Overdue'] %}
+          <a class="btn btn-primary d-inline-flex align-items-center gap-1 fw-bold" href="{{ url_for('payments.pay_invoice', invoice_id=payment.id) }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
+            </svg>
+            <span>Pay Now (৳{{ '%.2f'|format(payment.amount|float) }})</span>
+          </a>
+        {% endif %}
+
         {% if payment.relationship_id %}
           <a class="btn-invoice-outline" href="{{ url_for('learning.progress', relationship_id=payment.relationship_id) }}">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
@@ -499,16 +514,19 @@
         <div class="invoice-meta-side">
           <h1 class="invoice-big-title">PAYMENT INVOICE</h1>
           <div class="invoice-meta-list">
-            <div>Invoice No: <strong>INV-{{ payment.created_at.year }}-{{ '%05d'|format(payment.id) }}</strong></div>
-            <div>Payment ID: <strong>#{{ payment.id }}</strong></div>
-            <div>Date: <strong>{{ payment.created_at.strftime('%B %d, %Y') }}</strong></div>
+            <div>Invoice No: <strong>{{ payment.display_invoice_number }}</strong></div>
+            <div>Issue Date: <strong>{{ payment.created_at.strftime('%B %d, %Y') }}</strong></div>
+            <div>Due Date: <strong class="{% if payment.display_status == 'Overdue' %}text-danger{% endif %}">{{ payment.due_date.strftime('%B %d, %Y') if payment.due_date else 'Upon Receipt' }}</strong></div>
+            {% if payment.display_status == 'Paid' and payment.effective_paid_date %}
+              <div>Paid On: <strong class="text-success">{{ payment.effective_paid_date.strftime('%B %d, %Y') }}</strong></div>
+            {% endif %}
             {% if payment.reference_id %}
               <div>Transaction Ref: <strong>{{ payment.reference_id }}</strong></div>
             {% endif %}
           </div>
           <div class="invoice-badge-row">
-            <span class="invoice-status-pill status-{{ 'paid' if payment.status == 'Successful' else payment.status|lower }}">
-              Payment: {{ 'PAID' if payment.status == 'Successful' else payment.status|upper }}
+            <span class="invoice-status-pill status-{{ payment.display_status|lower }}">
+              STATUS: {{ payment.display_status|upper }}
             </span>
           </div>
         </div>
@@ -555,7 +573,7 @@
         </div>
         <div class="invoice-plan-meta text-sm-end">
           <span class="d-block text-secondary small fw-bold text-uppercase">Billing Type</span>
-          <strong class="text-dark">{{ payment.payment_type }}</strong>
+          <strong class="text-dark">{{ payment.display_payment_type }} ({{ payment.display_frequency }})</strong>
         </div>
       </div>
 
@@ -563,9 +581,9 @@
       <table class="invoice-items-table">
         <thead>
           <tr>
-            <th style="width: 60%;">Description</th>
-            <th style="width: 20%;">Billing Frequency</th>
-            <th style="width: 20%;">Amount</th>
+            <th style="width: 55%;">Description</th>
+            <th style="width: 25%;">Billing Frequency</th>
+            <th style="width: 20%;" class="text-end">Amount</th>
           </tr>
         </thead>
         <tbody>
@@ -574,16 +592,18 @@
               <div class="invoice-item-title">
                 {% if payment.payment_type == 'Profile Unlock' %}
                   Mentor Contact Details Unlock (LinkedIn, GitHub, Website)
+                {% elif payment.description %}
+                  {{ payment.description }}
                 {% else %}
                   Learning Plan Payment &ndash; {{ payment.relationship.skill.name if payment.relationship else 'Mentorship' }}
                 {% endif %}
               </div>
               <div class="invoice-item-subtext">
-                Mentor: {{ payment.mentor.full_name }}
+                Mentor: {{ payment.mentor.full_name }} &middot; Learner: {{ payment.learner.full_name }}
               </div>
             </td>
-            <td>{{ 'One-time' if payment.payment_type == 'Profile Unlock' else payment.payment_type }}</td>
-            <td>৳{{ '%.2f'|format(payment.amount|float) }}</td>
+            <td>{{ payment.display_frequency }}</td>
+            <td class="text-end">৳{{ '%.2f'|format(payment.amount|float) }}</td>
           </tr>
         </tbody>
       </table>
@@ -595,31 +615,49 @@
             <span>Subtotal:</span>
             <strong>৳{{ '%.2f'|format(payment.amount|float) }}</strong>
           </div>
-          {% if payment.payment_type == 'Profile Unlock' %}
-          <div class="invoice-total-row">
-            <span>Platform Access Fee:</span>
-            <span>৳{{ '%.2f'|format(payment.platform_commission|float) }}</span>
-          </div>
-          {% else %}
-          <div class="invoice-total-row">
-            <span>Platform Commission:</span>
-            <span>৳{{ '%.2f'|format(payment.platform_commission|float) }}</span>
-          </div>
-          <div class="invoice-total-row">
-            <span>Mentor Earning:</span>
-            <span>৳{{ '%.2f'|format(payment.mentor_earning|float) }}</span>
-          </div>
+          {% if current_user.role.name in ['Admin', 'Mentor'] %}
+            {% if payment.payment_type == 'Profile Unlock' %}
+            <div class="invoice-total-row">
+              <span>Platform Access Fee:</span>
+              <span>৳{{ '%.2f'|format(payment.platform_commission|float) }}</span>
+            </div>
+            {% else %}
+            <div class="invoice-total-row">
+              <span>Platform Commission:</span>
+              <span>৳{{ '%.2f'|format(payment.platform_commission|float) }}</span>
+            </div>
+            <div class="invoice-total-row">
+              <span>Mentor Earning:</span>
+              <span>৳{{ '%.2f'|format(payment.mentor_earning|float) }}</span>
+            </div>
+            {% endif %}
           {% endif %}
           <div class="invoice-total-row grand-total">
-            <span>Total Paid:</span>
+            <span>{{ 'Total Paid:' if payment.display_status == 'Paid' else 'Total Amount Due:' }}</span>
             <span class="grand-amount">৳{{ '%.2f'|format(payment.amount|float) }}</span>
           </div>
           <div class="invoice-total-row mt-1" style="font-size: 0.8rem;">
             <span>Payment Status:</span>
-            <strong class="text-success">{{ 'PAID' if payment.status == 'Successful' else payment.status|upper }}</strong>
+            <strong class="{% if payment.display_status == 'Paid' %}text-success{% elif payment.display_status == 'Overdue' %}text-danger{% elif payment.display_status == 'Cancelled' %}text-secondary{% else %}text-warning{% endif %}">
+              {{ payment.display_status|upper }}
+            </strong>
           </div>
         </div>
       </div>
+
+      <!-- Action callout for Learner if Pending or Overdue -->
+      {% if current_user.id == payment.learner_id and payment.display_status in ['Pending', 'Overdue'] %}
+        <div class="mt-4 p-4 rounded-3 text-center no-print" style="background-color: #f1f7fe; border: 1.5px dashed #b9d7fb;">
+          <h3 class="h5 fw-bold text-dark mb-1">Payment is {{ payment.display_status }}</h3>
+          <p class="text-secondary small mb-3">Amount Due: <strong class="text-dark">৳{{ '%.2f'|format(payment.amount|float) }}</strong> &middot; Due Date: <strong>{{ payment.due_date.strftime('%d %B %Y') if payment.due_date else 'Upon Receipt' }}</strong></p>
+          <a href="{{ url_for('payments.pay_invoice', invoice_id=payment.id) }}" class="btn btn-primary px-4 py-2 fw-bold d-inline-flex align-items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
+            </svg>
+            <span>Proceed to Pay Now →</span>
+          </a>
+        </div>
+      {% endif %}
 
       <!-- Thank you footer note -->
       <div class="invoice-footer-note">

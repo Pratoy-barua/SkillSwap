@@ -36,6 +36,9 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     profile_photo = db.Column(db.String(255), nullable=True)
     account_status = db.Column(db.String(20), nullable=False, default="Pending", index=True)
+    terms_accepted = db.Column(db.Boolean, nullable=False, default=False)
+    terms_version = db.Column(db.String(20), nullable=True)
+    terms_accepted_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 

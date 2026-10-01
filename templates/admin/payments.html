@@ -1,1 +1,188 @@
-{% extends 'base.html' %}{% block title %}Payment Management · SkillSwap{% endblock %}{% block content %}<section class="section"><div class="container"><div class="d-flex justify-content-between align-items-end mb-4"><div><p class="eyebrow">Admin finance</p><h1 class="section-heading h2">Payment overview</h1></div><a class="btn btn-outline-primary" href="{{ url_for('admin.dashboard') }}">Dashboard</a></div><div class="row row-cols-2 row-cols-lg-4 g-3 mb-4"><div class="col"><div class="soft-card p-3"><small class="text-secondary">Transactions</small><strong class="d-block h4">{{ total_transactions }}</strong></div></div><div class="col"><div class="soft-card p-3"><small class="text-secondary">Gross revenue</small><strong class="d-block h4">{{ gross }}</strong></div></div><div class="col"><div class="soft-card p-3"><small class="text-secondary">Commission</small><strong class="d-block h4">{{ commission }}</strong></div></div><div class="col"><div class="soft-card p-3"><small class="text-secondary">Mentor earnings</small><strong class="d-block h4">{{ mentor_earnings }}</strong></div></div></div><div class="soft-card p-3">{% for payment in payments %}<div class="d-flex justify-content-between border-bottom py-3"><span>{{ payment.reference_id }} · {{ payment.mentor.full_name }}</span><span>{{ payment.amount }} · {{ payment.status }}</span></div>{% else %}<div class="empty-state">No payments recorded.</div>{% endfor %}</div></div></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Payment & Invoice Management · Admin · SkillSwap{% endblock %}
+
+{% block content %}
+<section class="section py-4">
+  <div class="container">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-2">
+      <div>
+        <p class="eyebrow text-uppercase tracking-wider text-muted small mb-1">Platform Finances</p>
+        <h1 class="section-heading h2 mb-0">Payment & Invoice Management</h1>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('admin.withdrawals') }}">
+          <i class="bi bi-cash-stack me-1"></i> Withdrawal Requests
+        </a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('admin.revenue') }}">Revenue Breakdown</a>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('admin.dashboard') }}">Admin Dashboard</a>
+      </div>
+    </div>
+
+    <!-- FLASH MESSAGES -->
+    {% include 'partials/flash.html' %}
+
+    <!-- 6 FINANCIAL METRICS CARDS -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-4 col-lg-2">
+        <div class="soft-card p-3 h-100 border-start border-4 border-secondary">
+          <span class="text-secondary small d-block mb-1">Invoices / Trans</span>
+          <div class="h4 fw-bold text-dark mb-0">{{ total_transactions }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">Total records</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <div class="soft-card p-3 h-100 border-start border-4 border-success">
+          <span class="text-secondary small d-block mb-1">Settled / Paid</span>
+          <div class="h4 fw-bold text-success mb-0">৳{{ '%.2f'|format(total_paid|float) }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">{{ successful_count }} paid</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <div class="soft-card p-3 h-100 border-start border-4 border-warning">
+          <span class="text-secondary small d-block mb-1">Pending Due</span>
+          <div class="h4 fw-bold text-warning mb-0">৳{{ '%.2f'|format(total_pending|float) }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">Awaiting learner</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <div class="soft-card p-3 h-100 border-start border-4 border-danger">
+          <span class="text-secondary small d-block mb-1">Overdue Invoices</span>
+          <div class="h4 fw-bold text-danger mb-0">৳{{ '%.2f'|format(total_overdue|float) }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">Past due date</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <div class="soft-card p-3 h-100 border-start border-4 border-primary">
+          <span class="text-secondary small d-block mb-1">Platform Fee</span>
+          <div class="h4 fw-bold text-primary mb-0">৳{{ '%.2f'|format(total_commission|float) }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">Commission revenue</small>
+        </div>
+      </div>
+      <div class="col-6 col-md-4 col-lg-2">
+        <div class="soft-card p-3 h-100 border-start border-4 border-info">
+          <span class="text-secondary small d-block mb-1">Mentor Earnings</span>
+          <div class="h4 fw-bold text-info mb-0">৳{{ '%.2f'|format(total_mentor_earnings|float) }}</div>
+          <small class="text-muted" style="font-size: 0.72rem;">Disbursed to mentors</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- ITEMIZED INVOICES AND PAYMENTS TABLE -->
+    <div class="soft-card p-3 p-md-4">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+          <h2 class="h5 fw-bold mb-0">All Platform Payments & Invoices</h2>
+          <p class="text-muted small mb-0">Complete transaction ledger including tuition, profile unlocks, and installments.</p>
+        </div>
+        <span class="badge bg-light text-dark border">{{ payments|length }} total record(s)</span>
+      </div>
+
+      {% if payments %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr class="small text-muted text-uppercase">
+                <th>Invoice #</th>
+                <th>Learner</th>
+                <th>Mentor</th>
+                <th>Skill / Purpose</th>
+                <th>Cadence</th>
+                <th>Amount</th>
+                <th>Platform Fee</th>
+                <th>Mentor Net</th>
+                <th>Status</th>
+                <th>Dates</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for payment in payments %}
+                <tr>
+                  <td>
+                    <strong class="text-dark">{{ payment.display_invoice_number }}</strong>
+                    <div class="text-muted small" style="font-size: 0.7rem;">{{ payment.reference_id }}</div>
+                  </td>
+                  <td>
+                    <div class="fw-semibold text-dark">{{ payment.learner.full_name }}</div>
+                    <small class="text-muted">{{ payment.learner.email }}</small>
+                  </td>
+                  <td>
+                    <div class="fw-semibold text-dark">{{ payment.mentor.full_name }}</div>
+                    <small class="text-muted">{{ payment.mentor.email }}</small>
+                  </td>
+                  <td>
+                    {% if payment.skill %}
+                      <span class="badge bg-light text-primary border border-primary-subtle">{{ payment.skill.name }}</span>
+                    {% elif payment.relationship and payment.relationship.skill %}
+                      <span class="badge bg-light text-primary border border-primary-subtle">{{ payment.relationship.skill.name }}</span>
+                    {% elif payment.payment_type == 'Profile Unlock' %}
+                      <span class="badge bg-light text-secondary border">Profile Unlock</span>
+                    {% else %}
+                      <span class="badge bg-light text-secondary border">Learning Service</span>
+                    {% endif %}
+                    {% if payment.billing_period %}
+                      <div class="small text-muted mt-1">{{ payment.billing_period }}</div>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="small fw-semibold text-dark">{{ payment.display_payment_type }}</span>
+                    <div class="text-muted small">{{ payment.display_frequency }}</div>
+                  </td>
+                  <td>
+                    <strong class="text-dark">৳{{ '%.2f'|format(payment.amount|float) }}</strong>
+                  </td>
+                  <td>
+                    <span class="text-primary small fw-semibold">৳{{ '%.2f'|format(payment.platform_commission|float) }}</span>
+                  </td>
+                  <td>
+                    <span class="text-success small fw-semibold">৳{{ '%.2f'|format(payment.mentor_earning|float) }}</span>
+                  </td>
+                  <td>
+                    {% if payment.display_status == 'Paid' %}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle">Paid</span>
+                    {% elif payment.display_status == 'Overdue' %}
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Overdue</span>
+                    {% elif payment.display_status == 'Pending' %}
+                      <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Pending</span>
+                    {% elif payment.status == 'Failed' %}
+                      <span class="badge bg-danger text-white">Failed</span>
+                    {% else %}
+                      <span class="badge bg-secondary text-white">{{ payment.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="small text-muted">Created: {{ payment.created_at.strftime('%d %b %Y') }}</div>
+                    {% if payment.due_date %}
+                      <div class="small {% if payment.display_status == 'Overdue' %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                        Due: {{ payment.due_date.strftime('%d %b %Y') }}
+                      </div>
+                    {% endif %}
+                    {% if payment.paid_at or (payment.display_status == 'Paid') %}
+                      <div class="small text-success">
+                        Paid: {{ (payment.paid_at or payment.created_at).strftime('%d %b %Y') }}
+                      </div>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    <a href="{{ url_for('payments.invoice', payment_id=payment.id) }}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" title="View official printable invoice">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                      </svg>
+                      <span>Invoice</span>
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state py-5 text-center text-secondary">
+          No payment records found yet.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

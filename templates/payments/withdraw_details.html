@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% block title %}Withdrawal Receipt #{{ withdrawal.display_withdrawal_id }} · SkillSwap{% endblock %}
+
+{% block content %}
+<section class="section py-4">
+  <div class="container">
+
+    <!-- BREADCRUMBS & TOP NAV -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{{ url_for('mentor.dashboard') }}">Mentor Dashboard</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('payments.earnings') }}">Earnings & Payments</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('payments.withdraw') }}">Withdraw</a></li>
+          <li class="breadcrumb-item active" aria-current="page">Receipt #{{ withdrawal.display_withdrawal_id }}</li>
+        </ol>
+      </nav>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('payments.withdraw') }}">
+          <i class="bi bi-arrow-left me-1"></i> Back to Withdrawals
+        </a>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('payments.earnings') }}">
+          Payments Ledger
+        </a>
+      </div>
+    </div>
+
+    {% include 'partials/flash.html' %}
+
+    <div class="row justify-content-center">
+      <div class="col-lg-8 col-xl-7">
+        
+        <!-- RECEIPT CARD -->
+        <div class="soft-card p-4 p-md-5 mb-4 shadow-sm border">
+          
+          <!-- STATUS HEADER -->
+          <div class="text-center mb-4 pb-3 border-bottom">
+            {% if withdrawal.status == 'Completed' %}
+              <div class="d-inline-flex align-items-center justify-content-center bg-success-subtle text-success rounded-circle mb-3" style="width: 64px; height: 64px;">
+                <i class="bi bi-check-circle-fill" style="font-size: 2rem;"></i>
+              </div>
+              <h1 class="h3 fw-bold text-dark mb-1">Withdrawal Completed</h1>
+              <p class="text-muted small mb-2">The requested funds have been disbursed to your destination account.</p>
+              <span class="badge text-bg-success px-3 py-2 fs-6">Completed</span>
+            {% elif withdrawal.status == 'Processing' %}
+              <div class="d-inline-flex align-items-center justify-content-center bg-info-subtle text-info rounded-circle mb-3" style="width: 64px; height: 64px;">
+                <i class="bi bi-gear-wide-connected" style="font-size: 2rem;"></i>
+              </div>
+              <h1 class="h3 fw-bold text-dark mb-1">Withdrawal in Processing</h1>
+              <p class="text-muted small mb-2">Your payout request has been acknowledged and is currently being transferred.</p>
+              <span class="badge text-bg-info text-white px-3 py-2 fs-6">Processing</span>
+            {% elif withdrawal.status == 'Rejected' %}
+              <div class="d-inline-flex align-items-center justify-content-center bg-danger-subtle text-danger rounded-circle mb-3" style="width: 64px; height: 64px;">
+                <i class="bi bi-x-circle-fill" style="font-size: 2rem;"></i>
+              </div>
+              <h1 class="h3 fw-bold text-dark mb-1">Withdrawal Request Rejected</h1>
+              <p class="text-muted small mb-2">This withdrawal request could not be fulfilled. The reserved funds have been returned to your balance.</p>
+              <span class="badge text-bg-danger px-3 py-2 fs-6">Rejected</span>
+            {% else %}
+              <div class="d-inline-flex align-items-center justify-content-center bg-warning-subtle text-warning rounded-circle mb-3" style="width: 64px; height: 64px;">
+                <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+              </div>
+              <h1 class="h3 fw-bold text-dark mb-1">Withdrawal Request Submitted</h1>
+              <p class="text-muted small mb-2">Your payout request is awaiting administrative review and processing.</p>
+              <span class="badge text-bg-warning px-3 py-2 fs-6">Pending Review</span>
+            {% endif %}
+          </div>
+
+          <!-- AMOUNT BANNER -->
+          <div class="bg-light rounded-3 p-3 mb-4 text-center border">
+            <span class="text-muted small text-uppercase tracking-wider d-block mb-1">Requested Amount</span>
+            <div class="display-6 fw-bold text-primary mb-0">৳{{ '%.2f'|format(withdrawal.amount|float) }}</div>
+          </div>
+
+          <!-- DETAILS GRID -->
+          <div class="bg-light rounded-3 p-4 mb-4 border">
+            <h2 class="h6 fw-bold text-uppercase text-secondary tracking-wider mb-3">Transaction Specifications</h2>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">Withdrawal ID</span>
+                <strong class="text-dark font-monospace">{{ withdrawal.display_withdrawal_id }}</strong>
+              </div>
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">Payment Method</span>
+                <span class="badge bg-white text-dark border fw-semibold">
+                  {% if withdrawal.method == 'bKash' %}
+                    <i class="bi bi-phone text-danger me-1"></i> bKash
+                  {% elif withdrawal.method == 'Nagad' %}
+                    <i class="bi bi-phone text-warning me-1"></i> Nagad
+                  {% elif withdrawal.method == 'Rocket' %}
+                    <i class="bi bi-phone text-primary me-1"></i> Rocket
+                  {% elif withdrawal.method == 'Bank Account' %}
+                    <i class="bi bi-bank text-info me-1"></i> Bank Account
+                  {% elif withdrawal.method == 'Card' %}
+                    <i class="bi bi-credit-card text-success me-1"></i> Debit / Credit Card
+                  {% else %}
+                    {{ withdrawal.method }}
+                  {% endif %}
+                </span>
+              </div>
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">Account Holder</span>
+                <strong class="text-dark">{{ withdrawal.account_holder_name }}</strong>
+              </div>
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">Destination Account</span>
+                <strong class="text-dark font-monospace">{{ withdrawal.masked_account_display }}</strong>
+              </div>
+
+              {% if withdrawal.method == 'Bank Account' %}
+                <div class="col-sm-6">
+                  <span class="text-muted small d-block">Bank Name</span>
+                  <span class="text-dark fw-semibold">{{ withdrawal.bank_name or 'N/A' }}</span>
+                </div>
+                <div class="col-sm-6">
+                  <span class="text-muted small d-block">Branch</span>
+                  <span class="text-dark">{{ withdrawal.branch_name or 'N/A' }}</span>
+                </div>
+                {% if withdrawal.routing_number %}
+                  <div class="col-sm-6">
+                    <span class="text-muted small d-block">Routing Number</span>
+                    <span class="text-dark font-monospace">{{ withdrawal.routing_number }}</span>
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              {% if withdrawal.method == 'Card' %}
+                <div class="col-sm-6">
+                  <span class="text-muted small d-block">Card Issuer / Bank</span>
+                  <span class="text-dark fw-semibold">{{ withdrawal.card_issuer or 'N/A' }}</span>
+                </div>
+                <div class="col-sm-6">
+                  <span class="text-muted small d-block">Card Number</span>
+                  <span class="text-dark font-monospace">**** **** **** {{ withdrawal.card_last4 }}</span>
+                </div>
+              {% endif %}
+
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">Submission Time</span>
+                <span class="text-dark">{{ withdrawal.requested_at.strftime('%d %B %Y, %I:%M %p') if withdrawal.requested_at else 'N/A' }}</span>
+              </div>
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">Processed Time</span>
+                <span class="text-dark">
+                  {% if withdrawal.processed_at %}
+                    {{ withdrawal.processed_at.strftime('%d %B %Y, %I:%M %p') }}
+                  {% else %}
+                    <span class="text-muted fst-italic">Pending administration</span>
+                  {% endif %}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- REJECTION REASON CALLOUT -->
+          {% if withdrawal.rejection_reason %}
+            <div class="alert alert-danger mb-4 d-flex align-items-start gap-2">
+              <i class="bi bi-exclamation-triangle-fill fs-5 mt-1 flex-shrink-0"></i>
+              <div>
+                <strong>Reason for Rejection:</strong>
+                <p class="mb-1 mt-1">{{ withdrawal.rejection_reason }}</p>
+                <small class="text-muted">The reserved payout amount of ৳{{ '%.2f'|format(withdrawal.amount|float) }} was automatically unlocked and returned to your Available Balance.</small>
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- ADMIN NOTE CALLOUT -->
+          {% if withdrawal.admin_note %}
+            <div class="alert alert-info mb-4 d-flex align-items-start gap-2">
+              <i class="bi bi-info-circle-fill fs-5 mt-1 flex-shrink-0"></i>
+              <div>
+                <strong>Admin Reference Note:</strong>
+                <p class="mb-0 mt-1">{{ withdrawal.admin_note }}</p>
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- CURRENT BALANCE OVERVIEW FOOTER -->
+          <div class="p-3 rounded-3 border bg-body-tertiary mb-4">
+            <h3 class="h6 fw-bold text-dark mb-2">Mentor Balance Status</h3>
+            <div class="row g-2 text-center">
+              <div class="col-4">
+                <span class="text-muted small d-block">Available</span>
+                <strong class="text-success">৳{{ '%.2f'|format(balance.available_balance|float) }}</strong>
+              </div>
+              <div class="col-4">
+                <span class="text-muted small d-block">Total Withdrawn</span>
+                <strong class="text-dark">৳{{ '%.2f'|format(balance.total_withdrawn|float) }}</strong>
+              </div>
+              <div class="col-4">
+                <span class="text-muted small d-block">Pending</span>
+                <strong class="text-warning">৳{{ '%.2f'|format(balance.pending_withdrawals|float) }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- ACTIONS -->
+          <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
+            <a class="btn btn-primary px-4" href="{{ url_for('payments.withdraw') }}">
+              <i class="bi bi-cash-stack me-1"></i> Manage Withdrawals
+            </a>
+            <a class="btn btn-outline-secondary px-4" href="{{ url_for('payments.earnings') }}">
+              <i class="bi bi-receipt me-1"></i> View Payments & Invoices
+            </a>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

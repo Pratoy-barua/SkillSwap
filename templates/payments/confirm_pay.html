@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}Confirm Payment · {{ payment.display_invoice_number }} · SkillSwap{% endblock %}
+
+{% block content %}
+<section class="section py-5" style="background-color: var(--ss-bg, #f8fbff); min-height: 75vh;">
+  <div class="container" style="max-width: 580px;">
+
+    <!-- Back Navigation -->
+    <div class="mb-4">
+      <a href="{{ url_for('payments.history') }}" class="text-decoration-none text-secondary d-inline-flex align-items-center gap-2 small fw-semibold">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+          <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+        </svg>
+        <span>Back to Payments &amp; Invoices</span>
+      </a>
+    </div>
+
+    <!-- Payment Summary Card -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+      <div class="p-4 bg-primary text-white text-center">
+        <span class="badge bg-white text-primary mb-2 px-3 py-1 fw-bold rounded-pill text-uppercase" style="font-size: 0.72rem; letter-spacing: 0.05em;">
+          Invoice {{ payment.display_invoice_number }}
+        </span>
+        <h1 class="h3 fw-bold mb-1 text-white">Payment Summary</h1>
+        <p class="text-white-50 small mb-0">Review details and confirm your mentorship payment</p>
+      </div>
+
+      <div class="p-4 p-md-5">
+        <!-- Mentor & Skill Details -->
+        <div class="d-flex align-items-center gap-3 p-3 rounded-3 mb-4" style="background-color: #f1f7fe; border: 1px solid #dce8f8;">
+          {% if payment.mentor.profile_photo %}
+            <img src="{{ url_for('static', filename='uploads/public/' + payment.mentor.profile_photo) }}" alt="{{ payment.mentor.full_name }}" class="rounded-circle" style="width: 54px; height: 54px; object-fit: cover; border: 2px solid #ffffff;">
+          {% else %}
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 54px; height: 54px; flex-shrink: 0;">
+              {{ payment.mentor.full_name[0]|upper }}
+            </div>
+          {% endif %}
+          <div class="flex-grow-1">
+            <span class="badge text-bg-primary text-uppercase px-2 py-0 fw-semibold" style="font-size: 0.68rem;">Verified Mentor</span>
+            <h2 class="h5 fw-bold mb-0 text-dark mt-1">{{ payment.mentor.full_name }}</h2>
+            <div class="text-secondary small">
+              {{ payment.skill.name if payment.skill else (payment.relationship.skill.name if payment.relationship else 'Skill Learning') }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Breakdown List -->
+        <div class="list-group list-group-flush mb-4">
+          <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+            <span class="text-secondary small fw-semibold">Skill</span>
+            <strong class="text-dark">{{ payment.skill.name if payment.skill else (payment.relationship.skill.name if payment.relationship else 'Mentorship') }}</strong>
+          </div>
+
+          <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+            <span class="text-secondary small fw-semibold">Payment Type</span>
+            <strong class="text-dark">{{ payment.display_payment_type }} ({{ payment.display_frequency }})</strong>
+          </div>
+
+          {% if payment.description %}
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+              <span class="text-secondary small fw-semibold">Description / Period</span>
+              <strong class="text-dark text-end" style="max-width: 65%;">{{ payment.description }}</strong>
+            </div>
+          {% endif %}
+
+          <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+            <span class="text-secondary small fw-semibold">Due Date</span>
+            <strong class="{% if payment.display_status == 'Overdue' %}text-danger{% else %}text-dark{% endif %}">
+              {{ payment.due_date.strftime('%d %B %Y') if payment.due_date else 'Upon Receipt' }}
+            </strong>
+          </div>
+
+          <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+            <span class="text-secondary small fw-semibold">Current Status</span>
+            <div>
+              {% if payment.display_status == 'Overdue' %}
+                <span class="badge text-bg-danger px-2 py-1">Overdue</span>
+              {% else %}
+                <span class="badge text-bg-warning px-2 py-1">Pending</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="list-group-item d-flex justify-content-between align-items-center px-0 pt-3 border-0">
+            <div>
+              <span class="h6 fw-bold text-dark d-block mb-0">Total Amount Due</span>
+              <small class="text-muted">Simulated payment</small>
+            </div>
+            <div class="h3 fw-bold text-primary mb-0">
+              ৳{{ '%.2f'|format(payment.amount|float) }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Simulated Payment Notice -->
+        <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="flex-shrink-0">
+            <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2"/>
+          </svg>
+          <div>
+            Clicking <strong>Confirm Payment</strong> will complete this transaction, mark invoice <strong>{{ payment.display_invoice_number }}</strong> as <strong>Paid</strong>, and update your learning records.
+          </div>
+        </div>
+
+        <!-- Confirmation Form -->
+        <form method="post" action="{{ url_for('payments.pay_invoice', invoice_id=payment.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-primary w-100 py-2 fs-6 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
+            </svg>
+            <span>Confirm Payment (৳{{ '%.2f'|format(payment.amount|float) }})</span>
+          </button>
+        </form>
+
+        <div class="text-center mt-3">
+          <a href="{{ url_for('payments.invoice', payment_id=payment.id) }}" class="btn btn-link text-secondary text-decoration-none small">
+            Cancel and view invoice
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

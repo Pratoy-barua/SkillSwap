@@ -728,6 +728,257 @@
           </div>
         </div>
 
+        <!-- PAYMENT PLAN & INVOICES SECTION -->
+        <div class="lp-card" id="payments">
+          <div class="lp-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h2 class="lp-card-title mb-0">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+                <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                <line x1="2" y1="10" x2="22" y2="10"></line>
+              </svg>
+              Payment Plan & Invoices
+            </h2>
+            {% if current_user.id == relationship.mentor_id %}
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#createInvoiceModal">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                  </svg>
+                  <span>Request Payment</span>
+                </button>
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="lp-card-body">
+            <!-- Payment Plan Overview Metrics -->
+            <div class="row g-3 mb-4">
+              <div class="col-sm-6 col-md-3">
+                <div class="p-3 bg-light rounded-3 h-100">
+                  <span class="text-muted small d-block mb-1">Payment Model</span>
+                  <strong class="text-dark d-block">{{ relationship.display_payment_type }}</strong>
+                  <small class="text-secondary">{{ relationship.display_frequency }}</small>
+                </div>
+              </div>
+              <div class="col-sm-6 col-md-3">
+                <div class="p-3 bg-light rounded-3 h-100">
+                  <span class="text-muted small d-block mb-1">Base Rate / Tuition</span>
+                  <strong class="text-dark d-block">৳{{ '%.2f'|format((relationship.payment_amount or (relationship.plan.pricing if relationship.plan else 0))|float) }}</strong>
+                  <small class="text-secondary">Defined by mentor</small>
+                </div>
+              </div>
+              <div class="col-sm-6 col-md-3">
+                <div class="p-3 bg-light rounded-3 h-100 border-start border-3 border-success">
+                  <span class="text-muted small d-block mb-1">Total Paid</span>
+                  <strong class="text-success d-block">৳{{ '%.2f'|format(relationship.total_paid|float) }}</strong>
+                  <small class="text-muted">Settled to date</small>
+                </div>
+              </div>
+              <div class="col-sm-6 col-md-3">
+                <div class="p-3 bg-light rounded-3 h-100 border-start border-3 {% if relationship.pending_amount > 0 or relationship.overdue_amount > 0 %}border-danger{% else %}border-secondary{% endif %}">
+                  <span class="text-muted small d-block mb-1">Outstanding Due</span>
+                  <strong class="{% if relationship.pending_amount > 0 or relationship.overdue_amount > 0 %}text-danger{% else %}text-muted{% endif %} d-block">
+                    ৳{{ '%.2f'|format((relationship.pending_amount + relationship.overdue_amount)|float) }}
+                  </strong>
+                  <small class="text-muted">
+                    {% if relationship.overdue_amount > 0 %}
+                      ৳{{ '%.2f'|format(relationship.overdue_amount|float) }} overdue
+                    {% else %}
+                      Pending invoice
+                    {% endif %}
+                  </small>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mentor Quick Plan Update Form (Collapsible) -->
+            {% if current_user.id == relationship.mentor_id %}
+              <div class="mb-4">
+                <button class="btn btn-sm btn-outline-secondary w-100 text-start d-flex justify-content-between align-items-center py-2" type="button" data-bs-toggle="collapse" data-bs-target="#editPaymentPlanCollapse" aria-expanded="false">
+                  <span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+                      <circle cx="12" cy="12" r="3"></circle>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    <strong>Configure Relationship Payment Plan</strong> (Switch One-time / Recurring Weekly / Monthly)
+                  </span>
+                  <span class="small text-muted">Click to toggle</span>
+                </button>
+                <div class="collapse mt-2" id="editPaymentPlanCollapse">
+                  <div class="p-3 bg-light rounded-3 border">
+                    <form method="post" action="{{ url_for('payments.update_relationship_plan_payment', relationship_id=relationship.id) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <div class="row g-3">
+                        <div class="col-md-4">
+                          <label class="form-label small fw-semibold">Payment Type</label>
+                          <select name="payment_type" class="form-select form-select-sm" id="planPaymentTypeSelect" onchange="toggleFrequencySelect(this.value)">
+                            <option value="one_time" {% if relationship.payment_type in ['one_time', 'One-time', 'One-Time'] %}selected{% endif %}>One-time Payment</option>
+                            <option value="recurring" {% if relationship.payment_type in ['recurring', 'Recurring'] %}selected{% endif %}>Recurring Installments</option>
+                          </select>
+                        </div>
+                        <div class="col-md-4" id="frequencySelectGroup">
+                          <label class="form-label small fw-semibold">Frequency</label>
+                          <select name="frequency" class="form-select form-select-sm">
+                            <option value="weekly" {% if relationship.payment_frequency in ['weekly', 'Weekly'] %}selected{% endif %}>Weekly</option>
+                            <option value="monthly" {% if relationship.payment_frequency in ['monthly', 'Monthly'] %}selected{% endif %}>Monthly</option>
+                          </select>
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label small fw-semibold">Amount per Period (৳)</label>
+                          <input type="number" step="0.01" min="0" name="amount" class="form-control form-control-sm" value="{{ '%.2f'|format((relationship.payment_amount or (relationship.plan.pricing if relationship.plan else 0))|float) }}" required>
+                        </div>
+                        <div class="col-12 d-flex justify-content-end">
+                          <button type="submit" class="btn btn-primary btn-sm">Save Payment Settings</button>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+
+            <!-- Invoices Table -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="fw-semibold text-dark small text-uppercase">Payment Invoices & Requests</span>
+              <span class="small text-muted">{{ relationship.payments|length }} invoice(s)</span>
+            </div>
+
+            {% if relationship.payments %}
+              <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr class="small text-muted">
+                      <th>Invoice #</th>
+                      <th>Billing Period / Milestone</th>
+                      <th>Cadence</th>
+                      <th>Amount</th>
+                      <th>Due Date</th>
+                      <th>Status</th>
+                      <th class="text-end">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for inv in relationship.payments %}
+                      <tr>
+                        <td>
+                          <strong class="text-dark">{{ inv.display_invoice_number }}</strong>
+                        </td>
+                        <td>
+                          <span class="small text-dark">{{ inv.billing_period or inv.description or 'Mentorship' }}</span>
+                        </td>
+                        <td>
+                          <span class="badge bg-light text-secondary border">{{ inv.display_frequency }}</span>
+                        </td>
+                        <td>
+                          <strong class="text-dark">৳{{ '%.2f'|format(inv.amount|float) }}</strong>
+                        </td>
+                        <td>
+                          {% if inv.due_date %}
+                            <span class="small {% if inv.display_status == 'Overdue' %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                              {{ inv.due_date.strftime('%d %b %Y') }}
+                            </span>
+                          {% else %}
+                            <span class="small text-muted">Immediate</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if inv.display_status == 'Paid' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Paid</span>
+                          {% elif inv.display_status == 'Overdue' %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Overdue</span>
+                          {% elif inv.display_status == 'Pending' %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Pending</span>
+                          {% else %}
+                            <span class="badge bg-secondary text-white">{{ inv.status }}</span>
+                          {% endif %}
+                        </td>
+                        <td class="text-end">
+                          <div class="d-inline-flex align-items-center gap-1">
+                            {% if current_user.id == relationship.learner_id and inv.display_status in ['Pending', 'Overdue'] %}
+                              <a href="{{ url_for('payments.pay_invoice', invoice_id=inv.id) }}" class="btn btn-sm btn-primary py-0 px-2" style="font-size: 0.76rem;">
+                                Pay Now
+                              </a>
+                            {% endif %}
+                            <a href="{{ url_for('payments.invoice', payment_id=inv.id) }}" class="btn btn-sm btn-outline-primary py-0 px-2 d-inline-flex align-items-center gap-1" style="font-size: 0.76rem;">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                              </svg>
+                              <span>Invoice</span>
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="p-3 bg-light rounded text-center text-muted small">
+                No invoices issued for this relationship yet.
+                {% if current_user.id == relationship.mentor_id %}
+                  Click <strong>Request Payment</strong> to generate the first invoice.
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if current_user.id == relationship.mentor_id %}
+          <!-- Create Payment Request Modal -->
+          <div class="modal fade" id="createInvoiceModal" tabindex="-1" aria-labelledby="createInvoiceModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content shadow">
+                <form method="post" action="{{ url_for('payments.create_relationship_payment', relationship_id=relationship.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="createInvoiceModalLabel">Issue Payment Request to {{ relationship.learner.full_name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <p class="small text-muted mb-3">
+                      Generate an invoice for <strong>{{ relationship.skill.name }}</strong> mentorship. The learner will be able to review and settle it directly from their dashboard.
+                    </p>
+
+                    <div class="mb-3">
+                      <label class="form-label small fw-semibold">Amount (৳) <span class="text-danger">*</span></label>
+                      <input type="number" step="0.01" min="1" name="amount" class="form-control" value="{{ '%.2f'|format((relationship.payment_amount or (relationship.plan.pricing if relationship.plan else 0))|float) }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label small fw-semibold">Payment Cadence</label>
+                      <select name="frequency" class="form-select">
+                        <option value="one_time" {% if relationship.payment_frequency in ['none', '', 'one_time', 'One-time'] %}selected{% endif %}>One-time Payment</option>
+                        <option value="weekly" {% if relationship.payment_frequency in ['weekly', 'Weekly'] %}selected{% endif %}>Weekly Installment</option>
+                        <option value="monthly" {% if relationship.payment_frequency in ['monthly', 'Monthly'] %}selected{% endif %}>Monthly Installment</option>
+                      </select>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label small fw-semibold">Billing Period / Milestone Description</label>
+                      <input type="text" name="billing_period" class="form-control" placeholder="e.g. Week 1, Month 1, Milestone 1" value="{% if relationship.payment_frequency == 'weekly' %}Week {{ (relationship.payments|length) + 1 }}{% elif relationship.payment_frequency == 'monthly' %}Month {{ (relationship.payments|length) + 1 }}{% else %}Mentorship Fee{% endif %}">
+                      <small class="text-muted" style="font-size: 0.72rem;">Helps learner identify this specific billing period.</small>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label small fw-semibold">Due Date <span class="text-muted">(Optional)</span></label>
+                      <input type="date" name="due_date" class="form-control">
+                      <small class="text-muted" style="font-size: 0.72rem;">Past due invoices trigger Overdue status automatically.</small>
+                    </div>
+
+                    <div class="p-2 bg-light rounded small text-secondary">
+                      Platform fee: <strong>10%</strong>. Net mentor earnings on this invoice: <strong>90%</strong>.
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Issue Payment Request</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+
         <!-- RECENT ACTIVITY & MILESTONES TIMELINE -->
         <div class="lp-card">
           <div class="lp-card-header">
@@ -768,7 +1019,7 @@
                     <div class="lp-timeline-time">{{ relationship.plan.updated_at.strftime('%B %d, %Y') }}</div>
                   </div>
                 {% endif %}
-                {% if progress %}
+                {% if progress and progress.updated_at %}
                   <div class="lp-timeline-item">
                     <div class="lp-timeline-node"></div>
                     <div class="lp-timeline-title">Progress Updated to {{ progress.percentage }}%</div>
@@ -911,7 +1162,7 @@
               </div>
               <div class="lp-spec-item">
                 <span class="lp-spec-label">Last Updated</span>
-                <span class="lp-spec-val">{{ (progress.updated_at if progress else relationship.updated_at).strftime('%b %d, %Y') }}</span>
+                <span class="lp-spec-val">{{ (progress.updated_at if progress and progress.updated_at else (relationship.updated_at or relationship.started_at)).strftime('%b %d, %Y') if (progress and progress.updated_at) or relationship.updated_at or relationship.started_at else 'Active' }}</span>
               </div>
             </div>
 
@@ -966,6 +1217,13 @@ function selectPercentage(val) {
       btn.classList.remove('active');
     }
   });
+}
+
+function toggleFrequencySelect(type) {
+  const grp = document.getElementById('frequencySelectGroup');
+  if (grp) {
+    grp.style.display = (type === 'recurring') ? 'block' : 'none';
+  }
 }
 
 function setReviewRating(rating, mode) {

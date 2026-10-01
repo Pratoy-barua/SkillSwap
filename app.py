@@ -112,7 +112,12 @@ def create_app(config_name=None):
         from sqlalchemy import inspect, text
 
         additions = {
-            "users": {"address": "VARCHAR(255) NOT NULL DEFAULT ''"},
+            "users": {
+                "address": "VARCHAR(255) NOT NULL DEFAULT ''",
+                "terms_accepted": "BOOLEAN NOT NULL DEFAULT 0",
+                "terms_version": "VARCHAR(20) NULL",
+                "terms_accepted_at": "DATETIME NULL",
+            },
             "skills": {"is_active": "BOOLEAN NOT NULL DEFAULT 1", "icon": "VARCHAR(255) NULL"},
             "mentor_profiles": {"rating": "DECIMAL(3,2) NOT NULL DEFAULT 0"},
             "subscriptions": {"premium_plan_id": "INTEGER NULL"},
@@ -130,6 +135,22 @@ def create_app(config_name=None):
                 "linkedin_url": "VARCHAR(255) NULL",
                 "github_url": "VARCHAR(255) NULL",
                 "website_url": "VARCHAR(255) NULL",
+            },
+            # Phase 5: Mentor-Learner Invoicing & Relationship Payment Plans
+            "learning_relationships": {
+                "payment_type": "VARCHAR(30) NOT NULL DEFAULT 'one_time'",
+                "payment_frequency": "VARCHAR(20) NOT NULL DEFAULT 'none'",
+                "payment_amount": "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+                "payment_status": "VARCHAR(20) NOT NULL DEFAULT 'Active'",
+            },
+            "payments": {
+                "invoice_number": "VARCHAR(40) NULL",
+                "skill_id": "INTEGER NULL",
+                "frequency": "VARCHAR(20) NOT NULL DEFAULT 'none'",
+                "description": "VARCHAR(255) NULL",
+                "billing_period": "VARCHAR(100) NULL",
+                "due_date": "DATE NULL",
+                "paid_at": "DATETIME NULL",
             },
         }
         # mentor_profiles professional detail columns (merged separately to avoid
@@ -157,6 +178,16 @@ def create_app(config_name=None):
         for name, definition in mentor_pro_columns.items():
             if name not in existing_mentor_cols:
                 db.session.execute(text(f"ALTER TABLE `mentor_profiles` ADD COLUMN `{name}` {definition}"))
+        
+        # Backfill invoice_number and skill_id on payments
+        try:
+            db.session.execute(text("UPDATE payments SET invoice_number = CONCAT('INV-', LPAD(id, 4, '0')) WHERE invoice_number IS NULL OR invoice_number = ''"))
+            db.session.execute(text("UPDATE payments p JOIN learning_relationships lr ON p.relationship_id = lr.id SET p.skill_id = lr.skill_id WHERE p.skill_id IS NULL"))
+            # Sync paid_at for existing Successful payments if paid_at is NULL
+            db.session.execute(text("UPDATE payments SET paid_at = created_at WHERE status = 'Successful' AND paid_at IS NULL"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
         db.session.commit()
 
 
