@@ -4,6 +4,12 @@ SkillSwap is a Flask + MySQL platform that connects learners with mentors for sk
 
 > **Note:** Payments and withdrawals are currently **demo/internal**. No real money is processed.
 
+## Team Members
+- Pratoy Barua
+- Waled Rahman
+- Asifur Rahman
+- MD Rejwan
+
 ## Features
 
 ### Learner
