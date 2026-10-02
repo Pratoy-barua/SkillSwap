@@ -21,6 +21,26 @@ def active_relationship_for(learner_id, mentor_id, skill_id):
     return LearningRelationship.query.filter_by(learner_id=learner_id, mentor_id=mentor_id, skill_id=skill_id, status="Active").first()
 
 
+def ensure_conversation_for_relationship(relationship):
+    """Ensure a Conversation exists for a LearningRelationship, creating one if missing."""
+    if not relationship or not relationship.id:
+        return None
+    if relationship.conversation:
+        return relationship.conversation
+    conv = Conversation.query.filter_by(relationship_id=relationship.id).first()
+    if not conv:
+        conv = Conversation(relationship_id=relationship.id)
+        db.session.add(conv)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            conv = Conversation.query.filter_by(relationship_id=relationship.id).first()
+    if conv:
+        relationship.conversation = conv
+    return conv
+
+
 @connection_bp.post("/learning-requests/create/<int:mentor_id>")
 @role_required("Learner")
 def create_request(mentor_id):
@@ -56,6 +76,9 @@ def create_request(mentor_id):
 @role_required("Learner")
 def learner_requests():
     items = LearningRequest.query.filter_by(learner_id=g.current_user.id).order_by(LearningRequest.created_at.desc()).all()
+    for req in items:
+        if req.relationship:
+            ensure_conversation_for_relationship(req.relationship)
     return render_template("connections/learner_requests.html", requests=items)
 
 
@@ -78,10 +101,9 @@ def mentor_requests():
     active_rels = LearningRelationship.query.filter_by(mentor_id=g.current_user.id, status="Active").all()
     conversations_by_learner = {}
     for rel in active_rels:
-        if not rel.conversation:
-            rel.conversation = Conversation(relationship=rel)
-            db.session.commit()
-        conversations_by_learner[rel.learner_id] = rel.conversation.id
+        conv = ensure_conversation_for_relationship(rel)
+        if conv:
+            conversations_by_learner[rel.learner_id] = conv.id
     return render_template("connections/mentor_requests.html", requests=items, conversations_by_learner=conversations_by_learner)
 
 
@@ -105,6 +127,7 @@ def mentor_request_action(request_id, action):
             notify(item.learner_id, "relationship_created", "Learning request accepted", f"{g.current_user.full_name} accepted your request.", "relationship", relationship.id)
         else:
             item.relationship = relationship
+            ensure_conversation_for_relationship(relationship)
     db.session.commit()
     flash(f"Request {item.status.lower()}.", "success")
     return redirect(url_for("connections.mentor_requests"))
@@ -114,6 +137,8 @@ def mentor_request_action(request_id, action):
 @role_required("Learner")
 def learner_mentors():
     relationships = LearningRelationship.query.filter_by(learner_id=g.current_user.id, status="Active").order_by(LearningRelationship.started_at.desc()).all()
+    for r in relationships:
+        ensure_conversation_for_relationship(r)
     return render_template("connections/learner_mentors.html", relationships=relationships)
 
 
@@ -121,6 +146,8 @@ def learner_mentors():
 @role_required("Mentor")
 def mentor_learners():
     relationships = LearningRelationship.query.filter_by(mentor_id=g.current_user.id, status="Active").order_by(LearningRelationship.started_at.desc()).all()
+    for r in relationships:
+        ensure_conversation_for_relationship(r)
     return render_template("connections/mentor_learners.html", relationships=relationships)
 
 
@@ -128,7 +155,7 @@ def authorized_conversation(conversation_id):
     conversation = Conversation.query.get_or_404(conversation_id)
     relationship = conversation.relationship
     if g.current_user.role.name != "Admin":
-        if relationship.status != "Active" or g.current_user.id not in {relationship.learner_id, relationship.mentor_id}:
+        if not relationship or relationship.status != "Active" or g.current_user.id not in {relationship.learner_id, relationship.mentor_id}:
             abort(403)
     return conversation
 
@@ -136,7 +163,9 @@ def authorized_conversation(conversation_id):
 @connection_bp.get("/chat")
 @role_required("Learner", "Mentor")
 def chat_list():
-    relationships = LearningRelationship.query.filter(or_(LearningRelationship.learner_id == g.current_user.id, LearningRelationship.mentor_id == g.current_user.id), LearningRelationship.status == "Active").all()
+    relationships = LearningRelationship.query.filter(or_(LearningRelationship.learner_id == g.current_user.id, LearningRelationship.mentor_id == g.current_user.id), LearningRelationship.status == "Active").order_by(LearningRelationship.updated_at.desc()).all()
+    for r in relationships:
+        ensure_conversation_for_relationship(r)
     return render_template("connections/chat_list.html", relationships=relationships)
 
 
@@ -217,11 +246,7 @@ def chat_with_user(user_id):
             else:
                 flash("Send a learning request to start learning and chatting with this mentor.", "info")
             return redirect(url_for("discovery.mentor_profile", user_id=target.id))
-
-    if not relationship.conversation:
-        relationship.conversation = Conversation(relationship=relationship)
-        db.session.commit()
-
+    ensure_conversation_for_relationship(relationship)
     return redirect(url_for("connections.chat", conversation_id=relationship.conversation.id))
 
 

@@ -12,30 +12,41 @@
         <div class="col-md-6">
           <div class="soft-card p-4">
             <div class="d-flex align-items-center gap-3 mb-3">
-              <a href="{{ url_for('learner.view_profile', user_id=item.learner.id) }}" class="text-decoration-none">
-                {% if item.learner.profile_photo %}
-                  <img class="rounded-circle object-fit-cover" src="{{ url_for('static', filename='uploads/public/' + item.learner.profile_photo) }}" alt="{{ item.learner.full_name }}" style="width: 44px; height: 44px;">
-                {% else %}
-                  <div class="rounded-circle avatar-fallback d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; font-size: 1.1rem;">
-                    {{ item.learner.full_name[0]|upper }}
-                  </div>
-                {% endif %}
-              </a>
-              <div>
-                <a href="{{ url_for('learner.view_profile', user_id=item.learner.id) }}" class="h5 fw-bold mb-0 text-decoration-none text-dark d-block">
-                  {{ item.learner.full_name }}
+              {% if item.learner %}
+                <a href="{{ url_for('learner.view_profile', user_id=item.learner.id) }}" class="text-decoration-none">
+                  {% if item.learner.profile_photo %}
+                    <img class="rounded-circle object-fit-cover" src="{{ url_for('static', filename='uploads/public/' + item.learner.profile_photo) }}" alt="{{ item.learner.full_name }}" style="width: 44px; height: 44px;">
+                  {% else %}
+                    <div class="rounded-circle avatar-fallback d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; font-size: 1.1rem;">
+                      {{ item.learner.full_name[0]|upper }}
+                    </div>
+                  {% endif %}
                 </a>
-                <span class="text-primary small fw-semibold">{{ item.skill.name }}</span>
-              </div>
+                <div>
+                  <a href="{{ url_for('learner.view_profile', user_id=item.learner.id) }}" class="h5 fw-bold mb-0 text-decoration-none text-dark d-block">
+                    {{ item.learner.full_name }}
+                  </a>
+                  <span class="text-primary small fw-semibold">{{ item.skill.name if item.skill else 'Skill Learning' }}</span>
+                </div>
+              {% else %}
+                <div>
+                  <h2 class="h5 fw-bold mb-0 text-dark">Learner</h2>
+                  <span class="text-primary small fw-semibold">{{ item.skill.name if item.skill else 'Skill Learning' }}</span>
+                </div>
+              {% endif %}
             </div>
 
-            <p class="small text-secondary mb-3">Started {{ item.started_at.strftime('%Y-%m-%d') }}</p>
+            <p class="small text-secondary mb-3">Started {{ item.started_at.strftime('%Y-%m-%d') if item.started_at else 'Recently' }}</p>
 
             <div class="d-flex flex-wrap gap-2">
               <a class="btn btn-sm btn-primary" href="{{ url_for('learning.plan', relationship_id=item.id) }}">Learning plan</a>
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('learning.mentor_progress', relationship_id=item.id) }}">Update progress</a>
-              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('connections.chat', conversation_id=item.conversation.id) }}">Open chat</a>
-              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('learner.view_profile', user_id=item.learner.id) }}">View Profile</a>
+              {% if item.conversation %}
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('connections.chat', conversation_id=item.conversation.id) }}">Open chat</a>
+              {% endif %}
+              {% if item.learner %}
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('learner.view_profile', user_id=item.learner.id) }}">View Profile</a>
+              {% endif %}
             </div>
           </div>
         </div>

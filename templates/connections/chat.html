@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
-{% block title %}Chat with {% if conversation.relationship.learner_id == current_user.id %}{{ conversation.relationship.mentor.full_name }}{% else %}{{ conversation.relationship.learner.full_name }}{% endif %} · SkillSwap{% endblock %}
+{% block title %}Chat with {% if conversation.relationship and conversation.relationship.learner_id == current_user.id %}{{ conversation.relationship.mentor.full_name if conversation.relationship.mentor else 'Mentor' }}{% else %}{{ conversation.relationship.learner.full_name if conversation.relationship and conversation.relationship.learner else 'Learner' }}{% endif %} · SkillSwap{% endblock %}
 
 {% block content %}
-{% set other_user = conversation.relationship.mentor if conversation.relationship.learner_id == current_user.id else conversation.relationship.learner %}
+{% set other_user = (conversation.relationship.mentor if conversation.relationship.learner_id == current_user.id else conversation.relationship.learner) if conversation.relationship else None %}
 <section class="section py-4">
   <div class="container">
     <div class="chat-shell">
@@ -30,19 +30,23 @@
         <!-- Chat Header -->
         <header class="chat-header-bar">
           <div class="chat-header-user">
-            {% if other_user.profile_photo %}
+            {% if other_user and other_user.profile_photo %}
               <img class="chat-header-avatar" src="{{ url_for('static', filename='uploads/public/' + other_user.profile_photo) }}" alt="{{ other_user.full_name }}">
-            {% else %}
+            {% elif other_user %}
               <div class="chat-header-avatar avatar-fallback">{{ other_user.full_name[0] }}</div>
+            {% else %}
+              <div class="chat-header-avatar avatar-fallback">?</div>
             {% endif %}
             <div class="chat-header-info">
-              <h1 class="chat-header-name">{{ other_user.full_name }}</h1>
+              <h1 class="chat-header-name">{{ other_user.full_name if other_user else 'User' }}</h1>
               <div class="chat-header-subtext">
-                <span class="chat-role-pill">{{ other_user.role.name }}</span>
-                {% if conversation.relationship.skill %}
+                {% if other_user and other_user.role %}
+                  <span class="chat-role-pill">{{ other_user.role.name }}</span>
+                {% endif %}
+                {% if conversation.relationship and conversation.relationship.skill %}
                   <span class="chat-skill-tag">{{ conversation.relationship.skill.name }}</span>
                 {% endif %}
-                {% if conversation.relationship.status == 'Active' %}
+                {% if conversation.relationship and conversation.relationship.status == 'Active' %}
                   <span class="chat-status-indicator" title="Connection is active">
                     <span class="chat-status-dot"></span>Active
                   </span>
@@ -52,9 +56,9 @@
           </div>
 
           <div class="d-none d-md-flex align-items-center gap-2">
-            {% if other_user.role.name == 'Mentor' %}
+            {% if other_user and other_user.role and other_user.role.name == 'Mentor' %}
               <a href="{{ url_for('discovery.mentor_profile', user_id=other_user.id) }}" class="btn btn-sm btn-outline-secondary px-3 py-1">View Profile</a>
-            {% elif other_user.role.name == 'Learner' %}
+            {% elif other_user and other_user.role and other_user.role.name == 'Learner' %}
               <a href="{{ url_for('learner.view_profile', user_id=other_user.id) }}" class="btn btn-sm btn-outline-secondary px-3 py-1">View Profile</a>
             {% endif %}
           </div>
@@ -182,22 +186,22 @@
 {% block scripts %}
 <script>
   (function() {
-    {% set is_admin = (current_user.role.name == 'Admin' or (current_user.id != conversation.relationship.mentor_id and current_user.id != conversation.relationship.learner_id)) %}
-    {% set rel_learner = conversation.relationship.learner %}
-    {% set rel_mentor = conversation.relationship.mentor %}
-    {% set other_user = conversation.relationship.mentor if conversation.relationship.learner_id == current_user.id else conversation.relationship.learner %}
+    {% set is_admin = (current_user.role.name == 'Admin' or (conversation.relationship and (current_user.id != conversation.relationship.mentor_id and current_user.id != conversation.relationship.learner_id))) %}
+    {% set rel_learner = conversation.relationship.learner if conversation.relationship else None %}
+    {% set rel_mentor = conversation.relationship.mentor if conversation.relationship else None %}
+    {% set other_user = (conversation.relationship.mentor if conversation.relationship.learner_id == current_user.id else conversation.relationship.learner) if conversation.relationship else None %}
 
     const historyEl = document.getElementById('chatHistory');
     const uploadBase = {{ url_for('static', filename='uploads/public/')|tojson }};
-    const otherUserName = {{ other_user.full_name|tojson }};
+    const otherUserName = {{ (other_user.full_name if other_user else 'User')|tojson }};
     const currentUserId = {{ current_user.id }};
     const isAdmin = {{ is_admin|tojson }};
-    const learnerId = {{ rel_learner.id }};
-    const mentorId = {{ rel_mentor.id }};
-    const learnerName = {{ rel_learner.full_name|tojson }};
-    const mentorName = {{ rel_mentor.full_name|tojson }};
-    const learnerPhoto = {{ (rel_learner.profile_photo or '')|tojson }};
-    const mentorPhoto = {{ (rel_mentor.profile_photo or '')|tojson }};
+    const learnerId = {{ rel_learner.id if rel_learner else 'null' }};
+    const mentorId = {{ rel_mentor.id if rel_mentor else 'null' }};
+    const learnerName = {{ (rel_learner.full_name if rel_learner else '')|tojson }};
+    const mentorName = {{ (rel_mentor.full_name if rel_mentor else '')|tojson }};
+    const learnerPhoto = {{ ((rel_learner.profile_photo if rel_learner else '') or '')|tojson }};
+    const mentorPhoto = {{ ((rel_mentor.profile_photo if rel_mentor else '') or '')|tojson }};
 
     let lastRenderedCount = {{ conversation.messages|length }};
     let lastMessageId = {% if conversation.messages %}{{ conversation.messages[-1].id }}{% else %}null{% endif %};
